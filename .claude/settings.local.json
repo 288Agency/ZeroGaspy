@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx expo doctor)",
+      "Bash(npx expo install expo-haptics expo-blur)",
+      "Bash(npx expo install:*)",
+      "Bash(npx expo start:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout /t 15)",
+      "Skill(frontend-design)",
+      "Bash(copy \"c:\\\\Users\\\\Quentin\\\\Downloads\\\\Design sans titre \\(3\\).png\" \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\zerogaspylocal\\\\assets\\\\logo.png\")",
+      "Bash(cmd /c copy \"c:\\\\Users\\\\Quentin\\\\Downloads\\\\Design sans titre \\(3\\).png\" \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\zerogaspylocal\\\\assets\\\\logo.png\" /Y)",
+      "WebSearch",
+      "WebFetch(domain:apps.apple.com)"
+    ]
+  }
+}
