@@ -99,6 +99,9 @@ export default function InventoryScreen() {
       <TouchableOpacity
         className="bg-red-500 rounded-xl py-2 px-4 active:opacity-80"
         onPress={() => handleDeleteFood(item.id)}
+        accessibilityLabel={`Supprimer ${item.name}`}
+        accessibilityRole="button"
+        accessibilityHint="Double-tapez pour supprimer cet aliment"
       >
         <Text className="text-white text-sm font-bold">Supprimer</Text>
       </TouchableOpacity>
@@ -129,6 +132,8 @@ export default function InventoryScreen() {
         <TouchableOpacity
           className="bg-[#3C6E47] rounded-2xl p-4 items-center active:opacity-80"
           onPress={handleAddFood}
+          accessibilityLabel="Ajouter l'aliment à l'inventaire"
+          accessibilityRole="button"
         >
           <Text className="text-white text-base font-bold">Ajouter</Text>
         </TouchableOpacity>
