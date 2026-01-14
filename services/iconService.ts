@@ -20,7 +20,7 @@ interface FoodIconMapping {
 
 const FOOD_ICON_MAPPINGS: FoodIconMapping[] = [
   // Fruits 🍎
-  { keywords: ['pomme', 'pommes'], icon: 'apple', color: '#EF4444', category: 'fruits' },
+  { keywords: ['pomme', 'pommes'], icon: 'fitness', color: '#EF4444', category: 'fruits' },
   { keywords: ['banane', 'bananes'], icon: 'moon', color: '#FCD34D', category: 'fruits' },
   { keywords: ['orange', 'oranges', 'clémentine'], icon: 'basketball', color: '#F97316', category: 'fruits' },
   { keywords: ['fraise', 'fraises'], icon: 'heart', color: '#F43F5E', category: 'fruits' },
@@ -207,7 +207,7 @@ const LIST_ICON_MAPPINGS: ListIconMapping[] = [
 
   // Événements
   { keywords: ['fête', 'party'], icon: 'gift-outline', color: '#F472B6' },
-  { keywords: ['anniversaire'], icon: 'cake-outline', color: '#FB923C' },
+  { keywords: ['anniversaire'], icon: 'gift-outline', color: '#FB923C' },
   { keywords: ['pique-nique', 'pique nique'], icon: 'sunny-outline', color: '#84CC16' },
   { keywords: ['barbecue', 'bbq'], icon: 'flame-outline', color: '#EF4444' },
 

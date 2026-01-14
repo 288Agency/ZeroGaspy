@@ -3,7 +3,7 @@
 // Exportation des données en JSON/CSV
 // ============================================
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform, Alert } from 'react-native';
 import { loadLists } from '../utils/localStorage';
@@ -204,6 +204,10 @@ export async function shareExportFile(fileUri: string): Promise<void> {
     logger.info('Fichier partagé avec succès');
   } catch (error: any) {
     logger.error('Erreur lors du partage:', error.message);
+    // Re-lancer l'erreur originale si c'est un message d'erreur connu
+    if (error.message === 'Le partage de fichiers n\'est pas disponible sur cet appareil') {
+      throw error;
+    }
     throw new Error('Impossible de partager le fichier');
   }
 }
