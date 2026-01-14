@@ -22,6 +22,12 @@ import {
   requestNotificationPermissions,
   NotificationSettings,
 } from '../services/notificationService';
+import {
+  exportAndShareJSON,
+  exportAndShareCSV,
+  getExportStats,
+  cleanupOldExports,
+} from '../services/exportService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -35,15 +41,23 @@ export default function AccountScreen() {
     dailyReminderTime: '09:00',
     daysBeforeExpiration: 3,
   });
+  const [exportStats, setExportStats] = useState<{
+    totalLists: number;
+    totalItems: number;
+    estimatedSize: string;
+  } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadData = async () => {
     try {
-      const [listsData, settings] = await Promise.all([
+      const [listsData, settings, stats] = await Promise.all([
         loadLists(),
         loadNotificationSettings(),
+        getExportStats(),
       ]);
       setLists(listsData);
       setNotificationSettings(settings);
+      setExportStats(stats);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
     }
@@ -91,6 +105,38 @@ export default function AccountScreen() {
     const newSettings = { ...notificationSettings, daysBeforeExpiration: days };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
+  };
+
+  const handleExportJSON = async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    try {
+      await exportAndShareJSON();
+      Alert.alert('Export réussi', 'Vos données ont été exportées au format JSON.');
+      // Nettoyer les anciens exports
+      await cleanupOldExports();
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible d\'exporter vos données. Veuillez réessayer.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    try {
+      await exportAndShareCSV();
+      Alert.alert('Export réussi', 'Vos données ont été exportées au format CSV (compatible Excel).');
+      // Nettoyer les anciens exports
+      await cleanupOldExports();
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible d\'exporter vos données. Veuillez réessayer.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Fonction pour calculer les jours jusqu'à expiration
@@ -367,12 +413,87 @@ export default function AccountScreen() {
           />
         </View>
 
+        {/* Section Export des données */}
+        <View className="mb-6">
+          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
+            💾 Export des données
+          </Text>
+
+          {exportStats && (
+            <View className="bg-white rounded-2xl p-4 mb-3 border border-[#3C6E47]/20">
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-[#6A8A6E] text-sm">Listes</Text>
+                <Text className="text-[#3C6E47] font-semibold">{exportStats.totalLists}</Text>
+              </View>
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-[#6A8A6E] text-sm">Aliments</Text>
+                <Text className="text-[#3C6E47] font-semibold">{exportStats.totalItems}</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-[#6A8A6E] text-sm">Taille estimée</Text>
+                <Text className="text-[#3C6E47] font-semibold">{exportStats.estimatedSize}</Text>
+              </View>
+            </View>
+          )}
+
+          <View className="flex-row gap-3 mb-3">
+            <PressableScale
+              onPress={handleExportJSON}
+              className="flex-1 bg-[#3C6E47] rounded-2xl p-4 border border-[#3C6E47]"
+              hapticType="medium"
+              disabled={isExporting}
+            >
+              <View className="items-center">
+                <Ionicons
+                  name="code-download-outline"
+                  size={28}
+                  color={isExporting ? "#A3C9A8" : "#FFFFFF"}
+                />
+                <Text className={`font-semibold text-base mt-2 ${isExporting ? 'text-[#A3C9A8]' : 'text-white'}`}>
+                  Export JSON
+                </Text>
+                <Text className={`text-xs mt-1 ${isExporting ? 'text-[#A3C9A8]' : 'text-white'} opacity-80`}>
+                  Format technique
+                </Text>
+              </View>
+            </PressableScale>
+
+            <PressableScale
+              onPress={handleExportCSV}
+              className="flex-1 bg-white rounded-2xl p-4 border border-[#3C6E47]"
+              hapticType="medium"
+              disabled={isExporting}
+            >
+              <View className="items-center">
+                <Ionicons
+                  name="document-text-outline"
+                  size={28}
+                  color={isExporting ? "#A3C9A8" : "#3C6E47"}
+                />
+                <Text className={`font-semibold text-base mt-2 ${isExporting ? 'text-[#A3C9A8]' : 'text-[#3C6E47]'}`}>
+                  Export CSV
+                </Text>
+                <Text className="text-[#6A8A6E] text-xs mt-1">
+                  Excel compatible
+                </Text>
+              </View>
+            </PressableScale>
+          </View>
+
+          <View className="bg-[#FFF3E0] rounded-xl p-3 flex-row items-start">
+            <Ionicons name="information-circle-outline" size={20} color="#E85D04" />
+            <Text className="text-[#E85D04] text-xs ml-2 flex-1">
+              Vos données restent privées. L'export crée un fichier sur votre appareil que vous pouvez sauvegarder.
+            </Text>
+          </View>
+        </View>
+
         {/* Section Aide & Support */}
         <View className="mb-6">
           <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
             💬 Aide & Support
           </Text>
-          
+
           <TouchableOpacity
             onPress={() => setFeedbackModalVisible(true)}
             className="bg-[#A3C9A8] rounded-2xl p-4 border border-[#3C6E47] flex-row items-center justify-between"
