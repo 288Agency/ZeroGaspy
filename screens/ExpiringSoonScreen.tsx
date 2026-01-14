@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -78,6 +79,11 @@ export default function ExpiringSoonScreen() {
       setExpiringItems(items);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger les aliments à expiration proche. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }

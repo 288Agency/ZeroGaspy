@@ -30,6 +30,11 @@ export default function InventoryScreen() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'inventaire:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger l\'inventaire. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

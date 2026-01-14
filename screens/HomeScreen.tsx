@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -177,6 +178,11 @@ export default function HomeScreen() {
       setLists(data);
     } catch (error) {
       console.error('Erreur lors du chargement des listes:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger vos listes. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

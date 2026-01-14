@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -45,6 +46,11 @@ export default function ThrownFoodsScreen() {
       setThrownItems(items);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger les aliments jetés. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }

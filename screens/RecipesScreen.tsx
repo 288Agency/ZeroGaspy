@@ -349,6 +349,11 @@ export default function RecipesScreen() {
       setRecipeMatches(matches);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger les recettes. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

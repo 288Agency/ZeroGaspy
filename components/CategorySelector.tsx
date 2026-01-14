@@ -54,6 +54,11 @@ export default function CategorySelector({
       }
     } catch (error) {
       console.error('Erreur lors du chargement des catégories:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger vos catégories personnalisées.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -63,6 +68,11 @@ export default function CategorySelector({
       setCustomCategories(categories);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des catégories:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de sauvegarder la catégorie.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
