@@ -33,6 +33,7 @@ import ReceiptReviewModal from '../components/ReceiptReviewModal';
 import { ReceiptScanResult, ReceiptItem } from '../services/receiptScannerService';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, EXPIRATION_COLORS } from '../utils/designSystem';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
+import { getFoodIcon } from '../services/iconService';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
@@ -233,8 +234,19 @@ function FoodItemCard({
           </PressableScale>
         )}
 
-        {/* Status dot */}
-        <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+        {/* Food icon with expiration status color */}
+        {(() => {
+          const foodIconData = getFoodIcon(item.name);
+          return (
+            <View style={[styles.foodIconContainer, { backgroundColor: hexToRgba(dotColor, 0.15) }]}>
+              <Ionicons
+                name={foodIconData.icon}
+                size={22}
+                color={dotColor}
+              />
+            </View>
+          );
+        })()}
 
         {/* Food info */}
         <View style={styles.foodInfo}>
@@ -959,7 +971,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Status dot
+  // Food icon container
+  foodIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  // Status dot (kept for reference, but replaced by icon)
   statusDot: {
     width: 12,
     height: 12,

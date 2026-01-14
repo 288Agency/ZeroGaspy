@@ -12,6 +12,7 @@ import AnimatedListItem from './AnimatedListItem';
 import EditListModal from './EditListModal';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, getContrastText } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
+import { getListIcon } from '../services/iconService';
 
 interface SpacesGridProps {
   lists: List[];
@@ -77,17 +78,6 @@ function EmptyStateIllustration() {
       </Svg>
     </Animated.View>
   );
-}
-
-// Icon for space card based on title
-function getSpaceIcon(title: string): keyof typeof Ionicons.glyphMap {
-  const lowerTitle = title.toLowerCase();
-  if (lowerTitle.includes('frigo') || lowerTitle.includes('réfrigérateur')) return 'snow-outline';
-  if (lowerTitle.includes('congél') || lowerTitle.includes('freezer')) return 'thermometer-outline';
-  if (lowerTitle.includes('placard') || lowerTitle.includes('armoire')) return 'cube-outline';
-  if (lowerTitle.includes('cave')) return 'wine-outline';
-  if (lowerTitle.includes('épicerie') || lowerTitle.includes('courses')) return 'cart-outline';
-  return 'folder-outline';
 }
 
 export default function SpacesGrid({ lists, onCreateList, onListDeleted }: SpacesGridProps) {
@@ -183,7 +173,8 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
           {lists.map((list, index) => {
             const activeCount = getActiveItemsCount(list);
             const listColor = list.color || COLORS.primary[500];
-            const icon = getSpaceIcon(list.title);
+            const listIconData = getListIcon(list.title);
+            const icon = listIconData.icon;
 
             return (
               <AnimatedListItem
