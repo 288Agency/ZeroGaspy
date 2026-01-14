@@ -214,6 +214,16 @@ export default function HomeScreen() {
       {/* Header buttons */}
       <Animated.View style={[styles.headerButtons, { opacity: headerFade }]}>
         <PressableScale
+          onPress={() => navigation.navigate('Stats')}
+          style={styles.headerButton}
+          hapticType="light"
+          accessibilityLabel="Mes économies"
+          accessibilityRole="button"
+        >
+          <Ionicons name="stats-chart-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
+        </PressableScale>
+
+        <PressableScale
           onPress={() => navigation.navigate('Recipes')}
           style={styles.headerButton}
           hapticType="light"

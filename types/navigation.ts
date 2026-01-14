@@ -8,5 +8,6 @@ export type RootStackParamList = {
   ExpiringSoon: undefined;
   ThrownFoods: undefined;
   Recipes: undefined;
+  Stats: undefined;
 };
 

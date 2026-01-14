@@ -9,6 +9,8 @@ export interface FoodItem {
   isOpened?: boolean;
   openedDate?: string;
   daysAfterOpening?: number;
+  price?: number; // Prix estimé en euros (pour calcul économies)
+  consumedAt?: string; // Date de consommation/jet (ISO)
 }
 
 export interface List {
@@ -34,4 +36,53 @@ export const LIST_COLORS = [
 ] as const;
 
 export type Inventory = FoodItem[];
+
+// ============================================
+// STATISTIQUES UTILISATEUR
+// ============================================
+
+export interface UserStats {
+  // Économies
+  totalSaved: number;           // € économisés (aliments consommés)
+  totalWasted: number;          // € gaspillés (aliments jetés)
+  netSavings: number;           // totalSaved - totalWasted
+
+  // Impact environnemental
+  foodSavedKg: number;          // kg de nourriture sauvée
+  foodWastedKg: number;         // kg de nourriture jetée
+  co2AvoidedKg: number;         // kg CO2 évités
+
+  // Activité
+  itemsConsumed: number;        // Nombre d'aliments consommés
+  itemsThrown: number;          // Nombre d'aliments jetés
+  itemsActive: number;          // Nombre d'aliments actuellement suivis
+  recipesUsed: number;          // Nombre de recettes utilisées (à implémenter plus tard)
+
+  // Séries
+  currentStreak: number;        // Jours consécutifs sans gaspillage
+  longestStreak: number;        // Record de jours sans gaspillage
+  lastActivityDate?: string;    // Date de dernière activité (ISO)
+
+  // Période
+  periodStart: string;          // Date de début de tracking (ISO)
+  periodEnd: string;            // Date de fin (pour stats périodiques, ISO)
+}
+
+export interface DailyStats {
+  date: string;                 // Date (YYYY-MM-DD)
+  saved: number;                // € économisés ce jour
+  wasted: number;               // € gaspillés ce jour
+  itemsConsumed: number;
+  itemsThrown: number;
+}
+
+export interface MonthlyStats {
+  month: string;                // Format YYYY-MM
+  saved: number;
+  wasted: number;
+  itemsConsumed: number;
+  itemsThrown: number;
+  co2Avoided: number;
+  foodSavedKg: number;
+}
 
