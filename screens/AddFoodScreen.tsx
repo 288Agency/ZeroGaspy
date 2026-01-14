@@ -63,7 +63,7 @@ export default function AddFoodScreen() {
   const formSlide = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(formFade, {
         toValue: 1,
         duration: 400,
@@ -75,7 +75,12 @@ export default function AddFoodScreen() {
         friction: 8,
         tension: 40,
       }),
-    ]).start();
+    ]);
+
+    animation.start();
+
+    // Cleanup: Stop animation if component unmounts
+    return () => animation.stop();
   }, []);
 
   const handleAddFood = async () => {

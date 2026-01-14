@@ -27,7 +27,7 @@ export default function AnimatedListItem({
   useEffect(() => {
     const delay = index * staggerDelay;
 
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
@@ -48,7 +48,12 @@ export default function AnimatedListItem({
         speed: 12,
         bounciness: 6,
       }),
-    ]).start();
+    ]);
+
+    animation.start();
+
+    // Cleanup: Stop animation if component unmounts
+    return () => animation.stop();
   }, [index]);
 
   const getTransform = () => {
