@@ -8,6 +8,10 @@ import { FoodItem } from '../types';
 
 const USER_RECIPES_KEY = 'user_recipes';
 
+// Seuil minimum de correspondance pour suggérer une recette (en %)
+// 50% = L'utilisateur doit avoir au moins la moitié des ingrédients
+const MIN_MATCH_THRESHOLD = 50;
+
 export interface Recipe {
   id: string;
   name: string;
@@ -417,6 +421,10 @@ const INGREDIENT_SYNONYMS: Record<string, string[]> = {
   'pomme': ['pommes'],
   'fraise': ['fraises'],
   'orange': ['oranges'],
+  'yaourt': ['yaourts', 'yogurt', 'yoghurt', 'yogourt', 'yogourts'],
+  'sucre': ['sucres', 'sugar'],
+  'beurre': ['beurres', 'butter', 'beurre doux', 'beurre salé'],
+  'farine': ['farines', 'flour', 'farine de blé'],
 };
 
 /**
@@ -431,14 +439,37 @@ function normalizeIngredient(name: string): string {
 }
 
 /**
+ * Vérifie si un mot est présent comme mot complet (avec des limites de mots)
+ * Cela évite les faux positifs comme "yaourt au sucre" qui contient "sucre"
+ */
+function containsAsWholeWord(text: string, word: string): boolean {
+  // Crée une regex avec word boundaries pour matcher uniquement les mots complets
+  // \b assure que le mot est entouré de limites (espaces, début/fin de chaîne, ponctuation)
+  const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  return regex.test(text);
+}
+
+/**
  * Vérifie si un aliment correspond à un ingrédient de recette
  */
 function ingredientMatches(foodName: string, recipeIngredient: string): boolean {
   const normalizedFood = normalizeIngredient(foodName);
   const normalizedIngredient = normalizeIngredient(recipeIngredient);
 
-  // Correspondance directe
-  if (normalizedFood.includes(normalizedIngredient) || normalizedIngredient.includes(normalizedFood)) {
+  // Correspondance exacte (match complet)
+  if (normalizedFood === normalizedIngredient) {
+    return true;
+  }
+
+  // Correspondance avec word boundaries (évite "yaourt au sucre" -> "sucre")
+  // On vérifie que l'ingrédient est un mot complet dans le nom de l'aliment
+  if (containsAsWholeWord(normalizedFood, normalizedIngredient)) {
+    return true;
+  }
+
+  // Vérifier si le nom de l'aliment est un mot complet dans l'ingrédient de la recette
+  // (ex: "poulet" dans "blanc de poulet")
+  if (containsAsWholeWord(normalizedIngredient, normalizedFood)) {
     return true;
   }
 
@@ -447,12 +478,21 @@ function ingredientMatches(foodName: string, recipeIngredient: string): boolean 
     const normalizedKey = normalizeIngredient(key);
     const normalizedSynonyms = synonyms.map(normalizeIngredient);
 
+    // L'ingrédient de la recette correspond-il à la clé ou à un synonyme ?
     const isIngredientMatch = normalizedIngredient === normalizedKey || normalizedSynonyms.includes(normalizedIngredient);
-    const isFoodMatch = normalizedFood === normalizedKey || normalizedSynonyms.includes(normalizedFood) ||
-                        normalizedFood.includes(normalizedKey) || normalizedSynonyms.some(s => normalizedFood.includes(s));
 
-    if (isIngredientMatch && isFoodMatch) {
-      return true;
+    if (isIngredientMatch) {
+      // L'aliment de l'utilisateur correspond-il à la même famille ?
+      // Match exact ou mot complet seulement
+      const isFoodMatch =
+        normalizedFood === normalizedKey ||
+        normalizedSynonyms.includes(normalizedFood) ||
+        containsAsWholeWord(normalizedFood, normalizedKey) ||
+        normalizedSynonyms.some(s => containsAsWholeWord(normalizedFood, s));
+
+      if (isFoodMatch) {
+        return true;
+      }
     }
   }
 
@@ -486,8 +526,8 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins 30% de correspondance
-    if (matchPercentage >= 30) {
+    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
+    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
       matches.push({
         recipe,
         matchingIngredients,
@@ -644,8 +684,8 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins 30% de correspondance
-    if (matchPercentage >= 30) {
+    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
+    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
       matches.push({
         recipe,
         matchingIngredients,

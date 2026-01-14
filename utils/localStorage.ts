@@ -148,7 +148,14 @@ export async function updateItemStatus(
   status: 'active' | 'consumed' | 'thrown'
 ): Promise<void> {
   const { lists, listIndex, itemIndex } = await findListAndItem(listId, itemId);
-  lists[listIndex].items[itemIndex!].status = status;
+  const item = lists[listIndex].items[itemIndex!];
+  item.status = status;
+
+  // Ajouter timestamp quand l'item est consommé ou jeté (pour calcul économies)
+  if (status === 'consumed' || status === 'thrown') {
+    item.consumedAt = new Date().toISOString();
+  }
+
   await saveLists(lists);
 }
 
@@ -178,9 +185,11 @@ export async function updateItemStatusWithQuantity(
   const { lists, listIndex, itemIndex } = await findListAndItem(listId, itemId);
   const item = lists[listIndex].items[itemIndex!];
   const currentQuantity = item.quantity || 1;
+  const timestamp = new Date().toISOString();
 
   if (quantityToMark >= currentQuantity) {
     item.status = status;
+    item.consumedAt = timestamp;
   } else {
     item.quantity = currentQuantity - quantityToMark;
     lists[listIndex].items.push({
@@ -188,6 +197,7 @@ export async function updateItemStatusWithQuantity(
       id: `${item.id}-${status}-${Date.now()}`,
       quantity: quantityToMark,
       status,
+      consumedAt: timestamp,
     });
   }
 

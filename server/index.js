@@ -15,9 +15,84 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const RECIPIENT_EMAIL = process.env.FEEDBACK_RECIPIENT_EMAIL || 'feedback@zerogaspy.com';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ZeroGaspy <onboarding@resend.dev>';
 
-// Middleware
-app.use(cors()); // Autoriser les requêtes depuis l'app mobile
+// Liste des origines autorisées
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : [
+      'exp://localhost:8081',
+      'exp://192.168.*:8081',
+      'https://zerogaspy.com',
+      'https://*.zerogaspy.com',
+    ];
+
+// Middleware CORS sécurisé
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Autoriser les requêtes sans origin (app mobile native)
+      if (!origin) return callback(null, true);
+
+      // Vérifier si l'origine est autorisée
+      const isAllowed = ALLOWED_ORIGINS.some((allowed) => {
+        if (allowed.includes('*')) {
+          const regex = new RegExp(allowed.replace(/\*/g, '.*'));
+          return regex.test(origin);
+        }
+        return allowed === origin;
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        console.warn(`Origin non autorisée: ${origin}`);
+        callback(new Error('Non autorisé par CORS'));
+      }
+    },
+    methods: ['POST', 'GET'],
+    credentials: true,
+    maxAge: 86400, // 24h de cache pour les preflight
+  })
+);
+
 app.use(express.json({ limit: '20mb' })); // Limite pour les images en base64
+
+// Rate limiting simple (en mémoire)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_REQUESTS = 5; // Maximum 5 feedbacks par 15min par IP
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const userRequests = rateLimitMap.get(ip) || [];
+
+  // Nettoyer les anciennes requêtes
+  const recentRequests = userRequests.filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW
+  );
+
+  if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  recentRequests.push(now);
+  rateLimitMap.set(ip, recentRequests);
+  return true;
+}
+
+// Nettoyer la map régulièrement
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimitMap.entries()) {
+    const recentRequests = timestamps.filter(
+      (timestamp) => now - timestamp < RATE_LIMIT_WINDOW
+    );
+    if (recentRequests.length === 0) {
+      rateLimitMap.delete(ip);
+    } else {
+      rateLimitMap.set(ip, recentRequests);
+    }
+  }
+}, 60000); // Nettoyer toutes les minutes
 
 // Validation des données
 function validateFeedback(data) {
@@ -182,12 +257,21 @@ app.get('/', (req, res) => {
 // Route pour envoyer le feedback
 app.post('/api/feedback', async (req, res) => {
   try {
+    // Rate limiting
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+      return res.status(429).json({
+        success: false,
+        error: 'Trop de requêtes. Veuillez réessayer dans 15 minutes.',
+      });
+    }
+
     // Vérifier que la clé API est configurée
     if (!process.env.RESEND_API_KEY) {
       console.error('RESEND_API_KEY is not configured');
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
-        error: 'Server configuration error' 
+        error: 'Server configuration error'
       });
     }
 

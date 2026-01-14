@@ -8,6 +8,7 @@ import AccountScreen from '../screens/AccountScreen';
 import ExpiringSoonScreen from '../screens/ExpiringSoonScreen';
 import ThrownFoodsScreen from '../screens/ThrownFoodsScreen';
 import RecipesScreen from '../screens/RecipesScreen';
+import StatsScreen from '../screens/StatsScreen';
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -93,6 +94,13 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Recipes"
         component={RecipesScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="Stats"
+        component={StatsScreen}
         options={{
           headerShown: false,
         }}
