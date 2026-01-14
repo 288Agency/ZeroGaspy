@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import AppNavigator from './navigation/AppNavigator';
 import OnboardingScreen, { ONBOARDING_KEY } from './screens/OnboardingScreen';
 import SplashScreen from './components/SplashScreen';
+import ErrorBoundary from './components/ErrorBoundary';
 import {
   checkAndScheduleNotifications,
   addNotificationReceivedListener,
@@ -68,26 +69,28 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <>
+      <ErrorBoundary>
         <SplashScreen />
         <StatusBar style="dark" />
-      </>
+      </ErrorBoundary>
     );
   }
 
   if (showOnboarding) {
     return (
-      <>
+      <ErrorBoundary>
         <OnboardingScreen onComplete={handleOnboardingComplete} />
         <StatusBar style="dark" />
-      </>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <NavigationContainer>
-      <AppNavigator />
-      <StatusBar style="auto" />
-    </NavigationContainer>
+    <ErrorBoundary>
+      <NavigationContainer>
+        <AppNavigator />
+        <StatusBar style="auto" />
+      </NavigationContainer>
+    </ErrorBoundary>
   );
 }

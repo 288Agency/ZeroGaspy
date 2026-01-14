@@ -8,6 +8,10 @@ import { FoodItem } from '../types';
 
 const USER_RECIPES_KEY = 'user_recipes';
 
+// Seuil minimum de correspondance pour suggérer une recette (en %)
+// 50% = L'utilisateur doit avoir au moins la moitié des ingrédients
+const MIN_MATCH_THRESHOLD = 50;
+
 export interface Recipe {
   id: string;
   name: string;
@@ -522,8 +526,8 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins 30% de correspondance
-    if (matchPercentage >= 30) {
+    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
+    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
       matches.push({
         recipe,
         matchingIngredients,
@@ -680,8 +684,8 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins 30% de correspondance
-    if (matchPercentage >= 30) {
+    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
+    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
       matches.push({
         recipe,
         matchingIngredients,
