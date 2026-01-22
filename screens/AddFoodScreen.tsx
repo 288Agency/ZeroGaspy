@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import Svg, { Path, Circle, G } from 'react-native-svg';
 import { RootStackParamList } from '../types/navigation';
-import { addItemToList } from '../utils/localStorage';
+import { addItemToList, updateItem } from '../utils/localStorage';
 import Header from '../components/Header';
 import ImagePickerButton from '../components/ImagePickerButton';
 import FieldInput from '../components/FieldInput';
@@ -45,16 +45,19 @@ function BackgroundDecoration() {
 export default function AddFoodScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
-  const { listId } = route.params;
+  const { listId, editItem } = route.params;
 
-  const [foodName, setFoodName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [category, setCategory] = useState('');
-  const [expirationDate, setExpirationDate] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [isOpened, setIsOpened] = useState(false);
-  const [openedDate, setOpenedDate] = useState('');
-  const [daysAfterOpening, setDaysAfterOpening] = useState('');
+  const isEditMode = !!editItem;
+
+  const [foodName, setFoodName] = useState(editItem?.name || '');
+  const [quantity, setQuantity] = useState(editItem?.quantity?.toString() || '');
+  const [category, setCategory] = useState(editItem?.category || '');
+  const [expirationDate, setExpirationDate] = useState(editItem?.expirationDate || '');
+  const [imageUri, setImageUri] = useState<string | null>(editItem?.imageUri || null);
+  const [isOpened, setIsOpened] = useState(editItem?.isOpened || false);
+  const [openedDate, setOpenedDate] = useState(editItem?.openedDate || '');
+  const [daysAfterOpening, setDaysAfterOpening] = useState(editItem?.daysAfterOpening?.toString() || '');
+  const [price, setPrice] = useState(editItem?.price?.toString() || '');
   const [isAdding, setIsAdding] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
 
@@ -101,24 +104,32 @@ export default function AddFoodScreen() {
 
     setIsAdding(true);
     try {
-      const newItem = {
-        id: Date.now().toString(),
+      const itemData = {
         name: foodName.trim(),
         expirationDate: finalExpirationDate || '',
         quantity: quantity.trim() ? parseInt(quantity, 10) : undefined,
         category: category.trim() || undefined,
         imageUri: imageUri || undefined,
-        status: 'active' as const,
         isOpened: isOpened || undefined,
         openedDate: isOpened && openedDate.trim() ? openedDate.trim() : undefined,
         daysAfterOpening: isOpened && daysAfterOpening.trim() ? parseInt(daysAfterOpening, 10) : undefined,
+        price: price.trim() ? parseFloat(price.replace(',', '.')) : undefined,
       };
 
-      await addItemToList(listId, newItem);
+      if (isEditMode && editItem) {
+        await updateItem(listId, editItem.id, itemData);
+      } else {
+        const newItem = {
+          id: Date.now().toString(),
+          ...itemData,
+          status: 'active' as const,
+        };
+        await addItemToList(listId, newItem);
+      }
       navigation.goBack();
     } catch (error) {
       console.error('Erreur lors de l\'ajout:', error);
-      Alert.alert('Erreur', 'Impossible d\'ajouter l\'aliment');
+      Alert.alert('Erreur', isEditMode ? 'Impossible de modifier l\'aliment' : 'Impossible d\'ajouter l\'aliment');
     } finally {
       setIsAdding(false);
     }
@@ -231,7 +242,7 @@ export default function AddFoodScreen() {
   return (
     <View style={styles.container}>
       <BackgroundDecoration />
-      <Header title="Ajouter un aliment" showIcon={false} />
+      <Header title={isEditMode ? "Modifier l'aliment" : "Ajouter un aliment"} showIcon={false} />
 
       <ScrollView
         style={styles.scrollView}
@@ -254,6 +265,11 @@ export default function AddFoodScreen() {
             />
           </View>
 
+          {/* Barcode section */}
+          <View style={styles.barcodeSection}>
+            <BarcodeButton onPress={handleBarcodeScan} />
+          </View>
+
           {/* Form section */}
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Informations</Text>
@@ -264,7 +280,6 @@ export default function AddFoodScreen() {
               onChangeText={setFoodName}
               placeholder="Ex: Tomates cerises"
               icon="restaurant-outline"
-              autoFocus
             />
 
             <FieldInput
@@ -274,6 +289,16 @@ export default function AddFoodScreen() {
               placeholder="Ex: 2"
               icon="layers-outline"
               keyboardType="numeric"
+            />
+
+            <FieldInput
+              label="Prix total (€)"
+              value={price}
+              onChangeText={setPrice}
+              placeholder="Ex: 4,50"
+              icon="cash-outline"
+              keyboardType="decimal-pad"
+              hint="Prix pour la quantité totale (comme sur le ticket)"
             />
 
             <CategorySelector
@@ -344,11 +369,6 @@ export default function AddFoodScreen() {
             )}
           </View>
 
-          {/* Barcode section */}
-          <View style={styles.barcodeSection}>
-            <BarcodeButton onPress={handleBarcodeScan} />
-          </View>
-
           {/* Submit button */}
           <View style={styles.submitSection}>
             <PressableScale
@@ -362,11 +382,11 @@ export default function AddFoodScreen() {
               activeScale={0.97}
             >
               {isAdding ? (
-                <Text style={styles.submitButtonText}>Ajout en cours...</Text>
+                <Text style={styles.submitButtonText}>{isEditMode ? 'Modification en cours...' : 'Ajout en cours...'}</Text>
               ) : (
                 <>
                   <Ionicons
-                    name="add-circle"
+                    name={isEditMode ? "checkmark-circle" : "add-circle"}
                     size={22}
                     color={isFormValid ? COLORS.neutral.white : COLORS.text.muted}
                   />
@@ -376,7 +396,7 @@ export default function AddFoodScreen() {
                       !isFormValid && styles.submitButtonTextDisabled,
                     ]}
                   >
-                    Ajouter l'aliment
+                    {isEditMode ? "Enregistrer" : "Ajouter l'aliment"}
                   </Text>
                 </>
               )}

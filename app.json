@@ -2,7 +2,7 @@
   "expo": {
     "name": "ZeroGaspy",
     "slug": "ZeroGaspyLocal",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -48,6 +48,7 @@
     "web": {
       "favicon": "./assets/logo.png"
     },
+    "scheme": "zerogaspy",
     "plugins": [
       [
         "expo-notifications",
@@ -57,7 +58,9 @@
           "sounds": []
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

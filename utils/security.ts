@@ -57,20 +57,38 @@ export function validateFoodName(name: string): { valid: boolean; error?: string
 }
 
 /**
- * Valide un email
+ * Valide un email (RFC 5322 simplifié)
  */
 export function validateEmail(email: string): { valid: boolean; error?: string } {
   const sanitized = sanitizeString(email, 254);
-  
+
   if (!sanitized) {
     return { valid: false, error: 'L\'email est requis' };
   }
-  
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Validation plus stricte conforme RFC 5322 (simplifiée)
+  // - Partie locale: lettres, chiffres, points, tirets, underscores, plus
+  // - Domaine: lettres, chiffres, tirets, points
+  // - TLD: minimum 2 caractères alphabétiques
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+
   if (!emailRegex.test(sanitized)) {
     return { valid: false, error: 'Format d\'email invalide' };
   }
-  
+
+  // Vérifications supplémentaires
+  const [localPart, domain] = sanitized.split('@');
+
+  // Partie locale ne doit pas commencer/finir par un point
+  if (localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
+    return { valid: false, error: 'Format d\'email invalide' };
+  }
+
+  // Longueur maximale des parties
+  if (localPart.length > 64 || domain.length > 253) {
+    return { valid: false, error: 'Email trop long' };
+  }
+
   return { valid: true };
 }
 

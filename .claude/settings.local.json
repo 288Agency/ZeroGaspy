@@ -13,7 +13,22 @@
       "Bash(copy \"c:\\\\Users\\\\Quentin\\\\Downloads\\\\Design sans titre \\(3\\).png\" \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\zerogaspylocal\\\\assets\\\\logo.png\")",
       "Bash(cmd /c copy \"c:\\\\Users\\\\Quentin\\\\Downloads\\\\Design sans titre \\(3\\).png\" \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\zerogaspylocal\\\\assets\\\\logo.png\" /Y)",
       "WebSearch",
-      "WebFetch(domain:apps.apple.com)"
+      "WebFetch(domain:apps.apple.com)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\Quentin\\\\Pictures\\\\*.png\")",
+      "Bash(cmd /c copy \"c:\\\\Users\\\\Quentin\\\\Downloads\\\\Mascotte Poubelle.png\" \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\ZeroGaspyLocal\\\\assets\\\\mascot-waste.png\")",
+      "Bash(cmd /c dir \"C:\\\\Users\\\\Quentin\\\\Application\\\\Zerogaspy\\\\ZeroGaspyLocal\\\\assets\\\\mascot-waste.png\")",
+      "Bash(npm audit:*)",
+      "Bash(eas secret:list:*)",
+      "Bash(eas build:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(eas build:list:*)",
+      "Bash(eas submit:*)",
+      "Bash(eas credentials --platform ios)",
+      "Bash(eas secret:create:*)",
+      "Bash(eas env:create:*)",
+      "Bash(git add:*)"
     ]
   }
 }

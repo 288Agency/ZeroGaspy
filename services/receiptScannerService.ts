@@ -6,6 +6,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { sanitizeString } from '../utils/security';
+import { withRateLimit, RateLimitError } from '../utils/rateLimiter';
 import logger from '../utils/logger';
 
 // Configuration
@@ -114,6 +115,25 @@ const IGNORE_KEYWORDS = [
   'www.',
   'http',
   '@',
+  // Rayons/catégories de magasins
+  'liquides',
+  'epicerie',
+  'épicerie',
+  'cremerie',
+  'crémerie',
+  'boucherie',
+  'charcuterie',
+  'poissonnerie',
+  'boulangerie',
+  'patisserie',
+  'pâtisserie',
+  'surgeles',
+  'surgelés',
+  'frais',
+  'fruits et legumes',
+  'fruits et légumes',
+  'rayon',
+  'l.s.',
 ];
 
 // Enseignes connues (pour détecter le nom du magasin)
@@ -130,12 +150,20 @@ const KNOWN_STORES = [
   'casino',
   'super u',
   'hyper u',
+  'systeme u',
+  'système u',
+  'u express',
+  'marché u',
   'match',
   'cora',
   'picard',
   'biocoop',
   'naturalia',
   'day by day',
+  'grand frais',
+  'auchan',
+  'géant',
+  'geant',
 ];
 
 // Catégories automatiques basées sur les mots-clés
@@ -151,18 +179,69 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'surgelés': ['surgelé', 'surgele', 'glace', 'frozen', 'congelé', 'congele'],
 };
 
+// Extensions d'images autorisées
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB max
+
+/**
+ * Valide l'URI d'une image
+ */
+function validateImageUri(uri: string): { valid: boolean; error?: string } {
+  if (!uri || typeof uri !== 'string') {
+    return { valid: false, error: 'URI d\'image invalide' };
+  }
+
+  // Vérifier la longueur de l'URI (protection contre les attaques)
+  if (uri.length > 2000) {
+    return { valid: false, error: 'URI d\'image trop longue' };
+  }
+
+  // Vérifier les protocoles autorisés
+  const allowedProtocols = ['file://', 'content://', 'ph://', 'assets-library://', 'http://', 'https://'];
+  const hasValidProtocol = allowedProtocols.some(protocol => uri.toLowerCase().startsWith(protocol));
+
+  if (!hasValidProtocol && !uri.startsWith('/')) {
+    return { valid: false, error: 'Protocole d\'image non autorisé' };
+  }
+
+  // Vérifier l'extension si visible dans l'URI
+  const uriLower = uri.toLowerCase();
+  const hasExtension = ALLOWED_IMAGE_EXTENSIONS.some(ext => uriLower.includes(ext));
+  // Note: Certaines URIs (content://, ph://) n'ont pas d'extension visible, on les autorise quand même
+
+  return { valid: true };
+}
+
 /**
  * Convertit une image en base64
  */
 async function imageToBase64(imageUri: string): Promise<string> {
   try {
+    // Valider l'URI
+    const validation = validateImageUri(imageUri);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Image invalide');
+    }
+
     let localUri = imageUri;
 
     // Si c'est deja une URL http, on telecharge d'abord
     if (imageUri.startsWith('http')) {
+      // Vérifier que c'est HTTPS pour les URLs externes (sauf localhost)
+      if (imageUri.startsWith('http://') && !imageUri.includes('localhost') && !imageUri.includes('127.0.0.1')) {
+        logger.warn('URL HTTP non sécurisée détectée, conversion en HTTPS');
+        imageUri = imageUri.replace('http://', 'https://');
+      }
+
       const destUri = FileSystem.cacheDirectory + 'receipt_temp.jpg';
       const downloadResult = await FileSystem.downloadAsync(imageUri, destUri);
       localUri = downloadResult.uri;
+    }
+
+    // Vérifier la taille du fichier avant lecture
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    if (fileInfo.exists && 'size' in fileInfo && fileInfo.size > MAX_IMAGE_SIZE) {
+      throw new Error('Image trop volumineuse (max 10 MB)');
     }
 
     // Lire le fichier en base64
@@ -170,10 +249,15 @@ async function imageToBase64(imageUri: string): Promise<string> {
       encoding: 'base64' as any,
     });
 
+    // Vérifier que le base64 n'est pas vide
+    if (!base64 || base64.length < 100) {
+      throw new Error('Image corrompue ou vide');
+    }
+
     return base64;
   } catch (error: any) {
     logger.error('Erreur conversion base64:', error.message);
-    throw new Error('Impossible de lire l\'image');
+    throw new Error(error.message || 'Impossible de lire l\'image');
   }
 }
 
@@ -300,17 +384,20 @@ function shouldIgnoreLine(line: string): boolean {
 }
 
 /**
- * Verifie si une ligne ressemble a un produit (contient un prix)
+ * Verifie si une ligne ressemble a un produit
  */
 function looksLikeProduct(line: string): boolean {
-  // Un produit a generalement un prix (X,XX ou X.XX) suivi optionnellement de €
-  const hasPrice = /\d+[.,]\d{2}\s*€?\s*$/.test(line.trim());
-
-  // Ou contient des mots-cles de produits alimentaires
-  const foodKeywords = /lait|eau|jus|pain|beurre|fromage|yaourt|viande|poulet|porc|boeuf|poisson|legume|fruit|pate|riz|huile|sucre|sel|cafe|the|biscuit|chocolat|nugget|cordon|filet|escalope|pom|flageolet|risot|cristaline|dodu|casseg/i;
+  // Contient des mots-cles de produits alimentaires
+  const foodKeywords = /lait|eau|jus|pain|beurre|fromage|yaourt|yogourt|viande|poulet|porc|boeuf|bœuf|poisson|legume|légume|fruit|pate|pâte|riz|huile|sucre|sel|cafe|café|the|thé|biscuit|chocolat|nugget|cordon|filet|escalope|pom|flageolet|risot|cristaline|dodu|casseg|jambon|saucisse|oeuf|œuf|creme|crème|salade|tomate|carotte|oignon|banane|pomme|orange|citron|sauce|veloute|puree|purée|galet|mais|maïs|noodle|pois|vermicelle|mayonnaise|aioli|penne|coude|raclette|sojasun|delice|kefir|mozzarella|emmental|padano|galbani|activia|andros|lactel|barilla|panzani|bjorg/i;
   const hasFoodKeyword = foodKeywords.test(line);
 
-  return hasPrice || hasFoodKeyword;
+  // Ressemble à un code produit de supermarché (contient des lettres ET des chiffres avec format type "U 400G", "4X100G")
+  const hasProductCode = /\d+[xX]?\d*\s*(G|KG|CL|ML|L)\b/i.test(line) && /[A-Za-z]{2,}/.test(line);
+
+  // Contient au moins 2 lettres consécutives (nom de produit)
+  const hasLetters = /[A-Za-zÀ-ÿ]{2,}/.test(line);
+
+  return hasFoodKeyword || hasProductCode || hasLetters;
 }
 
 /**
@@ -353,32 +440,37 @@ function extractDate(text: string): string | undefined {
 }
 
 /**
- * Parse une ligne de ticket pour extraire produit, quantite et prix
+ * Parse une ligne de ticket pour extraire produit et quantite
+ * Note: La detection des prix a ete desactivee car peu fiable
  */
 function parseReceiptLine(line: string): ReceiptItem | null {
   // Nettoyer la ligne
   let cleanLine = line.trim();
 
+  // Log pour debug - voir le contenu brut
+  if (cleanLine.length > 5) {
+    logger.debug(`LIGNE BRUTE: "${cleanLine}"`);
+  }
+
   // Verifier si c'est une ligne a ignorer
   if (shouldIgnoreLine(cleanLine)) {
+    logger.debug(`  -> Ignorée (mot-clé bloquant)`);
     return null;
   }
 
   // Verifier si ca ressemble a un produit
   if (!looksLikeProduct(cleanLine)) {
+    logger.debug(`  -> Ignorée (ne ressemble pas à un produit)`);
     return null;
   }
 
   let quantity = 1;
-  let price: number | undefined;
   let productName = cleanLine;
 
-  // Extraire le prix (generalement a la fin: X,XX € ou X.XX)
-  const priceMatch = cleanLine.match(/(\d+[.,]\d{2})\s*€?\s*$/);
-  if (priceMatch) {
-    price = parseFloat(priceMatch[1].replace(',', '.'));
-    productName = cleanLine.replace(priceMatch[0], '').trim();
-  }
+  // Supprimer les prix de la ligne (on ne les detecte plus mais on les nettoie)
+  // Format: "PRODUIT 3,95 €" ou "PRODUIT 3.95€" ou "PRODUIT 3,95"
+  productName = productName.replace(/\s+\d+[.,]\d{2}\s*[€E]?\s*$/i, '').trim();
+  productName = productName.replace(/\s+\d+[.,]\d{2}\s*[€E]\s*\d{0,2}\s*$/i, '').trim();
 
   // Extraire la quantite - plusieurs patterns possibles
   // Pattern 1: "X2" ou "x2" a la fin du nom (ex: "CORDON BLEU X2")
@@ -443,34 +535,117 @@ function parseReceiptLine(line: string): ReceiptItem | null {
     id: `receipt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: productName,
     quantity: Math.max(1, Math.min(quantity, 99)),
-    price,
     selected: true,
     category: detectCategory(productName),
   };
 }
 
 /**
+ * Vérifie si une ligne ressemble à un nom de produit
+ */
+function isProductNameLine(line: string): boolean {
+  const trimmed = line.trim();
+  // Doit contenir des lettres (au moins 2 consécutives)
+  if (!/[A-Za-zÀ-ÿ]{2,}/.test(trimmed)) return false;
+  // Ne doit pas être juste un prix
+  if (/^\d+[.,]\d{2}\s*[€E]?\s*\d{0,2}\s*$/.test(trimmed)) return false;
+  // Longueur minimale
+  if (trimmed.length < 5) return false;
+  // Ne doit pas contenir certains mots-clés d'en-tête
+  const headerKeywords = /^(>>>>|total|sous-total|tva|paiement|carte|especes|rendu|merci|ticket|caisse)/i;
+  if (headerKeywords.test(trimmed)) return false;
+  return true;
+}
+
+/**
  * Parse le texte OCR pour extraire les produits
+ * Note: La detection des prix a ete desactivee car peu fiable
  */
 function parseReceiptText(text: string): ReceiptItem[] {
   const lines = text.split('\n');
   const items: ReceiptItem[] = [];
   const seenNames = new Set<string>();
 
-  for (const line of lines) {
-    const item = parseReceiptLine(line);
+  logger.info(`=== DEBUT PARSING ${lines.length} lignes ===`);
 
-    if (item) {
-      // Éviter les doublons
-      const normalizedName = item.name.toLowerCase();
-      if (!seenNames.has(normalizedName)) {
-        seenNames.add(normalizedName);
-        items.push(item);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length < 3) continue;
+
+    // Ignorer les lignes qui sont juste des prix
+    if (/^\d+[.,]\d{2}\s*[€E]?\s*\d{0,2}\s*$/.test(trimmed)) {
+      continue;
+    }
+
+    // Verifier si c'est un nom de produit valide
+    if (isProductNameLine(trimmed)) {
+      const item = createItemFromName(trimmed);
+      if (item) {
+        const normalizedName = item.name.toLowerCase();
+        if (!seenNames.has(normalizedName)) {
+          seenNames.add(normalizedName);
+          items.push(item);
+          logger.info(`✓ PRODUIT: "${item.name}" | Qté: ${item.quantity}`);
+        }
       }
     }
   }
 
+  logger.info(`=== FIN PARSING: ${items.length} produits trouvés ===`);
   return items;
+}
+
+/**
+ * Crée un item à partir d'un nom de produit
+ */
+function createItemFromName(name: string): ReceiptItem | null {
+  let productName = name.trim();
+  let quantity = 1;
+
+  // Supprimer les prix eventuels de la ligne
+  productName = productName.replace(/\s+\d+[.,]\d{2}\s*[€E]?\s*\d{0,2}\s*$/i, '').trim();
+
+  // Extraire la quantité du nom
+  // Pattern 1: "X2" ou "x2" à la fin
+  const qtyEndMatch = productName.match(/[xX](\d+)\s*$/);
+  if (qtyEndMatch) {
+    quantity = parseInt(qtyEndMatch[1], 10);
+    productName = productName.replace(/[xX]\d+\s*$/, '').trim();
+  }
+
+  // Pattern 2: "2x" au début
+  const qtyStartMatch = productName.match(/^(\d+)\s*[xX]\s*/);
+  if (qtyStartMatch && quantity === 1) {
+    quantity = parseInt(qtyStartMatch[1], 10);
+    productName = productName.replace(/^\d+\s*[xX]\s*/, '').trim();
+  }
+
+  // Pattern 3: Pack "12X50CL", "4X100G"
+  const packMatch = productName.match(/(\d+)\s*[xX]\s*\d+\s*(CL|ML|L|G|KG)/i);
+  if (packMatch && quantity === 1) {
+    const packQty = parseInt(packMatch[1], 10);
+    if (packQty > 1 && packQty <= 50) {
+      quantity = packQty;
+    }
+  }
+
+  // Nettoyer et formater le nom
+  productName = productName.replace(/^\d+\s+/, '').trim();
+  if (!productName || productName.length < 3) return null;
+
+  // Formater (première lettre majuscule)
+  productName = productName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+  return {
+    id: `receipt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: productName,
+    quantity: Math.max(1, Math.min(quantity, 99)),
+    selected: true,
+    category: detectCategory(productName),
+  };
 }
 
 /**
@@ -504,9 +679,11 @@ export async function scanReceipt(imageUri: string, apiKey: string): Promise<Rec
     logger.info('Conversion de l\'image en base64');
     const base64 = await imageToBase64(imageUri);
 
-    // Appeler l'API Vision
+    // Appeler l'API Vision avec rate limiting
     logger.info('Appel de Google Cloud Vision API');
-    const rawText = await callVisionAPI(base64, apiKey);
+    const rawText = await withRateLimit('google-vision', () =>
+      callVisionAPI(base64, apiKey)
+    );
 
     logger.debug('Texte OCR brut:', rawText.substring(0, 500));
 

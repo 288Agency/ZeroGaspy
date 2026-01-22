@@ -21,20 +21,23 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import StatsCardsRow from '../components/StatsCardsRow';
 import SpacesGrid from '../components/SpacesGrid';
 import FeedbackModal from '../components/FeedbackModal';
+import AcceptInvitationModal from '../components/AcceptInvitationModal';
+import CreateOrJoinModal from '../components/CreateOrJoinModal';
 import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
+import { supabase } from '../config/supabase';
 
 const { width } = Dimensions.get('window');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // Animated background decoration
-function BackgroundDecoration() {
+const BackgroundDecoration = React.memo(function BackgroundDecoration() {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
           toValue: 1,
@@ -47,7 +50,9 @@ function BackgroundDecoration() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    animation.start();
+    return () => animation.stop();
   }, []);
 
   const translateY = floatAnim.interpolate({
@@ -85,16 +90,16 @@ function BackgroundDecoration() {
       </Svg>
     </Animated.View>
   );
-}
+});
 
 // Logo component
-function LogoSection() {
+const LogoSection = React.memo(function LogoSection() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const logoSize = scaleSize(isSmallScreen ? 56 : 70);
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 5,
@@ -106,7 +111,9 @@ function LogoSection() {
         duration: 500,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+    animation.start();
+    return () => animation.stop();
   }, []);
 
   return (
@@ -125,6 +132,8 @@ function LogoSection() {
           source={require('../assets/logo.png')}
           style={{ width: logoSize, height: logoSize }}
           resizeMode="contain"
+          accessibilityLabel="Logo ZeroGaspy"
+          accessibilityRole="image"
         />
       </View>
 
@@ -135,13 +144,17 @@ function LogoSection() {
       </View>
     </Animated.View>
   );
-}
+});
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [acceptInvitationModalVisible, setAcceptInvitationModalVisible] = useState(false);
+  const [createOrJoinModalVisible, setCreateOrJoinModalVisible] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Animations
   const headerFade = useRef(new Animated.Value(0)).current;
@@ -170,6 +183,20 @@ export default function HomeScreen() {
         }),
       ]),
     ]).start();
+  }, []);
+
+  useEffect(() => {
+    // Récupérer l'utilisateur actuel
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    };
+    getCurrentUser();
   }, []);
 
   const loadListsData = async () => {
@@ -217,28 +244,8 @@ export default function HomeScreen() {
       {/* Background decoration */}
       <BackgroundDecoration />
 
-      {/* Header buttons */}
-      <Animated.View style={[styles.headerButtons, { opacity: headerFade }]}>
-        <PressableScale
-          onPress={() => navigation.navigate('Stats')}
-          style={styles.headerButton}
-          hapticType="light"
-          accessibilityLabel="Mes économies"
-          accessibilityRole="button"
-        >
-          <Ionicons name="stats-chart-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
-        </PressableScale>
-
-        <PressableScale
-          onPress={() => navigation.navigate('Recipes')}
-          style={styles.headerButton}
-          hapticType="light"
-          accessibilityLabel="Idées recettes"
-          accessibilityRole="button"
-        >
-          <Ionicons name="restaurant-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
-        </PressableScale>
-
+      {/* Feedback button */}
+      <Animated.View style={[styles.feedbackButton, { opacity: headerFade }]}>
         <PressableScale
           onPress={() => setFeedbackModalVisible(true)}
           style={styles.headerButton}
@@ -247,16 +254,6 @@ export default function HomeScreen() {
           accessibilityRole="button"
         >
           <Ionicons name="chatbubble-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
-        </PressableScale>
-
-        <PressableScale
-          onPress={() => navigation.navigate('Account')}
-          style={styles.headerButton}
-          hapticType="light"
-          accessibilityLabel="Compte"
-          accessibilityRole="button"
-        >
-          <Ionicons name="person-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
         </PressableScale>
       </Animated.View>
 
@@ -294,7 +291,7 @@ export default function HomeScreen() {
           {/* Spaces grid */}
           <SpacesGrid
             lists={lists}
-            onCreateList={() => navigation.navigate('CreateList')}
+            onCreateList={() => setCreateOrJoinModalVisible(true)}
             onListDeleted={loadListsData}
           />
         </Animated.View>
@@ -304,6 +301,32 @@ export default function HomeScreen() {
       <FeedbackModal
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
+      />
+
+      {/* Accept invitation modal */}
+      <AcceptInvitationModal
+        visible={acceptInvitationModalVisible}
+        onClose={() => setAcceptInvitationModalVisible(false)}
+        userId={currentUserId}
+        onSuccess={(listId) => {
+          // Recharger les listes
+          loadListsData();
+        }}
+      />
+
+      {/* Create or join modal */}
+      <CreateOrJoinModal
+        visible={createOrJoinModalVisible}
+        onClose={() => setCreateOrJoinModalVisible(false)}
+        onCreateList={() => {
+          setCreateOrJoinModalVisible(false);
+          navigation.navigate('CreateList');
+        }}
+        onJoinList={() => {
+          setCreateOrJoinModalVisible(false);
+          setAcceptInvitationModalVisible(true);
+        }}
+        isAuthenticated={isAuthenticated}
       />
     </View>
   );
@@ -322,13 +345,19 @@ const styles = StyleSheet.create({
     right: scaleSize(-60),
     zIndex: 0,
   },
-  headerButtons: {
+  feedbackButton: {
     position: 'absolute',
     top: scaleSpacing(isSmallScreen ? 44 : 56),
     right: scaleSpacing(isSmallScreen ? 14 : 20),
     zIndex: 50,
+  },
+  headerButtons: {
+    position: 'absolute',
     flexDirection: 'row',
-    gap: scaleSpacing(isSmallScreen ? 8 : 12),
+    gap: scaleSpacing(8),
+    top: scaleSpacing(isSmallScreen ? 44 : 56),
+    right: scaleSpacing(isSmallScreen ? 14 : 20),
+    zIndex: 50,
   },
   headerButton: {
     width: headerButtonSize,
@@ -346,7 +375,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: scaleSpacing(isSmallScreen ? 48 : 60),
-    paddingBottom: scaleSpacing(isSmallScreen ? 28 : 40),
+    paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
   },
   logoSection: {
     flexDirection: 'row',

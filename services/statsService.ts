@@ -11,21 +11,6 @@ import logger from '../utils/logger';
 const STATS_CACHE_KEY = 'user_stats_cache';
 const STREAK_KEY = 'waste_streak';
 
-// Prix moyens estimés par catégorie (en euros)
-const AVERAGE_PRICES: Record<string, number> = {
-  'fruits': 2.50,
-  'légumes': 2.00,
-  'viande': 8.00,
-  'poisson': 10.00,
-  'produits laitiers': 2.50,
-  'boulangerie': 1.50,
-  'épicerie': 3.00,
-  'boissons': 2.00,
-  'surgelés': 4.00,
-  'conserves': 2.50,
-  'default': 3.00, // Prix par défaut si catégorie inconnue
-};
-
 // Poids moyen estimé par catégorie (en kg)
 const AVERAGE_WEIGHTS: Record<string, number> = {
   'fruits': 0.5,
@@ -45,19 +30,22 @@ const AVERAGE_WEIGHTS: Record<string, number> = {
 const CO2_PER_KG = 2.5; // kg CO2 par kg de nourriture
 
 /**
- * Estime le prix d'un aliment en fonction de sa catégorie
+ * Retourne le prix réel d'un aliment (0 si non défini)
+ * Seuls les aliments avec un prix défini sont comptés dans les stats d'argent
  */
-function estimatePrice(item: FoodItem): number {
-  // Si prix déjà défini, l'utiliser
+function getActualPrice(item: FoodItem): number {
+  // Ne compter que si un prix est explicitement défini
   if (item.price && item.price > 0) {
-    return item.price * (item.quantity || 1);
+    return item.price;
   }
+  return 0;
+}
 
-  // Sinon, estimer selon la catégorie
-  const category = item.category?.toLowerCase() || 'default';
-  const basePrice = AVERAGE_PRICES[category] || AVERAGE_PRICES.default;
-
-  return basePrice * (item.quantity || 1);
+/**
+ * Vérifie si un aliment a un prix défini
+ */
+function hasPrice(item: FoodItem): boolean {
+  return !!(item.price && item.price > 0);
 }
 
 /**
@@ -83,11 +71,13 @@ export async function calculateUserStats(): Promise<UserStats> {
     const thrownItems = allItems.filter(item => item.status === 'thrown');
     const activeItems = allItems.filter(item => !item.status || item.status === 'active');
 
-    // Calculer économies (aliments consommés)
-    const totalSaved = consumedItems.reduce((sum, item) => sum + estimatePrice(item), 0);
+    // Calculer économies (aliments consommés AVEC prix défini uniquement)
+    const consumedWithPrice = consumedItems.filter(hasPrice);
+    const totalSaved = consumedWithPrice.reduce((sum, item) => sum + getActualPrice(item), 0);
 
-    // Calculer pertes (aliments jetés)
-    const totalWasted = thrownItems.reduce((sum, item) => sum + estimatePrice(item), 0);
+    // Calculer pertes (aliments jetés AVEC prix défini uniquement)
+    const thrownWithPrice = thrownItems.filter(hasPrice);
+    const totalWasted = thrownWithPrice.reduce((sum, item) => sum + getActualPrice(item), 0);
 
     // Calculer impact environnemental
     const foodSavedKg = consumedItems.reduce((sum, item) => sum + estimateWeight(item), 0);
@@ -274,10 +264,16 @@ export async function calculateDailyStats(days: number = 30): Promise<DailyStats
 
       if (stats) {
         if (item.status === 'consumed') {
-          stats.saved += estimatePrice(item);
+          // Ne compter l'argent que si prix défini
+          if (hasPrice(item)) {
+            stats.saved += getActualPrice(item);
+          }
           stats.itemsConsumed++;
         } else if (item.status === 'thrown') {
-          stats.wasted += estimatePrice(item);
+          // Ne compter l'argent que si prix défini
+          if (hasPrice(item)) {
+            stats.wasted += getActualPrice(item);
+          }
           stats.itemsThrown++;
         }
       }
@@ -333,13 +329,19 @@ export async function calculateMonthlyStats(months: number = 12): Promise<Monthl
 
       if (stats) {
         if (item.status === 'consumed') {
-          stats.saved += estimatePrice(item);
+          // Ne compter l'argent que si prix défini
+          if (hasPrice(item)) {
+            stats.saved += getActualPrice(item);
+          }
           stats.itemsConsumed++;
           const weight = estimateWeight(item);
           stats.foodSavedKg += weight;
           stats.co2Avoided += weight * CO2_PER_KG;
         } else if (item.status === 'thrown') {
-          stats.wasted += estimatePrice(item);
+          // Ne compter l'argent que si prix défini
+          if (hasPrice(item)) {
+            stats.wasted += getActualPrice(item);
+          }
           stats.itemsThrown++;
         }
       }

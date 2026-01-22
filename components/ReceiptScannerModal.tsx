@@ -262,18 +262,33 @@ export default function ReceiptScannerModal({
 
           {/* Zone du bas - boutons */}
           <View style={styles.overlayBottom}>
-            <TouchableOpacity onPress={pickFromGallery} style={styles.sideButton}>
+            <TouchableOpacity
+              onPress={pickFromGallery}
+              style={styles.sideButton}
+              accessibilityLabel="Choisir depuis la galerie"
+              accessibilityRole="button"
+            >
               <Ionicons name="images-outline" size={26} color="white" />
               <Text style={styles.sideButtonText}>Galerie</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={takePicture} style={styles.captureButton}>
+            <TouchableOpacity
+              onPress={takePicture}
+              style={styles.captureButton}
+              accessibilityLabel="Prendre une photo du ticket"
+              accessibilityRole="button"
+            >
               <View style={styles.captureButtonInner}>
                 <Ionicons name="scan-outline" size={32} color={COLORS.primary[500]} />
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={pickFromFiles} style={styles.sideButton}>
+            <TouchableOpacity
+              onPress={pickFromFiles}
+              style={styles.sideButton}
+              accessibilityLabel="Choisir depuis les fichiers"
+              accessibilityRole="button"
+            >
               <Ionicons name="document-outline" size={26} color="white" />
               <Text style={styles.sideButtonText}>Fichiers</Text>
             </TouchableOpacity>
@@ -281,7 +296,12 @@ export default function ReceiptScannerModal({
         </View>
 
         {/* Bouton fermer */}
-        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.closeButton}
+          accessibilityLabel="Fermer le scanner"
+          accessibilityRole="button"
+        >
           <Ionicons name="close" size={28} color="white" />
         </TouchableOpacity>
       </View>
@@ -290,7 +310,13 @@ export default function ReceiptScannerModal({
 
   const renderPreview = () => (
     <View style={styles.previewContainer}>
-      <Image source={{ uri: capturedImage! }} style={styles.previewImage} resizeMode="contain" />
+      <Image
+        source={{ uri: capturedImage! }}
+        style={styles.previewImage}
+        resizeMode="contain"
+        accessibilityLabel="Photo du ticket de caisse capturé"
+        accessibilityRole="image"
+      />
 
       <View style={styles.previewOverlay}>
         <Text style={styles.previewTitle}>Aperçu du ticket</Text>
@@ -300,18 +326,33 @@ export default function ReceiptScannerModal({
       </View>
 
       <View style={styles.previewActions}>
-        <TouchableOpacity onPress={retakePicture} style={styles.retakeButton}>
+        <TouchableOpacity
+          onPress={retakePicture}
+          style={styles.retakeButton}
+          accessibilityLabel="Reprendre la photo"
+          accessibilityRole="button"
+        >
           <Ionicons name="refresh-outline" size={24} color={COLORS.primary[500]} />
           <Text style={styles.retakeButtonText}>Reprendre</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={processReceipt} style={styles.analyzeButton}>
+        <TouchableOpacity
+          onPress={processReceipt}
+          style={styles.analyzeButton}
+          accessibilityLabel="Analyser le ticket"
+          accessibilityRole="button"
+        >
           <Ionicons name="checkmark-circle" size={24} color="white" />
           <Text style={styles.analyzeButtonText}>Analyser</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+      <TouchableOpacity
+        onPress={handleClose}
+        style={styles.closeButton}
+        accessibilityLabel="Fermer l'aperçu"
+        accessibilityRole="button"
+      >
         <Ionicons name="close" size={28} color="white" />
       </TouchableOpacity>
     </View>

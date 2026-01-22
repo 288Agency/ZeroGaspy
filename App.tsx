@@ -4,10 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
+import AuthNavigator from './navigation/AuthNavigator';
 import OnboardingScreen, { ONBOARDING_KEY } from './screens/OnboardingScreen';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import {
   checkAndScheduleNotifications,
   addNotificationReceivedListener,
@@ -15,9 +18,27 @@ import {
 } from './services/notificationService';
 import logger from './utils/logger';
 
-export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+// Configuration du deep linking
+const linking = {
+  prefixes: [Linking.createURL('/'), 'zerogaspy://'],
+  config: {
+    screens: {
+      Home: 'home',
+      Lists: 'lists',
+      AddFood: 'add-food',
+      InventoryList: 'inventory',
+      Account: 'account',
+      Recipes: 'recipes',
+      Stats: 'stats',
+    },
+  },
+};
+
+// Composant interne qui gère la navigation basée sur l'auth
+function RootNavigator() {
+  const { user, isLoading: authLoading, isLocalMode } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
@@ -26,8 +47,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!showOnboarding && !isLoading) {
-      // Initialiser les notifications seulement après l'onboarding
+    const isAuthenticated = user !== null || isLocalMode;
+
+    if (showOnboarding === false && !authLoading && isAuthenticated) {
+      // Initialiser les notifications seulement après l'onboarding et auth
       checkAndScheduleNotifications();
 
       // Écouter les notifications reçues
@@ -49,7 +72,7 @@ export default function App() {
         responseListener.current.remove();
       }
     };
-  }, [showOnboarding, isLoading]);
+  }, [showOnboarding, authLoading, user, isLocalMode]);
 
   const checkOnboardingStatus = async () => {
     try {
@@ -59,7 +82,7 @@ export default function App() {
       logger.error('Error checking onboarding status:', error);
       setShowOnboarding(false);
     } finally {
-      setIsLoading(false);
+      setIsCheckingOnboarding(false);
     }
   };
 
@@ -67,30 +90,54 @@ export default function App() {
     setShowOnboarding(false);
   };
 
-  if (isLoading) {
+  // Afficher le splash pendant le chargement initial
+  if (isCheckingOnboarding || authLoading || showOnboarding === null) {
     return (
-      <ErrorBoundary>
+      <>
         <SplashScreen />
         <StatusBar style="dark" />
-      </ErrorBoundary>
+      </>
     );
   }
 
+  // Afficher l'onboarding si pas encore fait
   if (showOnboarding) {
     return (
-      <ErrorBoundary>
+      <>
         <OnboardingScreen onComplete={handleOnboardingComplete} />
         <StatusBar style="dark" />
-      </ErrorBoundary>
+      </>
     );
   }
 
+  // Vérifier l'authentification
+  const isAuthenticated = user !== null || isLocalMode;
+
+  // Si pas authentifié, afficher l'écran de connexion
+  if (!isAuthenticated) {
+    return (
+      <NavigationContainer linking={linking}>
+        <AuthNavigator />
+        <StatusBar style="dark" />
+      </NavigationContainer>
+    );
+  }
+
+  // Utilisateur authentifié ou en mode local, afficher l'app principale
+  return (
+    <NavigationContainer linking={linking}>
+      <AppNavigator />
+      <StatusBar style="auto" />
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
   return (
     <ErrorBoundary>
-      <NavigationContainer>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </NavigationContainer>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -23,11 +23,13 @@ export default function FieldInput({
   const focusAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(focusAnim, {
+    const animation = Animated.timing(focusAnim, {
       toValue: isFocused ? 1 : 0,
       duration: 200,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [isFocused]);
 
   const borderColor = focusAnim.interpolate({

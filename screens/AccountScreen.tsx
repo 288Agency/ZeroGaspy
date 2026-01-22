@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,17 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types/navigation';
-import { loadLists } from '../utils/localStorage';
-import { List, FoodItem } from '../types';
 import FeedbackModal from '../components/FeedbackModal';
 import PressableScale from '../components/PressableScale';
+import { useAuth } from '../contexts/AuthContext';
+import { getPendingChangesCount, syncWithCloud } from '../services/supabase/syncService';
+import { useIsOnline } from '../hooks/useOnlineStatus';
 import {
   loadNotificationSettings,
   saveNotificationSettings,
@@ -33,7 +35,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [lists, setLists] = useState<List[]>([]);
+  const { user, signOut, isLocalMode } = useAuth();
+  const isOnline = useIsOnline();
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
@@ -47,19 +50,58 @@ export default function AccountScreen() {
     estimatedSize: string;
   } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const loadData = async () => {
     try {
-      const [listsData, settings, stats] = await Promise.all([
-        loadLists(),
+      const [settings, stats] = await Promise.all([
         loadNotificationSettings(),
         getExportStats(),
       ]);
-      setLists(listsData);
       setNotificationSettings(settings);
       setExportStats(stats);
+
+      // Charger le nombre de changements en attente
+      if (user?.id) {
+        const pending = await getPendingChangesCount(user.id);
+        setPendingChanges(pending);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Deconnexion',
+      'Etes-vous sur de vouloir vous deconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Deconnecter',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleManualSync = async () => {
+    if (!user?.id || isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      await syncWithCloud(user.id);
+      const pending = await getPendingChangesCount(user.id);
+      setPendingChanges(pending);
+      Alert.alert('Synchronisation', 'Vos donnees ont ete synchronisees avec succes !');
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de synchroniser. Verifiez votre connexion.');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -139,73 +181,6 @@ export default function AccountScreen() {
     }
   };
 
-  // Fonction pour calculer les jours jusqu'à expiration
-  const getDaysUntilExpiration = (dateString: string): number | null => {
-    try {
-      const [day, month, year] = dateString.split('/').map(Number);
-      const expiration = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      expiration.setHours(0, 0, 0, 0);
-      
-      const diffTime = expiration.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      return diffDays;
-    } catch {
-      return null;
-    }
-  };
-
-  // Calculer les statistiques
-  const allItems: FoodItem[] = lists.flatMap((list) => list.items);
-  
-  const totalItems = allItems.length;
-  const activeItems = allItems.filter((item) => !item.status || item.status === 'active').length;
-  const consumedItems = allItems.filter((item) => item.status === 'consumed').length;
-  const thrownItems = allItems.filter((item) => item.status === 'thrown').length;
-  const openedItems = allItems.filter((item) => item.isOpened).length;
-  
-  const expiringSoonItems = allItems.filter((item) => {
-    if (item.status !== 'active' && item.status !== undefined) return false;
-    const days = getDaysUntilExpiration(item.expirationDate);
-    return days !== null && days >= 0 && days <= 7;
-  }).length;
-
-  const expiredItems = allItems.filter((item) => {
-    if (item.status !== 'active' && item.status !== undefined) return false;
-    const days = getDaysUntilExpiration(item.expirationDate);
-    return days !== null && days < 0;
-  }).length;
-
-  const totalLists = lists.length;
-
-  const StatCard = ({ 
-    title, 
-    value, 
-    icon, 
-    color = '#3C6E47' 
-  }: { 
-    title: string; 
-    value: number; 
-    icon: string;
-    color?: string;
-  }) => (
-    <View className="bg-[#A3C9A8] rounded-2xl p-4 border border-[#3C6E47] mb-3">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1">
-          <Text className="text-[#3C6E47] text-sm font-medium mb-1">
-            {title}
-          </Text>
-          <Text className="text-[#3C6E47] text-3xl font-bold">
-            {value}
-          </Text>
-        </View>
-        <Ionicons name={icon as any} size={32} color={color} />
-      </View>
-    </View>
-  );
-
   const SettingRow = ({
     icon,
     title,
@@ -234,25 +209,131 @@ export default function AccountScreen() {
   return (
     <View className="flex-1 bg-[#F7F5E6]">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-5 pt-16 pb-6">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          className="w-10 h-10 items-center justify-center"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        </TouchableOpacity>
+      <View className="flex-row items-center justify-center px-5 pt-16 pb-6">
         <Text className="text-2xl font-semibold text-[#3C6E47]">
           Mon Compte
         </Text>
-        <View className="w-10" />
       </View>
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Section Compte Utilisateur */}
+        <View className="mb-6">
+          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
+            👤 Compte
+          </Text>
+
+          <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
+            {user ? (
+              <>
+                {/* Utilisateur connecte */}
+                <View className="flex-row items-center mb-4">
+                  <View className="w-14 h-14 rounded-full bg-[#3C6E47] items-center justify-center mr-4">
+                    <Text className="text-white text-xl font-bold">
+                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[#3C6E47] font-bold text-lg">
+                      {user.user_metadata?.full_name || 'Utilisateur'}
+                    </Text>
+                    <Text className="text-[#6A8A6E] text-sm">
+                      {user.email}
+                    </Text>
+                  </View>
+                  <View className={`px-2 py-1 rounded-full ${isOnline ? 'bg-[#A3C9A8]' : 'bg-yellow-100'}`}>
+                    <Text className={`text-xs font-medium ${isOnline ? 'text-[#3C6E47]' : 'text-yellow-700'}`}>
+                      {isOnline ? 'En ligne' : 'Hors ligne'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Statut de synchronisation */}
+                <View className="bg-[#F7F5E6] rounded-xl p-3 mb-4">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <Ionicons
+                        name={pendingChanges > 0 ? "cloud-upload-outline" : "cloud-done-outline"}
+                        size={20}
+                        color="#3C6E47"
+                      />
+                      <Text className="text-[#3C6E47] ml-2 font-medium">
+                        {pendingChanges > 0
+                          ? `${pendingChanges} modification(s) en attente`
+                          : 'Tout est synchronise'}
+                      </Text>
+                    </View>
+                    {pendingChanges > 0 && isOnline && (
+                      <PressableScale
+                        onPress={handleManualSync}
+                        className="bg-[#3C6E47] px-3 py-1.5 rounded-lg"
+                        hapticType="light"
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text className="text-white text-sm font-medium">Sync</Text>
+                        )}
+                      </PressableScale>
+                    )}
+                  </View>
+                </View>
+
+                {/* Bouton deconnexion */}
+                <PressableScale
+                  onPress={handleLogout}
+                  className="bg-red-50 rounded-xl p-4 flex-row items-center justify-center"
+                  hapticType="medium"
+                >
+                  <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                  <Text className="text-red-500 font-semibold ml-2">
+                    Se deconnecter
+                  </Text>
+                </PressableScale>
+              </>
+            ) : isLocalMode ? (
+              <>
+                {/* Mode local */}
+                <View className="flex-row items-center mb-4">
+                  <View className="w-14 h-14 rounded-full bg-[#A3C9A8] items-center justify-center mr-4">
+                    <Ionicons name="phone-portrait-outline" size={24} color="#3C6E47" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[#3C6E47] font-bold text-lg">
+                      Mode local
+                    </Text>
+                    <Text className="text-[#6A8A6E] text-sm">
+                      Donnees stockees sur cet appareil
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="bg-[#FFF3E0] rounded-xl p-3 mb-4 flex-row items-start">
+                  <Ionicons name="warning-outline" size={20} color="#E85D04" />
+                  <Text className="text-[#E85D04] text-sm ml-2 flex-1">
+                    Creez un compte pour sauvegarder vos donnees dans le cloud et y acceder depuis n'importe quel appareil.
+                  </Text>
+                </View>
+
+                <PressableScale
+                  onPress={() => signOut()}
+                  className="bg-[#3C6E47] rounded-xl p-4 flex-row items-center justify-center"
+                  hapticType="medium"
+                >
+                  <Ionicons name="person-add-outline" size={20} color="#fff" />
+                  <Text className="text-white font-semibold ml-2">
+                    Creer un compte
+                  </Text>
+                </PressableScale>
+              </>
+            ) : null}
+          </View>
+        </View>
+
         {/* Section Notifications */}
         <View className="mb-6">
           <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
@@ -343,74 +424,6 @@ export default function AccountScreen() {
               </>
             )}
           </View>
-        </View>
-
-        {/* Statistiques générales */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            📊 Statistiques
-          </Text>
-          
-          <StatCard
-            title="Total d'aliments"
-            value={totalItems}
-            icon="basket-outline"
-          />
-          
-          <StatCard
-            title="Aliments actifs"
-            value={activeItems}
-            icon="checkmark-circle-outline"
-            color="#3C6E47"
-          />
-          
-          <StatCard
-            title="Bientôt périmés"
-            value={expiringSoonItems}
-            icon="warning-outline"
-            color="#f59e0b"
-          />
-          
-          <StatCard
-            title="Expirés"
-            value={expiredItems}
-            icon="alert-circle-outline"
-            color="#ef4444"
-          />
-        </View>
-
-        {/* Statistiques d'utilisation */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            📈 Utilisation
-          </Text>
-          
-          <StatCard
-            title="Consommés"
-            value={consumedItems}
-            icon="restaurant-outline"
-            color="#3C6E47"
-          />
-          
-          <StatCard
-            title="Jetés"
-            value={thrownItems}
-            icon="trash-outline"
-            color="#6b7280"
-          />
-          
-          <StatCard
-            title="Produits ouverts"
-            value={openedItems}
-            icon="open-outline"
-            color="#3C6E47"
-          />
-          
-          <StatCard
-            title="Nombre de listes"
-            value={totalLists}
-            icon="list-outline"
-          />
         </View>
 
         {/* Section Export des données */}

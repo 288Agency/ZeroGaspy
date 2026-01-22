@@ -191,9 +191,6 @@ export default function ReceiptReviewModal({
                     <Text style={styles.dateTagText}>{item.expirationDate}</Text>
                   </View>
                 )}
-                {item.price !== undefined && (
-                  <Text style={styles.priceText}>{item.price.toFixed(2)} €</Text>
-                )}
               </View>
             </View>
 
@@ -542,11 +539,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.primary[500],
     fontSize: 10,
-  },
-  priceText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.text.secondary,
-    fontSize: 11,
   },
   quantityContainer: {
     flexDirection: 'row',

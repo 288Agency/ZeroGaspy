@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { StyleSheet, SafeAreaView } from 'react-native';
 import Header from '../components/Header';
 import StatsDashboard from '../components/StatsDashboard';
 
@@ -9,11 +8,9 @@ import StatsDashboard from '../components/StatsDashboard';
  * Affiche le dashboard complet avec toutes les métriques
  */
 export default function StatsScreen() {
-  const navigation = useNavigation();
-
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="Mes Économies" onBack={() => navigation.goBack()} />
+      <Header title="Mes Économies" showBackButton={false} />
       <StatsDashboard />
     </SafeAreaView>
   );

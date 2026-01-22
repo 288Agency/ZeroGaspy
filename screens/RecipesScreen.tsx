@@ -24,11 +24,11 @@ import { List, FoodItem } from '../types';
 import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } from '../services/recipeService';
 
 // Chef illustration for empty state
-function ChefIllustration() {
+const ChefIllustration = React.memo(function ChefIllustration() {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
           toValue: 1,
@@ -41,7 +41,9 @@ function ChefIllustration() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    animation.start();
+    return () => animation.stop();
   }, []);
 
   const translateY = floatAnim.interpolate({
@@ -82,10 +84,10 @@ function ChefIllustration() {
       </Svg>
     </Animated.View>
   );
-}
+});
 
 // Category badge component
-function CategoryBadge({ category }: { category: Recipe['category'] }) {
+const CategoryBadge = React.memo(function CategoryBadge({ category }: { category: Recipe['category'] }) {
   const categoryConfig = {
     'entrée': { color: COLORS.accent.avocado, icon: 'leaf' as const },
     'plat': { color: COLORS.accent.carrot, icon: 'restaurant' as const },
@@ -104,10 +106,10 @@ function CategoryBadge({ category }: { category: Recipe['category'] }) {
       </Text>
     </View>
   );
-}
+});
 
 // Difficulty badge
-function DifficultyBadge({ difficulty }: { difficulty: Recipe['difficulty'] }) {
+const DifficultyBadge = React.memo(function DifficultyBadge({ difficulty }: { difficulty: Recipe['difficulty'] }) {
   const difficultyConfig = {
     'facile': { color: COLORS.semantic.success, dots: 1 },
     'moyen': { color: COLORS.semantic.warning, dots: 2 },
@@ -129,10 +131,10 @@ function DifficultyBadge({ difficulty }: { difficulty: Recipe['difficulty'] }) {
       ))}
     </View>
   );
-}
+});
 
 // Recipe card component
-function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch; onPress: () => void; onLongPress?: () => void; index: number }) {
+const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch; onPress: () => void; onLongPress?: () => void; index: number }) {
   const { recipe, matchPercentage, matchingIngredients, missingIngredients } = match;
 
   return (
@@ -203,7 +205,7 @@ function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch
       </PressableScale>
     </AnimatedListItem>
   );
-}
+});
 
 // Recipe detail modal
 function RecipeDetailModal({
@@ -417,7 +419,7 @@ export default function RecipesScreen() {
 
   return (
     <View style={styles.container}>
-      <Header title="Idées recettes" showBackButton={true} />
+      <Header title="Idées recettes" showBackButton={false} />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Stats banner */}
@@ -934,7 +936,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: scaleSpacing(isSmallScreen ? 20 : 28),
+    bottom: scaleSpacing(isSmallScreen ? 90 : 100),
     right: scaleSpacing(isSmallScreen ? 16 : 24),
     width: scaleSize(isSmallScreen ? 54 : 60),
     height: scaleSize(isSmallScreen ? 54 : 60),
