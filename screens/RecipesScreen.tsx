@@ -17,11 +17,16 @@ import Header from '../components/Header';
 import PressableScale from '../components/PressableScale';
 import AnimatedListItem from '../components/AnimatedListItem';
 import AddRecipeModal from '../components/AddRecipeModal';
+import PaywallModal from '../components/PaywallModal';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { COLORS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } from '../services/recipeService';
+import { useGamification } from '../contexts/GamificationContext';
+import { useTheme } from '../contexts/ThemeContext';
+import logger from '../utils/logger';
 
 // Chef illustration for empty state
 const ChefIllustration = React.memo(function ChefIllustration() {
@@ -88,12 +93,13 @@ const ChefIllustration = React.memo(function ChefIllustration() {
 
 // Category badge component
 const CategoryBadge = React.memo(function CategoryBadge({ category }: { category: Recipe['category'] }) {
-  const categoryConfig = {
-    'entrée': { color: COLORS.accent.avocado, icon: 'leaf' as const },
-    'plat': { color: COLORS.accent.carrot, icon: 'restaurant' as const },
-    'dessert': { color: COLORS.accent.tomato, icon: 'ice-cream' as const },
-    'snack': { color: COLORS.accent.lemon, icon: 'cafe' as const },
-    'boisson': { color: COLORS.accent.blueberry, icon: 'wine' as const },
+  const categoryConfig: Record<Recipe['category'], { color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+    'entrée': { color: COLORS.accent.avocado, icon: 'leaf' },
+    'plat': { color: COLORS.accent.carrot, icon: 'restaurant' },
+    'dessert': { color: COLORS.accent.tomato, icon: 'ice-cream' },
+    'snack': { color: COLORS.accent.lemon, icon: 'cafe' },
+    'boisson': { color: COLORS.accent.blueberry, icon: 'wine' },
+    'petit-déjeuner': { color: '#F59E0B', icon: 'sunny' },
   };
 
   const config = categoryConfig[category];
@@ -321,13 +327,51 @@ function RecipeDetailModal({
   );
 }
 
+// Premium teaser component for AI-suggested recipes
+const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
+  suggestedCount,
+  onPress
+}: {
+  suggestedCount: number;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      style={styles.premiumTeaser}
+      hapticType="medium"
+    >
+      <View style={styles.premiumTeaserIcon}>
+        <Ionicons name="sparkles" size={scaleSize(28)} color={COLORS.accent.lemon} />
+      </View>
+      <View style={styles.premiumTeaserContent}>
+        <View style={styles.premiumBadge}>
+          <Ionicons name="star" size={scaleSize(12)} color={COLORS.neutral.white} />
+          <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+        </View>
+        <Text style={styles.premiumTeaserTitle}>
+          {suggestedCount} recette{suggestedCount !== 1 ? 's' : ''} suggérée{suggestedCount !== 1 ? 's' : ''} pour vous
+        </Text>
+        <Text style={styles.premiumTeaserSubtitle}>
+          Débloquez les suggestions personnalisées basées sur vos ingrédients
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={scaleSize(24)} color={COLORS.primary[400]} />
+    </PressableScale>
+  );
+});
+
 export default function RecipesScreen() {
+  const { trackRecipeViewed } = useGamification();
+  const { colors } = useTheme();
+  const { isPremium } = useSubscription();
   const [lists, setLists] = useState<List[]>([]);
   const [recipeMatches, setRecipeMatches] = useState<RecipeMatch[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<RecipeMatch | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'user' | Recipe['category']>('all');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -350,7 +394,7 @@ export default function RecipesScreen() {
       const matches = await findMatchingRecipesWithUser(allFoodItems);
       setRecipeMatches(matches);
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      logger.error('Erreur lors du chargement:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger les recettes. Veuillez réessayer.',
@@ -374,6 +418,8 @@ export default function RecipesScreen() {
   const handleRecipePress = (match: RecipeMatch) => {
     setSelectedMatch(match);
     setModalVisible(true);
+    // Tracker pour la gamification
+    trackRecipeViewed();
   };
 
   const handleRecipeLongPress = (match: RecipeMatch) => {
@@ -398,11 +444,21 @@ export default function RecipesScreen() {
     }
   };
 
+  // Séparer les recettes utilisateur des recettes suggérées (built-in)
+  const userRecipes = recipeMatches.filter(m => m.recipe.isUserRecipe);
+  const suggestedRecipes = recipeMatches.filter(m => !m.recipe.isUserRecipe);
+
+  // Pour les utilisateurs gratuits, ne montrer que leurs propres recettes
+  // Pour les utilisateurs Premium, montrer toutes les recettes
+  const availableMatches = isPremium ? recipeMatches : userRecipes;
+
   const filteredMatches = selectedFilter === 'all'
-    ? recipeMatches
+    ? availableMatches
     : selectedFilter === 'user'
-    ? recipeMatches.filter(m => m.recipe.isUserRecipe)
-    : recipeMatches.filter(m => m.recipe.category === selectedFilter);
+    ? userRecipes
+    : isPremium
+    ? availableMatches.filter(m => m.recipe.category === selectedFilter)
+    : userRecipes.filter(m => m.recipe.category === selectedFilter);
 
   const totalIngredients = lists.reduce((sum, list) => {
     return sum + list.items.filter(item => item.status !== 'consumed' && item.status !== 'thrown').length;
@@ -411,28 +467,34 @@ export default function RecipesScreen() {
   const filters: Array<{ key: 'all' | 'user' | Recipe['category']; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
     { key: 'all', label: 'Tout', icon: 'apps' },
     { key: 'user', label: 'Mes recettes', icon: 'person' },
+    { key: 'petit-déjeuner', label: 'Petit-déj', icon: 'sunny' },
     { key: 'plat', label: 'Plats', icon: 'restaurant' },
     { key: 'entrée', label: 'Entrées', icon: 'leaf' },
     { key: 'dessert', label: 'Desserts', icon: 'ice-cream' },
     { key: 'snack', label: 'Snacks', icon: 'cafe' },
+    { key: 'boisson', label: 'Boissons', icon: 'wine' },
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
       <Header title="Idées recettes" showBackButton={false} />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Stats banner */}
-        <View style={styles.statsBanner}>
+        <View style={[styles.statsBanner, { backgroundColor: colors.neutral.white }]}>
           <View style={styles.statsIcon}>
-            <Ionicons name="nutrition" size={scaleSize(24)} color={COLORS.primary[500]} />
+            <Ionicons name="nutrition" size={scaleSize(24)} color={colors.primary[500]} />
           </View>
           <View style={styles.statsText}>
             <Text style={styles.statsTitle}>
               {totalIngredients} aliment{totalIngredients !== 1 ? 's' : ''} disponible{totalIngredients !== 1 ? 's' : ''}
             </Text>
             <Text style={styles.statsSubtitle}>
-              {recipeMatches.length} recette{recipeMatches.length !== 1 ? 's' : ''} possible{recipeMatches.length !== 1 ? 's' : ''}
+              {isPremium ? (
+                `${recipeMatches.length} recette${recipeMatches.length !== 1 ? 's' : ''} possible${recipeMatches.length !== 1 ? 's' : ''}`
+              ) : (
+                `${userRecipes.length} recette${userRecipes.length !== 1 ? 's' : ''} personnelle${userRecipes.length !== 1 ? 's' : ''}`
+              )}
             </Text>
           </View>
         </View>
@@ -482,6 +544,14 @@ export default function RecipesScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
+          {/* Premium teaser for free users with suggested recipes */}
+          {!isPremium && suggestedRecipes.length > 0 && selectedFilter !== 'user' && (
+            <PremiumRecipeTeaser
+              suggestedCount={suggestedRecipes.length}
+              onPress={() => setShowPaywall(true)}
+            />
+          )}
+
           {filteredMatches.length > 0 ? (
             filteredMatches.map((match, index) => (
               <RecipeCard
@@ -498,12 +568,16 @@ export default function RecipesScreen() {
               <Text style={styles.emptyTitle}>
                 {totalIngredients === 0
                   ? 'Aucun aliment disponible'
-                  : 'Aucune recette trouvée'}
+                  : isPremium
+                  ? 'Aucune recette trouvée'
+                  : 'Aucune recette personnelle'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {totalIngredients === 0
                   ? 'Ajoutez des aliments à vos espaces pour découvrir des recettes'
-                  : 'Essayez d\'ajouter plus d\'aliments ou changez de filtre'}
+                  : isPremium
+                  ? 'Essayez d\'ajouter plus d\'aliments ou changez de filtre'
+                  : 'Ajoutez vos propres recettes avec le bouton + ci-dessous'}
               </Text>
             </View>
           )}
@@ -534,6 +608,13 @@ export default function RecipesScreen() {
         visible={addModalVisible}
         onClose={() => setAddModalVisible(false)}
         onRecipeAdded={loadData}
+      />
+
+      {/* Paywall modal */}
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        feature="recipes"
       />
     </View>
   );
@@ -918,8 +999,8 @@ const styles = StyleSheet.create({
   },
   userBadge: {
     position: 'absolute',
-    top: scaleSpacing(8),
-    right: scaleSpacing(8),
+    top: scaleSpacing(-8),
+    left: scaleSpacing(12),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary[500],
@@ -945,5 +1026,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.lg,
+  },
+
+  // Premium teaser styles
+  premiumTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: scaleSize(16),
+    padding: scaleSpacing(16),
+    marginBottom: scaleSpacing(16),
+    borderWidth: 2,
+    borderColor: hexToRgba(COLORS.accent.lemon, 0.4),
+    ...SHADOWS.md,
+  },
+  premiumTeaserIcon: {
+    width: scaleSize(56),
+    height: scaleSize(56),
+    borderRadius: scaleSize(14),
+    backgroundColor: hexToRgba(COLORS.accent.lemon, 0.15),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: scaleSpacing(14),
+  },
+  premiumTeaserContent: {
+    flex: 1,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent.lemon,
+    paddingHorizontal: scaleSpacing(8),
+    paddingVertical: scaleSpacing(3),
+    borderRadius: scaleSize(10),
+    alignSelf: 'flex-start',
+    marginBottom: scaleSpacing(6),
+  },
+  premiumBadgeText: {
+    fontSize: scaleFontSize(10),
+    fontWeight: '700',
+    color: COLORS.neutral.white,
+    marginLeft: scaleSpacing(4),
+    letterSpacing: 0.5,
+  },
+  premiumTeaserTitle: {
+    fontSize: scaleFontSize(isSmallScreen ? 15 : 17),
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: scaleSpacing(4),
+  },
+  premiumTeaserSubtitle: {
+    fontSize: scaleFontSize(isSmallScreen ? 12 : 13),
+    color: COLORS.text.secondary,
+    lineHeight: scaleFontSize(isSmallScreen ? 16 : 18),
   },
 });

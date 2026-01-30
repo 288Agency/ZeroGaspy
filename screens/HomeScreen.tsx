@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -21,12 +21,12 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import StatsCardsRow from '../components/StatsCardsRow';
 import SpacesGrid from '../components/SpacesGrid';
 import FeedbackModal from '../components/FeedbackModal';
-import AcceptInvitationModal from '../components/AcceptInvitationModal';
-import CreateOrJoinModal from '../components/CreateOrJoinModal';
 import PressableScale from '../components/PressableScale';
+import AdBanner from '../components/AdBanner';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import { supabase } from '../config/supabase';
+import { useTheme } from '../contexts/ThemeContext';
+import logger from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -93,7 +93,7 @@ const BackgroundDecoration = React.memo(function BackgroundDecoration() {
 });
 
 // Logo component
-const LogoSection = React.memo(function LogoSection() {
+const LogoSection = React.memo(function LogoSection({ colors }: { colors: typeof COLORS }) {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const logoSize = scaleSize(isSmallScreen ? 56 : 70);
@@ -139,8 +139,8 @@ const LogoSection = React.memo(function LogoSection() {
 
       {/* App name and greeting */}
       <View style={styles.logoTextContainer}>
-        <Text style={styles.greeting}>Bonjour !</Text>
-        <Text style={styles.appName}>ZeroGaspy</Text>
+        <Text style={[styles.greeting, { color: colors.text.secondary }]}>Bonjour !</Text>
+        <Text style={[styles.appName, { color: colors.primary[500] }]}>ZeroGaspy</Text>
       </View>
     </Animated.View>
   );
@@ -148,13 +148,10 @@ const LogoSection = React.memo(function LogoSection() {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [acceptInvitationModalVisible, setAcceptInvitationModalVisible] = useState(false);
-  const [createOrJoinModalVisible, setCreateOrJoinModalVisible] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Animations
   const headerFade = useRef(new Animated.Value(0)).current;
@@ -185,62 +182,53 @@ export default function HomeScreen() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    // Récupérer l'utilisateur actuel
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-      }
-    };
-    getCurrentUser();
-  }, []);
-
-  const loadListsData = async () => {
+  const loadListsData = useCallback(async () => {
     try {
       const data = await loadLists();
       setLists(data);
     } catch (error) {
-      console.error('Erreur lors du chargement des listes:', error);
+      logger.error('Erreur lors du chargement des listes:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger vos listes. Veuillez réessayer.',
         [{ text: 'OK' }]
       );
     }
-  };
+  }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadListsData();
-    }, [])
+    }, [loadListsData])
   );
 
-  const onRefresh = React.useCallback(async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadListsData();
     setRefreshing(false);
-  }, []);
+  }, [loadListsData]);
 
-  const expiringSoonCount = lists.reduce((sum, list) => {
-    const expiringItems = list.items.filter((item) => {
-      if (item.status === 'consumed' || item.status === 'thrown') return false;
-      const days = getDaysUntilExpiration(item.expirationDate);
-      return days !== null && days >= 0 && days <= 7;
-    });
-    return sum + expiringItems.length;
-  }, 0);
+  // Mémoriser les calculs coûteux
+  const expiringSoonCount = useMemo(() => {
+    return lists.reduce((sum, list) => {
+      const expiringItems = list.items.filter((item) => {
+        if (item.status === 'consumed' || item.status === 'thrown') return false;
+        const days = getDaysUntilExpiration(item.expirationDate);
+        return days !== null && days >= 0 && days <= 7;
+      });
+      return sum + expiringItems.length;
+    }, 0);
+  }, [lists]);
 
-  const thrownCount = lists.reduce((sum, list) => {
-    const thrownItems = list.items.filter((item) => item.status === 'thrown');
-    return sum + thrownItems.length;
-  }, 0);
+  const thrownCount = useMemo(() => {
+    return lists.reduce((sum, list) => {
+      const thrownItems = list.items.filter((item) => item.status === 'thrown');
+      return sum + thrownItems.length;
+    }, 0);
+  }, [lists]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
       {/* Background decoration */}
       <BackgroundDecoration />
 
@@ -248,12 +236,12 @@ export default function HomeScreen() {
       <Animated.View style={[styles.feedbackButton, { opacity: headerFade }]}>
         <PressableScale
           onPress={() => setFeedbackModalVisible(true)}
-          style={styles.headerButton}
+          style={[styles.headerButton, { backgroundColor: hexToRgba(colors.secondary.sage, 0.6), borderColor: hexToRgba(colors.primary[500], 0.15) }]}
           hapticType="light"
           accessibilityLabel="Envoyer un feedback"
           accessibilityRole="button"
         >
-          <Ionicons name="chatbubble-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
+          <Ionicons name="chatbubble-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={colors.primary[500]} />
         </PressableScale>
       </Animated.View>
 
@@ -264,14 +252,14 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.primary[500]}
-            colors={[COLORS.primary[500]]}
+            tintColor={colors.primary[500]}
+            colors={[colors.primary[500]]}
           />
         }
         showsVerticalScrollIndicator={false}
       >
         {/* Logo section */}
-        <LogoSection />
+        <LogoSection colors={colors} />
 
         {/* Main content */}
         <Animated.View
@@ -284,49 +272,26 @@ export default function HomeScreen() {
           <StatsCardsRow
             expiringSoonCount={expiringSoonCount}
             thrownCount={thrownCount}
-            onExpiringSoonPress={() => navigation.navigate('ExpiringSoon')}
-            onThrownPress={() => navigation.navigate('ThrownFoods')}
+            onExpiringSoonPress={useCallback(() => navigation.navigate('ExpiringSoon'), [navigation])}
+            onThrownPress={useCallback(() => navigation.navigate('ThrownFoods'), [navigation])}
           />
 
           {/* Spaces grid */}
           <SpacesGrid
             lists={lists}
-            onCreateList={() => setCreateOrJoinModalVisible(true)}
+            onCreateList={useCallback(() => navigation.navigate('CreateList'), [navigation])}
             onListDeleted={loadListsData}
           />
         </Animated.View>
       </ScrollView>
 
+      {/* Banner Ad - uniquement pour les non-Premium */}
+      <AdBanner style={styles.adBanner} />
+
       {/* Feedback modal */}
       <FeedbackModal
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
-      />
-
-      {/* Accept invitation modal */}
-      <AcceptInvitationModal
-        visible={acceptInvitationModalVisible}
-        onClose={() => setAcceptInvitationModalVisible(false)}
-        userId={currentUserId}
-        onSuccess={(listId) => {
-          // Recharger les listes
-          loadListsData();
-        }}
-      />
-
-      {/* Create or join modal */}
-      <CreateOrJoinModal
-        visible={createOrJoinModalVisible}
-        onClose={() => setCreateOrJoinModalVisible(false)}
-        onCreateList={() => {
-          setCreateOrJoinModalVisible(false);
-          navigation.navigate('CreateList');
-        }}
-        onJoinList={() => {
-          setCreateOrJoinModalVisible(false);
-          setAcceptInvitationModalVisible(true);
-        }}
-        isAuthenticated={isAuthenticated}
       />
     </View>
   );
@@ -405,5 +370,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary[500],
     letterSpacing: -1,
+  },
+  adBanner: {
+    position: 'absolute',
+    bottom: scaleSpacing(isSmallScreen ? 80 : 90),
+    left: 0,
+    right: 0,
   },
 });

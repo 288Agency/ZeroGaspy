@@ -69,6 +69,127 @@ export const COLORS = {
     inverse: '#FFFFFF',
     brand: '#3C6E47',
   },
+
+  // Surface colors (light mode)
+  surface: {
+    background: '#F7F5E6',
+    card: '#FFFFFF',
+    elevated: '#FFFFFF',
+    overlay: 'rgba(0, 0, 0, 0.5)',
+  },
+
+  // Button colors (light mode)
+  button: {
+    primary: '#3C6E47',
+    primaryText: '#FFFFFF',
+    secondary: '#EDE8D0',
+    secondaryText: '#3C6E47',
+  },
+
+  // Interactive elements (light mode)
+  interactive: {
+    primary: '#3C6E47',
+    secondary: '#FF8C42',
+    hover: '#2E5339',
+    active: '#1F3A27',
+  },
+};
+
+// ============================================
+// DARK MODE COLOR PALETTE
+// Warm, cozy dark theme
+// ============================================
+
+export const COLORS_DARK = {
+  // Primary palette - Forest greens for dark mode
+  primary: {
+    50: '#0A1409',
+    100: '#152818',
+    200: '#1F3A26', // Button background
+    300: '#2E5339',
+    400: '#3C6E47',
+    500: '#88B89B', // Main interactive color
+    600: '#A3C9A8',
+    700: '#B8E0BE',
+    800: '#C8E6C9',
+    900: '#E8F5E9',
+  },
+
+  // Secondary palette - Warm dark tones
+  secondary: {
+    cream: '#1C1C1A', // Global background
+    sand: '#252522',
+    warmGray: '#33332E', // Card background
+    sage: '#88B89B', // Interactive elements
+    mint: '#A3C9A8',
+  },
+
+  // Accent colors - Warm contrasts
+  accent: {
+    carrot: '#F4A259', // Warm orange for interactive elements
+    tomato: '#EF5350',
+    lemon: '#FFEB3B',
+    blueberry: '#7986CB',
+    eggplant: '#9575CD',
+    avocado: '#88B89B',
+  },
+
+  // Semantic colors - Adjusted for dark mode
+  semantic: {
+    success: '#88B89B',
+    warning: '#F4A259',
+    danger: '#EF5350',
+    info: '#42A5F5',
+  },
+
+  // Neutral shades - Warm dark palette
+  neutral: {
+    white: '#1C1C1A', // Global background
+    black: '#E6E6E6', // Main text
+    gray50: '#1C1C1A',
+    gray100: '#252522',
+    gray200: '#33332E', // Card background
+    gray300: '#3D3D38',
+    gray400: '#5A5A54',
+    gray500: '#757570',
+    gray600: '#9E9E99',
+    gray700: '#BDBDB8',
+    gray800: '#D4D4D0',
+    gray900: '#E6E6E6',
+  },
+
+  // Text colors - High contrast on dark
+  text: {
+    primary: '#E6E6E6', // Main text
+    secondary: '#B0B0AB',
+    muted: '#757570',
+    inverse: '#1C1C1A',
+    brand: '#88B89B', // Interactive green
+  },
+
+  // Additional dark mode specific colors
+  surface: {
+    background: '#1C1C1A', // Global background
+    card: '#33332E', // Card background
+    elevated: '#3D3D38', // Elevated surfaces
+    overlay: 'rgba(28, 28, 26, 0.9)',
+  },
+
+  // Button colors
+  button: {
+    primary: '#1F3A26', // Green button background
+    primaryText: '#E6E6E6', // Button text
+    secondary: '#33332E',
+    secondaryText: '#A3C9A8',
+  },
+
+  // Interactive elements
+  interactive: {
+    primary: '#88B89B', // Main interactive color
+    secondary: '#F4A259', // Warm accent
+    hover: '#A3C9A8',
+    active: '#1F3A26',
+  },
 };
 
 // ============================================
@@ -264,6 +385,17 @@ export const GRADIENTS = {
   sage: ['#B8E0BE', '#A3C9A8'],
 };
 
+// Dark mode gradients
+export const GRADIENTS_DARK = {
+  primary: ['#1F3A26', '#152818'],
+  primaryLight: ['#2E5339', '#1F3A26'],
+  success: ['#88B89B', '#3C6E47'],
+  warning: ['#F4A259', '#E8943D'],
+  danger: ['#EF5350', '#D32F2F'],
+  surface: ['#33332E', '#1C1C1A'],
+  card: ['#3D3D38', '#33332E'],
+};
+
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
@@ -336,6 +468,21 @@ export const CATEGORY_COLORS: Record<string, { bg: string; text: string; icon: s
   other: { bg: '#ECEFF1', text: '#546E7A', icon: 'cube' },
 };
 
+// Dark mode category colors
+export const CATEGORY_COLORS_DARK: Record<string, { bg: string; text: string; icon: string }> = {
+  fruits: { bg: '#3D2A2A', text: '#FF8A80', icon: 'nutrition' },
+  vegetables: { bg: '#1F3A26', text: '#88B89B', icon: 'leaf' },
+  dairy: { bg: '#1A2D3D', text: '#82B1FF', icon: 'water' },
+  meat: { bg: '#3D2424', text: '#FF8A80', icon: 'restaurant' },
+  fish: { bg: '#1A3338', text: '#80DEEA', icon: 'fish' },
+  bakery: { bg: '#3D3520', text: '#FFD54F', icon: 'pizza' },
+  beverages: { bg: '#2D1F3D', text: '#CE93D8', icon: 'wine' },
+  frozen: { bg: '#1A2D3D', text: '#81D4FA', icon: 'snow' },
+  condiments: { bg: '#3D2E1A', text: '#F4A259', icon: 'flask' },
+  snacks: { bg: '#3D1F2D', text: '#F48FB1', icon: 'cafe' },
+  other: { bg: '#33332E', text: '#90A4AE', icon: 'cube' },
+};
+
 // ============================================
 // EXPIRATION STATUS COLORS
 // ============================================
@@ -360,5 +507,29 @@ export const EXPIRATION_COLORS = {
     bg: '#E8F5E9',
     text: '#2E7D32',
     border: '#A5D6A7',
+  },
+};
+
+// Dark mode expiration colors
+export const EXPIRATION_COLORS_DARK = {
+  expired: {
+    bg: '#3D2424',
+    text: '#FF8A80',
+    border: '#5D3A3A',
+  },
+  expiresToday: {
+    bg: '#3D2E1A',
+    text: '#F4A259',
+    border: '#5D4A2A',
+  },
+  expiresSoon: {
+    bg: '#3D3820',
+    text: '#FFD54F',
+    border: '#5D5430',
+  },
+  fresh: {
+    bg: '#1F3A26',
+    text: '#88B89B',
+    border: '#2E5339',
   },
 };

@@ -20,10 +20,13 @@ import ImagePickerButton from '../components/ImagePickerButton';
 import FieldInput from '../components/FieldInput';
 import DatePickerField from '../components/DatePickerField';
 import CategorySelector from '../components/CategorySelector';
+import UnitSelector from '../components/UnitSelector';
 import BarcodeButton from '../components/BarcodeButton';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
+import { useGamification } from '../contexts/GamificationContext';
+import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'AddFood'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFood'>;
@@ -45,12 +48,15 @@ function BackgroundDecoration() {
 export default function AddFoodScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
+  const { trackFoodAdded } = useGamification();
   const { listId, editItem } = route.params;
 
   const isEditMode = !!editItem;
 
   const [foodName, setFoodName] = useState(editItem?.name || '');
-  const [quantity, setQuantity] = useState(editItem?.quantity?.toString() || '');
+  const [quantity, setQuantity] = useState(editItem?.quantity?.toString() || '1');
+  const [weight, setWeight] = useState(editItem?.weight?.toString() || '');
+  const [unit, setUnit] = useState(editItem?.unit || 'g');
   const [category, setCategory] = useState(editItem?.category || '');
   const [expirationDate, setExpirationDate] = useState(editItem?.expirationDate || '');
   const [imageUri, setImageUri] = useState<string | null>(editItem?.imageUri || null);
@@ -107,7 +113,9 @@ export default function AddFoodScreen() {
       const itemData = {
         name: foodName.trim(),
         expirationDate: finalExpirationDate || '',
-        quantity: quantity.trim() ? parseInt(quantity, 10) : undefined,
+        quantity: quantity.trim() ? parseInt(quantity, 10) : 1,
+        weight: weight.trim() ? parseFloat(weight.replace(',', '.')) : undefined,
+        unit: weight.trim() ? unit : undefined,
         category: category.trim() || undefined,
         imageUri: imageUri || undefined,
         isOpened: isOpened || undefined,
@@ -125,10 +133,12 @@ export default function AddFoodScreen() {
           status: 'active' as const,
         };
         await addItemToList(listId, newItem);
+        // Tracker pour la gamification
+        trackFoodAdded();
       }
       navigation.goBack();
     } catch (error) {
-      console.error('Erreur lors de l\'ajout:', error);
+      logger.error('Erreur lors de l\'ajout:', error);
       Alert.alert('Erreur', isEditMode ? 'Impossible de modifier l\'aliment' : 'Impossible d\'ajouter l\'aliment');
     } finally {
       setIsAdding(false);
@@ -197,7 +207,7 @@ export default function AddFoodScreen() {
         { cancelable: true }
       );
     } catch (error) {
-      console.error('Erreur lors de la sélection d\'image:', error);
+      logger.error('Erreur lors de la sélection d\'image:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner une image');
     }
   };
@@ -216,9 +226,23 @@ export default function AddFoodScreen() {
     setFoodName(product.name);
 
     if (product.quantity) {
-      const quantityMatch = product.quantity.match(/(\d+)/);
-      if (quantityMatch) {
-        setQuantity(quantityMatch[1]);
+      // Parser la quantité pour extraire le poids/volume et l'unité
+      // Exemples: "500g", "1L", "250 ml", "1,5 L", "500 g", "33cl"
+      const quantityStr = product.quantity.toLowerCase().replace(',', '.');
+      const match = quantityStr.match(/(\d+(?:\.\d+)?)\s*(g|kg|ml|cl|l)\b/i);
+
+      if (match) {
+        const value = match[1];
+        let parsedUnit = match[2].toLowerCase();
+
+        // Normaliser les unités
+        if (parsedUnit === 'l') parsedUnit = 'L';
+        else if (parsedUnit === 'ml') parsedUnit = 'mL';
+        else if (parsedUnit === 'cl') parsedUnit = 'cL';
+
+        setWeight(value);
+        setUnit(parsedUnit);
+        setQuantity('1'); // Par défaut 1 article
       }
     }
 
@@ -232,7 +256,7 @@ export default function AddFoodScreen() {
 
     Alert.alert(
       'Produit trouvé !',
-      `${product.name}${product.quantity ? `\nQuantité: ${product.quantity}` : ''}`,
+      `${product.name}${product.quantity ? `\nContenance: ${product.quantity}` : ''}`,
       [{ text: 'OK' }]
     );
   };
@@ -283,13 +307,32 @@ export default function AddFoodScreen() {
             />
 
             <FieldInput
-              label="Quantité"
+              label="Nombre"
               value={quantity}
               onChangeText={setQuantity}
-              placeholder="Ex: 2"
-              icon="layers-outline"
+              placeholder="Ex: 3"
+              icon="copy-outline"
               keyboardType="numeric"
+              hint="Nombre d'articles (ex: 3 paquets)"
             />
+
+            <Text style={styles.fieldLabel}>Contenance</Text>
+            <View style={styles.weightRow}>
+              <View style={styles.weightInputContainer}>
+                <FieldInput
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="Ex: 150"
+                  icon="scale-outline"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <UnitSelector
+                selectedUnit={unit}
+                onUnitSelect={setUnit}
+              />
+            </View>
+            <Text style={styles.fieldHint}>Poids ou volume par article</Text>
 
             <FieldInput
               label="Prix total (€)"
@@ -488,6 +531,26 @@ const styles = StyleSheet.create({
   },
   barcodeSection: {
     marginBottom: 24,
+  },
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weightInputContainer: {
+    flex: 1,
+  },
+  fieldLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  fieldHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.text.secondary,
+    marginTop: 6,
+    marginBottom: 16,
   },
   submitSection: {
     marginTop: 8,

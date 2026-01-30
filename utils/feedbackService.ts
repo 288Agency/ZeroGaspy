@@ -1,10 +1,10 @@
-// Service pour envoyer les feedbacks par email
-import * as MailComposer from 'expo-mail-composer';
+// Service pour envoyer les feedbacks par email via Supabase Edge Function + Resend
+import * as FileSystem from 'expo-file-system';
 import { sanitizeString, validateEmail, escapeHtml } from './security';
 import logger from './logger';
 
-// Email de réception des feedbacks depuis variable d'environnement
-const FEEDBACK_EMAIL = process.env.EXPO_PUBLIC_FEEDBACK_EMAIL || 'contact@288agency.com';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export interface FeedbackData {
   name: string;
@@ -13,14 +13,20 @@ export interface FeedbackData {
   images?: string[]; // URIs des images
 }
 
+interface ImageAttachment {
+  filename: string;
+  content: string; // base64
+  type: string;
+}
+
 /**
- * Valide et sanitize les données de feedback
+ * Valide et sanitize les donnees de feedback
  */
 function validateFeedbackData(data: FeedbackData): { valid: boolean; error?: string; sanitized?: FeedbackData } {
   // Valider le nom
   const name = sanitizeString(data.name, 100);
   if (!name || name.length < 2) {
-    return { valid: false, error: 'Le nom doit contenir au moins 2 caractères' };
+    return { valid: false, error: 'Le nom doit contenir au moins 2 caracteres' };
   }
 
   // Valider l'email
@@ -31,8 +37,8 @@ function validateFeedbackData(data: FeedbackData): { valid: boolean; error?: str
 
   // Valider le message
   const message = sanitizeString(data.message, 2000);
-  if (!message || message.length < 10) {
-    return { valid: false, error: 'Le message doit contenir au moins 10 caractères' };
+  if (!message || message.length < 5) {
+    return { valid: false, error: 'Le message doit contenir au moins 5 caracteres' };
   }
 
   // Valider les images (max 5)
@@ -49,59 +55,95 @@ function validateFeedbackData(data: FeedbackData): { valid: boolean; error?: str
   };
 }
 
+/**
+ * Convertit les URIs d'images en base64 pour l'envoi
+ */
+async function convertImagesToBase64(imageUris: string[]): Promise<ImageAttachment[]> {
+  const attachments: ImageAttachment[] = [];
+
+  for (let i = 0; i < imageUris.length; i++) {
+    try {
+      const uri = imageUris[i];
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Determiner le type MIME
+      const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeTypes: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+      };
+
+      attachments.push({
+        filename: `image_${i + 1}.${extension}`,
+        content: base64,
+        type: mimeTypes[extension] || 'image/jpeg',
+      });
+    } catch (error) {
+      logger.warn(`Impossible de lire l'image ${i + 1}:`, error);
+    }
+  }
+
+  return attachments;
+}
+
 export async function sendFeedback(data: FeedbackData): Promise<{ success: boolean; message?: string }> {
   try {
-    // Valider les données
+    // Verifier la configuration Supabase
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      throw new Error('Configuration Supabase manquante');
+    }
+
+    // Valider les donnees
     const validation = validateFeedbackData(data);
     if (!validation.valid || !validation.sanitized) {
-      throw new Error(validation.error || 'Données invalides');
+      throw new Error(validation.error || 'Donnees invalides');
     }
 
     const sanitizedData = validation.sanitized;
 
-    // Vérifier si l'envoi d'email est disponible
-    const isAvailable = await MailComposer.isAvailableAsync();
-    
-    if (!isAvailable) {
-      throw new Error('Aucune application email configurée sur cet appareil');
+    // Convertir les images en base64 si presentes
+    let images: ImageAttachment[] | undefined;
+    if (sanitizedData.images && sanitizedData.images.length > 0) {
+      images = await convertImagesToBase64(sanitizedData.images);
     }
 
-    // Préparer le contenu de l'email
-    const subject = `[ZeroGaspy] Feedback de ${sanitizedData.name}`;
-    
-    const body = `
-📧 Nouveau Feedback ZeroGaspy
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-👤 Nom: ${sanitizedData.name}
-📩 Email: ${sanitizedData.email}
-
-💬 Message:
-${sanitizedData.message}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Envoyé depuis l'application ZeroGaspy
-    `.trim();
-
-    // Ouvrir le compositeur d'email
-    const result = await MailComposer.composeAsync({
-      recipients: [FEEDBACK_EMAIL],
-      subject: subject,
-      body: body,
-      attachments: sanitizedData.images || [],
+    // Appeler la Edge Function Supabase
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        name: sanitizedData.name,
+        email: sanitizedData.email,
+        message: sanitizedData.message,
+        images: images,
+      }),
     });
 
-    if (result.status === MailComposer.MailComposerStatus.SENT) {
-      logger.info('Feedback envoyé avec succès');
-      return { success: true, message: 'Feedback envoyé avec succès' };
-    } else if (result.status === MailComposer.MailComposerStatus.CANCELLED) {
-      throw new Error('Envoi annulé');
-    } else {
-      // L'utilisateur a peut-être sauvegardé en brouillon ou autre
-      return { success: true, message: 'Email préparé' };
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error('Erreur de connexion au serveur. Verifiez votre connexion internet.');
     }
+
+    if (!response.ok) {
+      const errorMsg = result?.error || `Erreur serveur (${response.status})`;
+      throw new Error(errorMsg);
+    }
+
+    logger.info('Feedback envoye avec succes');
+    return { success: true, message: result.message || 'Feedback envoye avec succes' };
+
   } catch (error: any) {
-    logger.error('Erreur lors de l\'envoi du feedback:', error.message);
+    logger.error("Erreur lors de l'envoi du feedback:", error.message);
     throw error;
   }
 }

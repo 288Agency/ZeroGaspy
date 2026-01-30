@@ -23,6 +23,7 @@ import {
   responsive,
   isSmallScreen,
 } from '../utils/responsive';
+import logger from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -680,7 +681,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete();
     } catch (error) {
-      console.error('Error saving onboarding state:', error);
+      logger.error('Error saving onboarding state:', error);
       onComplete();
     }
   };

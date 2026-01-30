@@ -15,6 +15,7 @@ import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import Card from '../components/Card';
 import ExpirationBadge from '../components/ExpirationBadge';
+import logger from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -78,7 +79,7 @@ export default function ExpiringSoonScreen() {
       
       setExpiringItems(items);
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      logger.error('Erreur lors du chargement:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger les aliments à expiration proche. Veuillez réessayer.',

@@ -34,7 +34,8 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "autoIncrement": true
+        "autoIncrement": true,
+        "image": "macos-sequoia-15.4-xcode-16.3"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://jiyhldfgztzknkccuidq.supabase.co",
@@ -50,6 +51,10 @@
         "appleId": "quentin@288.agency",
         "ascAppId": "6740466814",
         "appleTeamId": "M32LP7D76G"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

@@ -13,8 +13,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types/navigation';
 import FeedbackModal from '../components/FeedbackModal';
+import AccountSettingsModal from '../components/AccountSettingsModal';
+import LegalModal from '../components/LegalModal';
+import AchievementsModal from '../components/AchievementsModal';
+import PaywallModal from '../components/PaywallModal';
 import PressableScale from '../components/PressableScale';
+import { useGamification } from '../contexts/GamificationContext';
+import { getLevelTitle } from '../services/gamificationService';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { getPendingChangesCount, syncWithCloud } from '../services/supabase/syncService';
 import { useIsOnline } from '../hooks/useOnlineStatus';
 import {
@@ -30,14 +37,22 @@ import {
   getExportStats,
   cleanupOldExports,
 } from '../services/exportService';
+import * as StoreReview from 'expo-store-review';
+import logger from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut, isLocalMode } = useAuth();
+  const { isPremium, currentPlan, expirationDate, restorePurchases, isLoading: subscriptionLoading } = useSubscription();
   const isOnline = useIsOnline();
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [accountSettingsVisible, setAccountSettingsVisible] = useState(false);
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [achievementsVisible, setAchievementsVisible] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const { gamificationData } = useGamification();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
     dailyReminder: true,
@@ -68,7 +83,7 @@ export default function AccountScreen() {
         setPendingChanges(pending);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      logger.error('Erreur lors du chargement:', error);
     }
   };
 
@@ -283,6 +298,21 @@ export default function AccountScreen() {
                   </View>
                 </View>
 
+                {/* Bouton parametres du compte */}
+                <PressableScale
+                  onPress={() => setAccountSettingsVisible(true)}
+                  className="bg-[#F7F5E6] rounded-xl p-4 flex-row items-center justify-between mb-3"
+                  hapticType="light"
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons name="settings-outline" size={20} color="#3C6E47" />
+                    <Text className="text-[#3C6E47] font-semibold ml-2">
+                      Parametres du compte
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+                </PressableScale>
+
                 {/* Bouton deconnexion */}
                 <PressableScale
                   onPress={handleLogout}
@@ -334,12 +364,150 @@ export default function AccountScreen() {
           </View>
         </View>
 
+        {/* Section Mes Succes */}
+        <View className="mb-6">
+          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
+            🏆 Mes Succes
+          </Text>
+
+          <PressableScale
+            onPress={() => setAchievementsVisible(true)}
+            className="bg-gradient-to-r from-[#3C6E47] to-[#4A8A5C] bg-[#3C6E47] rounded-2xl p-4 border border-[#3C6E47]"
+            hapticType="light"
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center mr-4">
+                  <Text className="text-white text-xl font-bold">
+                    {gamificationData?.level || 1}
+                  </Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white/80 text-sm">
+                    {getLevelTitle(gamificationData?.level || 1)}
+                  </Text>
+                  <Text className="text-white font-bold text-lg">
+                    {gamificationData?.totalXp || 0} XP
+                  </Text>
+                  <View className="flex-row items-center mt-1">
+                    <Text className="text-white/70 text-xs mr-2">
+                      🔥 {gamificationData?.streaks.currentDaily || 0}j
+                    </Text>
+                    <Text className="text-white/70 text-xs">
+                      🌱 {gamificationData?.streaks.currentNoWaste || 0}j
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View className="items-end">
+                <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
+              </View>
+            </View>
+
+            {/* Barre XP */}
+            <View className="mt-3">
+              <View className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <View
+                  className="h-full bg-[#A3C9A8] rounded-full"
+                  style={{
+                    width: `${gamificationData ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100 : 0}%`
+                  }}
+                />
+              </View>
+              <Text className="text-white/60 text-xs text-right mt-1">
+                {gamificationData?.xp || 0} / {gamificationData?.xpToNextLevel || 100} XP
+              </Text>
+            </View>
+          </PressableScale>
+        </View>
+
+        {/* Section Abonnement */}
+        <View className="mb-6">
+          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
+            ⭐ Mon Abonnement
+          </Text>
+
+          <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
+            {isPremium ? (
+              <>
+                {/* Utilisateur Premium */}
+                <View className="flex-row items-center mb-4">
+                  <View className="w-14 h-14 rounded-full bg-[#F59E0B] items-center justify-center mr-4">
+                    <Ionicons name="star" size={28} color="#fff" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[#3C6E47] font-bold text-lg">
+                      Premium {currentPlan === 'yearly' ? 'Annuel' : 'Mensuel'}
+                    </Text>
+                    {expirationDate && (
+                      <Text className="text-[#6A8A6E] text-sm">
+                        Valide jusqu'au {expirationDate.toLocaleDateString('fr-FR')}
+                      </Text>
+                    )}
+                  </View>
+                  <View className="bg-[#F59E0B]/20 px-3 py-1 rounded-full">
+                    <Text className="text-[#B45309] text-xs font-semibold">Actif</Text>
+                  </View>
+                </View>
+
+                <View className="bg-[#F7F5E6] rounded-xl p-3">
+                  <Text className="text-[#6A8A6E] text-sm">
+                    Vous profitez de toutes les fonctionnalites Premium : listes illimitees, scanner de tickets et aucune publicite.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Utilisateur Gratuit */}
+                <View className="flex-row items-center mb-4">
+                  <View className="w-14 h-14 rounded-full bg-[#A3C9A8]/50 items-center justify-center mr-4">
+                    <Ionicons name="person-outline" size={28} color="#3C6E47" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[#3C6E47] font-bold text-lg">
+                      Version Gratuite
+                    </Text>
+                    <Text className="text-[#6A8A6E] text-sm">
+                      3 listes maximum
+                    </Text>
+                  </View>
+                </View>
+
+                <PressableScale
+                  onPress={() => setPaywallVisible(true)}
+                  className="bg-[#F59E0B] rounded-xl p-4 flex-row items-center justify-center mb-3"
+                  hapticType="medium"
+                >
+                  <Ionicons name="star" size={20} color="#fff" />
+                  <Text className="text-white font-bold ml-2">
+                    Passer Premium
+                  </Text>
+                </PressableScale>
+
+                <TouchableOpacity
+                  onPress={restorePurchases}
+                  disabled={subscriptionLoading}
+                  className="flex-row items-center justify-center py-2"
+                >
+                  {subscriptionLoading ? (
+                    <ActivityIndicator size="small" color="#3C6E47" />
+                  ) : (
+                    <Text className="text-[#3C6E47] font-medium">
+                      Restaurer mes achats
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+
         {/* Section Notifications */}
         <View className="mb-6">
           <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
             🔔 Notifications
           </Text>
-          
+
           <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
             <SettingRow
               icon="notifications-outline"
@@ -509,7 +677,7 @@ export default function AccountScreen() {
 
           <TouchableOpacity
             onPress={() => setFeedbackModalVisible(true)}
-            className="bg-[#A3C9A8] rounded-2xl p-4 border border-[#3C6E47] flex-row items-center justify-between"
+            className="bg-[#A3C9A8] rounded-2xl p-4 border border-[#3C6E47] flex-row items-center justify-between mb-3"
             activeOpacity={0.7}
           >
             <View className="flex-row items-center flex-1">
@@ -520,6 +688,38 @@ export default function AccountScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#3C6E47" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={async () => {
+              if (await StoreReview.hasAction()) {
+                await StoreReview.requestReview();
+              }
+            }}
+            className="bg-[#FFF8E1] rounded-2xl p-4 border border-[#F59E0B]/30 flex-row items-center justify-between mb-3"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center flex-1">
+              <Ionicons name="star-outline" size={24} color="#F59E0B" />
+              <Text className="text-[#B45309] font-semibold text-base ml-3">
+                Noter l'application
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setLegalModalVisible(true)}
+            className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20 flex-row items-center justify-between"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center flex-1">
+              <Ionicons name="document-text-outline" size={24} color="#3C6E47" />
+              <Text className="text-[#3C6E47] font-semibold text-base ml-3">
+                CGU & Confidentialite
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -527,6 +727,31 @@ export default function AccountScreen() {
       <FeedbackModal
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
+      />
+
+      {/* Modal des parametres du compte */}
+      <AccountSettingsModal
+        visible={accountSettingsVisible}
+        onClose={() => setAccountSettingsVisible(false)}
+      />
+
+      {/* Modal CGU & Confidentialite */}
+      <LegalModal
+        visible={legalModalVisible}
+        onClose={() => setLegalModalVisible(false)}
+      />
+
+      {/* Modal Succes */}
+      <AchievementsModal
+        visible={achievementsVisible}
+        onClose={() => setAchievementsVisible(false)}
+      />
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        feature="general"
       />
     </View>
   );

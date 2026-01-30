@@ -12,7 +12,6 @@ import AnimatedListItem from './AnimatedListItem';
 import EditListModal from './EditListModal';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, getContrastText } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import { getListIcon } from '../services/iconService';
 
 interface SpacesGridProps {
   lists: List[];
@@ -90,6 +89,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
       listId: list.id,
       listTitle: list.title,
       listColor: list.color,
+      listIcon: list.icon,
     });
   };
 
@@ -173,8 +173,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
           {lists.map((list, index) => {
             const activeCount = getActiveItemsCount(list);
             const listColor = list.color || COLORS.primary[500];
-            const listIconData = getListIcon(list.title);
-            const icon = listIconData.icon;
+            const icon = (list.icon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
 
             return (
               <AnimatedListItem

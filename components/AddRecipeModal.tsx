@@ -25,6 +25,7 @@ interface AddRecipeModalProps {
 }
 
 const CATEGORIES: Array<{ key: Recipe['category']; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { key: 'petit-déjeuner', label: 'Petit-déj', icon: 'sunny' },
   { key: 'plat', label: 'Plat', icon: 'restaurant' },
   { key: 'entrée', label: 'Entrée', icon: 'leaf' },
   { key: 'dessert', label: 'Dessert', icon: 'ice-cream' },

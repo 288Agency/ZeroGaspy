@@ -17,6 +17,8 @@ import { UserStats } from '../types';
 import { calculateUserStats } from '../services/statsService';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, SPACING } from '../utils/designSystem';
 import PressableScale from './PressableScale';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import logger from '../utils/logger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_PADDING = 20;
@@ -322,7 +324,221 @@ function StatMiniCard({ icon, value, label, color, delay = 0 }: {
   );
 }
 
-export default function StatsDashboard() {
+// Donut Chart for Consumed vs Thrown
+function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown: number }) {
+  const total = consumed + thrown;
+  const consumedPercent = total > 0 ? (consumed / total) * 100 : 100;
+  const thrownPercent = total > 0 ? (thrown / total) * 100 : 0;
+
+  const animatedConsumed = useRef(new Animated.Value(0)).current;
+  const animatedThrown = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  const size = 140;
+  const strokeWidth = 20;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const [displayConsumed, setDisplayConsumed] = useState(0);
+  const [displayThrown, setDisplayThrown] = useState(0);
+
+  useEffect(() => {
+    // Animate numbers
+    Animated.parallel([
+      Animated.timing(animatedConsumed, {
+        toValue: consumed,
+        duration: 1500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(animatedThrown, {
+        toValue: thrown,
+        duration: 1500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const consumedListener = animatedConsumed.addListener(({ value }) => {
+      setDisplayConsumed(Math.round(value));
+    });
+    const thrownListener = animatedThrown.addListener(({ value }) => {
+      setDisplayThrown(Math.round(value));
+    });
+
+    return () => {
+      animatedConsumed.removeListener(consumedListener);
+      animatedThrown.removeListener(thrownListener);
+    };
+  }, [consumed, thrown]);
+
+  // Calculate stroke dash arrays for donut segments
+  const consumedDash = (consumedPercent / 100) * circumference;
+  const thrownDash = (thrownPercent / 100) * circumference;
+  const gapSize = total > 0 && consumed > 0 && thrown > 0 ? 4 : 0;
+
+  return (
+    <Animated.View style={[styles.donutContainer, { opacity, transform: [{ scale }] }]}>
+      <View style={styles.donutChartWrapper}>
+        <Svg width={size} height={size}>
+          <Defs>
+            <LinearGradient id="consumedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor={COLORS.semantic.success} />
+              <Stop offset="100%" stopColor={COLORS.accent.avocado} />
+            </LinearGradient>
+            <LinearGradient id="thrownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor={COLORS.accent.tomato} />
+              <Stop offset="100%" stopColor="#FF6B6B" />
+            </LinearGradient>
+          </Defs>
+
+          {/* Background circle */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={hexToRgba(COLORS.neutral.gray300, 0.2)}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+
+          {/* Consumed segment (green) - starts at top */}
+          {consumed > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="url(#consumedGradient)"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${consumedDash - gapSize} ${circumference}`}
+              rotation="-90"
+              origin={`${size / 2}, ${size / 2}`}
+            />
+          )}
+
+          {/* Thrown segment (red) - continues after consumed */}
+          {thrown > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={COLORS.accent.tomato}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${thrownDash - gapSize} ${circumference}`}
+              rotation={-90 + (consumedPercent / 100) * 360 + (gapSize > 0 ? 2 : 0)}
+              origin={`${size / 2}, ${size / 2}`}
+            />
+          )}
+        </Svg>
+
+        {/* Center content */}
+        <View style={styles.donutCenter}>
+          <Text style={styles.donutTotal}>{total}</Text>
+          <Text style={styles.donutTotalLabel}>aliments</Text>
+        </View>
+      </View>
+
+      {/* Legend */}
+      <View style={styles.donutLegend}>
+        <View style={styles.donutLegendItem}>
+          <View style={[styles.donutLegendDot, { backgroundColor: COLORS.semantic.success }]} />
+          <View style={styles.donutLegendTextContainer}>
+            <Text style={styles.donutLegendValue}>{displayConsumed}</Text>
+            <Text style={styles.donutLegendLabel}>Consommes</Text>
+          </View>
+        </View>
+        <View style={styles.donutLegendDivider} />
+        <View style={styles.donutLegendItem}>
+          <View style={[styles.donutLegendDot, { backgroundColor: COLORS.accent.tomato }]} />
+          <View style={styles.donutLegendTextContainer}>
+            <Text style={styles.donutLegendValue}>{displayThrown}</Text>
+            <Text style={styles.donutLegendLabel}>Jetes</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Percentage indicator */}
+      {total > 0 && (
+        <View style={styles.donutPercentage}>
+          <Ionicons
+            name={consumedPercent >= 80 ? "trending-up" : consumedPercent >= 50 ? "remove" : "trending-down"}
+            size={14}
+            color={consumedPercent >= 80 ? COLORS.semantic.success : consumedPercent >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato}
+          />
+          <Text style={[
+            styles.donutPercentageText,
+            { color: consumedPercent >= 80 ? COLORS.semantic.success : consumedPercent >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato }
+          ]}>
+            {consumedPercent.toFixed(0)}% consommes
+          </Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
+// Premium Teaser Card
+function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
+  const scale = useRef(new Animated.Value(0.95)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+      <PressableScale onPress={onPress} style={styles.premiumTeaser} activeScale={0.98}>
+        <View style={styles.premiumTeaserGlow} />
+        <View style={styles.premiumTeaserIcon}>
+          <Ionicons name="lock-closed" size={24} color={COLORS.primary[500]} />
+        </View>
+        <View style={styles.premiumTeaserContent}>
+          <Text style={styles.premiumTeaserTitle}>Statistiques avancées</Text>
+          <Text style={styles.premiumTeaserText}>
+            Économies, impact environnemental, objectifs... Passez à Pro pour tout débloquer !
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color={COLORS.primary[500]} />
+      </PressableScale>
+    </Animated.View>
+  );
+}
+
+interface StatsDashboardProps {
+  onOpenPaywall?: () => void;
+}
+
+export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
+  const { isPremium } = useSubscription();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -367,7 +583,7 @@ export default function StatsDashboard() {
       const userStats = await calculateUserStats();
       setStats(userStats);
     } catch (error) {
-      console.error('Erreur chargement stats:', error);
+      logger.error('Erreur chargement stats:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -417,94 +633,29 @@ export default function StatsDashboard() {
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* Hero Section - Main Savings Card */}
-      <Animated.View style={[
-        styles.heroContainer,
-        {
-          opacity: heroOpacity,
-          transform: [{ scale: heroScale }],
-        }
-      ]}>
-        <View style={styles.heroCard}>
-          {/* Glassmorphism background elements */}
-          <View style={styles.heroGlassCircle1} />
-          <View style={styles.heroGlassCircle2} />
+      {/* Activity Stats - Visible pour tous */}
+      <Animated.View style={[styles.section, { opacity: fadeAnim, marginTop: 8 }]}>
+        <Text style={styles.sectionTitle}>Activité</Text>
 
-          <View style={styles.heroContent}>
-            <View style={styles.heroHeader}>
-              <View style={styles.heroIconContainer}>
-                <Ionicons name="wallet" size={24} color={COLORS.neutral.white} />
-              </View>
-              <Text style={styles.heroLabel}>Economies totales</Text>
-            </View>
-
-            <AnimatedCounter value={stats.netSavings} suffix="€" duration={2000} />
-
-            <View style={styles.heroSubStats}>
-              <View style={styles.heroSubStat}>
-                <Ionicons name="trending-up" size={16} color={COLORS.semantic.success} />
-                <Text style={styles.heroSubStatText}>+{stats.totalSaved.toFixed(2)}€ sauvés</Text>
-              </View>
-              <View style={styles.heroSubStatDivider} />
-              <View style={styles.heroSubStat}>
-                <Ionicons name="trending-down" size={16} color={COLORS.accent.tomato} />
-                <Text style={styles.heroSubStatText}>-{stats.totalWasted.toFixed(2)}€ perdus</Text>
-              </View>
-            </View>
+        {/* Card En cours - séparée */}
+        <View style={styles.activeItemsCard}>
+          <View style={[styles.activeItemsIcon, { backgroundColor: hexToRgba(COLORS.accent.blueberry, 0.12) }]}>
+            <Ionicons name="cube-outline" size={24} color={COLORS.accent.blueberry} />
           </View>
-
-          {/* Decorative elements */}
-          <View style={styles.heroDecoLeaf1}>
-            <LeafIcon size={40} />
+          <View style={styles.activeItemsContent}>
+            <Text style={[styles.activeItemsValue, { color: COLORS.accent.blueberry }]}>{stats.itemsActive}</Text>
+            <Text style={styles.activeItemsLabel}>aliments en cours</Text>
           </View>
+        </View>
+
+        {/* Donut Chart - Consommés vs Jetés */}
+        <View style={styles.donutCard}>
+          <Text style={styles.donutTitle}>Bilan de consommation</Text>
+          <ConsumptionDonutChart consumed={stats.itemsConsumed} thrown={stats.itemsThrown} />
         </View>
       </Animated.View>
 
-      {/* Monthly Goal Progress */}
-      <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <GoalProgressBar current={stats.netSavings} goal={monthlyGoal} label="Objectif mensuel" />
-      </Animated.View>
-
-      {/* Success Rate & Streak Section */}
-      <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <Text style={styles.sectionTitle}>Performance</Text>
-
-        <View style={styles.performanceRow}>
-          {/* Success Rate Ring */}
-          <View style={styles.successRateCard}>
-            <View style={styles.ringContainer}>
-              <ProgressRing
-                progress={successRate}
-                size={120}
-                strokeWidth={12}
-                color={successRate >= 80 ? COLORS.semantic.success : successRate >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato}
-              />
-              <View style={styles.ringCenter}>
-                <Text style={styles.ringValue}>{successRate}%</Text>
-                <Text style={styles.ringLabel}>réussite</Text>
-              </View>
-            </View>
-            <Text style={styles.successRateSubtext}>
-              {stats.itemsConsumed} consommés sur {stats.itemsConsumed + stats.itemsThrown}
-            </Text>
-          </View>
-
-          {/* Streak Card */}
-          <View style={styles.streakCard}>
-            <View style={styles.streakHeader}>
-              <FlameIcon size={28} color={stats.currentStreak >= 7 ? COLORS.accent.carrot : COLORS.neutral.gray400} />
-              <Text style={styles.streakValue}>{stats.currentStreak}</Text>
-            </View>
-            <Text style={styles.streakLabel}>jours sans gaspillage</Text>
-            <View style={styles.streakRecord}>
-              <Ionicons name="trophy" size={14} color={COLORS.accent.lemon} />
-              <Text style={styles.streakRecordText}>Record: {stats.longestStreak} jours</Text>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* Achievement Badges */}
+      {/* Achievement Badges - Visible pour tous */}
       <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
         <Text style={styles.sectionTitle}>Badges de série</Text>
         <View style={styles.badgesRow}>
@@ -520,78 +671,149 @@ export default function StatsDashboard() {
         </View>
       </Animated.View>
 
-      {/* Environmental Impact */}
-      <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <Text style={styles.sectionTitle}>Impact environnemental</Text>
-        <View style={styles.impactRow}>
-          <ImpactCard
-            icon={<LeafIcon size={28} />}
-            value={`${stats.foodSavedKg.toFixed(1)} kg`}
-            label="Nourriture sauvée"
-            color={COLORS.accent.avocado}
-            delay={0}
-          />
-          <ImpactCard
-            icon={<EarthIcon size={28} />}
-            value={`${stats.co2AvoidedKg.toFixed(1)} kg`}
-            label="CO2 évité"
-            subtitle={`≈ ${Math.round(stats.co2AvoidedKg / 0.12)} km en voiture`}
-            color="#3B82F6"
-            delay={100}
-          />
+      {/* Premium Teaser - Visible uniquement pour les non-abonnés */}
+      {!isPremium && (
+        <View style={styles.section}>
+          <PremiumTeaserCard onPress={onOpenPaywall} />
         </View>
-      </Animated.View>
+      )}
 
-      {/* Activity Stats */}
-      <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <Text style={styles.sectionTitle}>Activité</Text>
-        <View style={styles.miniCardsRow}>
-          <StatMiniCard
-            icon="cube-outline"
-            value={stats.itemsActive}
-            label="En cours"
-            color={COLORS.accent.blueberry}
-            delay={0}
-          />
-          <StatMiniCard
-            icon="checkmark-circle-outline"
-            value={stats.itemsConsumed}
-            label="Consommés"
-            color={COLORS.semantic.success}
-            delay={100}
-          />
-          <StatMiniCard
-            icon="trash-outline"
-            value={stats.itemsThrown}
-            label="Jetés"
-            color={COLORS.accent.tomato}
-            delay={200}
-          />
-        </View>
-      </Animated.View>
+      {/* === SECTIONS PREMIUM === */}
+      {isPremium && (
+        <>
+          {/* Hero Section - Main Savings Card */}
+          <Animated.View style={[
+            styles.heroContainer,
+            {
+              opacity: heroOpacity,
+              transform: [{ scale: heroScale }],
+            }
+          ]}>
+            <View style={styles.heroCard}>
+              {/* Glassmorphism background elements */}
+              <View style={styles.heroGlassCircle1} />
+              <View style={styles.heroGlassCircle2} />
 
-      {/* Motivation Card */}
-      {(stats.currentStreak >= 7 || stats.netSavings >= 20) && (
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <PressableScale style={styles.motivationCard} activeScale={0.98}>
-            <View style={styles.motivationGlow} />
-            <Text style={styles.motivationEmoji}>
-              {stats.currentStreak >= 14 ? '🏆' : stats.netSavings >= 50 ? '💪' : '🎉'}
-            </Text>
-            <View style={styles.motivationContent}>
-              <Text style={styles.motivationTitle}>
-                {stats.currentStreak >= 14 ? 'Incroyable !' : stats.netSavings >= 50 ? 'Excellent !' : 'Bravo !'}
-              </Text>
-              <Text style={styles.motivationText}>
-                {stats.currentStreak >= 14
-                  ? `${stats.currentStreak} jours de suite sans gaspillage, tu es un champion !`
-                  : stats.netSavings >= 50
-                  ? `Tu as économisé ${stats.netSavings.toFixed(0)}€ en évitant le gaspillage !`
-                  : `Continue comme ça, chaque geste compte pour la planète !`}
-              </Text>
+              <View style={styles.heroContent}>
+                <View style={styles.heroHeader}>
+                  <View style={styles.heroIconContainer}>
+                    <Ionicons name="wallet" size={24} color={COLORS.neutral.white} />
+                  </View>
+                  <Text style={styles.heroLabel}>Economies totales</Text>
+                </View>
+
+                <AnimatedCounter value={stats.netSavings} suffix="€" duration={2000} />
+
+                <View style={styles.heroSubStats}>
+                  <View style={styles.heroSubStat}>
+                    <Ionicons name="trending-up" size={16} color={COLORS.semantic.success} />
+                    <Text style={styles.heroSubStatText}>+{stats.totalSaved.toFixed(2)}€ sauvés</Text>
+                  </View>
+                  <View style={styles.heroSubStatDivider} />
+                  <View style={styles.heroSubStat}>
+                    <Ionicons name="trending-down" size={16} color={COLORS.accent.tomato} />
+                    <Text style={styles.heroSubStatText}>-{stats.totalWasted.toFixed(2)}€ perdus</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Decorative elements */}
+              <View style={styles.heroDecoLeaf1}>
+                <LeafIcon size={40} />
+              </View>
             </View>
-          </PressableScale>
-        </Animated.View>
+          </Animated.View>
+
+          {/* Monthly Goal Progress */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <GoalProgressBar current={stats.netSavings} goal={monthlyGoal} label="Objectif mensuel" />
+          </Animated.View>
+
+          {/* Success Rate & Streak Section */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>Performance</Text>
+
+            <View style={styles.performanceRow}>
+              {/* Success Rate Ring */}
+              <View style={styles.successRateCard}>
+                <View style={styles.ringContainer}>
+                  <ProgressRing
+                    progress={successRate}
+                    size={120}
+                    strokeWidth={12}
+                    color={successRate >= 80 ? COLORS.semantic.success : successRate >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato}
+                  />
+                  <View style={styles.ringCenter}>
+                    <Text style={styles.ringValue}>{successRate}%</Text>
+                    <Text style={styles.ringLabel}>réussite</Text>
+                  </View>
+                </View>
+                <Text style={styles.successRateSubtext}>
+                  {stats.itemsConsumed} consommés sur {stats.itemsConsumed + stats.itemsThrown}
+                </Text>
+              </View>
+
+              {/* Streak Card */}
+              <View style={styles.streakCard}>
+                <View style={styles.streakHeader}>
+                  <FlameIcon size={28} color={stats.currentStreak >= 7 ? COLORS.accent.carrot : COLORS.neutral.gray400} />
+                  <Text style={styles.streakValue}>{stats.currentStreak}</Text>
+                </View>
+                <Text style={styles.streakLabel}>jours sans gaspillage</Text>
+                <View style={styles.streakRecord}>
+                  <Ionicons name="trophy" size={14} color={COLORS.accent.lemon} />
+                  <Text style={styles.streakRecordText}>Record: {stats.longestStreak} jours</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Environmental Impact */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>Impact environnemental</Text>
+            <View style={styles.impactRow}>
+              <ImpactCard
+                icon={<LeafIcon size={28} />}
+                value={`${stats.foodSavedKg.toFixed(1)} kg`}
+                label="Nourriture sauvée"
+                color={COLORS.accent.avocado}
+                delay={0}
+              />
+              <ImpactCard
+                icon={<EarthIcon size={28} />}
+                value={`${stats.co2AvoidedKg.toFixed(1)} kg`}
+                label="CO2 évité"
+                subtitle={`≈ ${Math.round(stats.co2AvoidedKg / 0.12)} km en voiture`}
+                color="#3B82F6"
+                delay={100}
+              />
+            </View>
+          </Animated.View>
+
+          {/* Motivation Card */}
+          {(stats.currentStreak >= 7 || stats.netSavings >= 20) && (
+            <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+              <PressableScale style={styles.motivationCard} activeScale={0.98}>
+                <View style={styles.motivationGlow} />
+                <Text style={styles.motivationEmoji}>
+                  {stats.currentStreak >= 14 ? '🏆' : stats.netSavings >= 50 ? '💪' : '🎉'}
+                </Text>
+                <View style={styles.motivationContent}>
+                  <Text style={styles.motivationTitle}>
+                    {stats.currentStreak >= 14 ? 'Incroyable !' : stats.netSavings >= 50 ? 'Excellent !' : 'Bravo !'}
+                  </Text>
+                  <Text style={styles.motivationText}>
+                    {stats.currentStreak >= 14
+                      ? `${stats.currentStreak} jours de suite sans gaspillage, tu es un champion !`
+                      : stats.netSavings >= 50
+                      ? `Tu as économisé ${stats.netSavings.toFixed(0)}€ en évitant le gaspillage !`
+                      : `Continue comme ça, chaque geste compte pour la planète !`}
+                  </Text>
+                </View>
+              </PressableScale>
+            </Animated.View>
+          )}
+        </>
       )}
 
       {/* Bottom spacing for tab bar */}
@@ -965,6 +1187,124 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  // Active Items Card
+  activeItemsCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    ...SHADOWS.sm,
+  },
+  activeItemsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  activeItemsContent: {
+    flex: 1,
+  },
+  activeItemsValue: {
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  activeItemsLabel: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.text.secondary,
+  },
+
+  // Donut Chart
+  donutCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: 20,
+    ...SHADOWS.sm,
+  },
+  donutTitle: {
+    ...TYPOGRAPHY.label,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  donutContainer: {
+    alignItems: 'center',
+  },
+  donutChartWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donutCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donutTotal: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.text.primary,
+  },
+  donutTotalLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.text.muted,
+    marginTop: -2,
+  },
+  donutLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 24,
+  },
+  donutLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  donutLegendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  donutLegendTextContainer: {
+    alignItems: 'flex-start',
+  },
+  donutLegendValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  donutLegendLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.text.muted,
+    marginTop: -2,
+  },
+  donutLegendDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: hexToRgba(COLORS.neutral.gray300, 0.5),
+  },
+  donutPercentage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 12,
+    backgroundColor: hexToRgba(COLORS.neutral.gray100, 0.8),
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+  },
+  donutPercentageText: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '600',
+  },
+
   // Motivation Card
   motivationCard: {
     backgroundColor: COLORS.neutral.white,
@@ -1002,5 +1342,49 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodySm,
     color: COLORS.text.secondary,
     lineHeight: 20,
+  },
+
+  // Premium Teaser
+  premiumTeaser: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+    ...SHADOWS.md,
+  },
+  premiumTeaserGlow: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
+  },
+  premiumTeaserIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  premiumTeaserContent: {
+    flex: 1,
+  },
+  premiumTeaserTitle: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.primary[500],
+    marginBottom: 4,
+  },
+  premiumTeaserText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.text.secondary,
+    lineHeight: 18,
   },
 });

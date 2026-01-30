@@ -13,8 +13,7 @@ export type RootStackParamList = {
   Lists: undefined;
   CreateList: undefined;
   AddFood: { listId: string; editItem?: FoodItem };
-  InventoryList: { listId: string; listTitle: string; listColor?: string };
-  ListMembers: { listId: string; listTitle: string; listColor?: string };
+  InventoryList: { listId: string; listTitle: string; listColor?: string; listIcon?: string };
   Account: undefined;
   ExpiringSoon: undefined;
   ThrownFoods: undefined;

@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS } from '../../utils/designSystem';
+import { validatePassword } from '../../utils/security';
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
@@ -29,6 +30,9 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  // Validation du mot de passe en temps reel
+  const passwordValidation = validatePassword(password);
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -43,8 +47,8 @@ export default function RegisterScreen() {
       Alert.alert('Erreur', 'Format d\'email invalide');
       return false;
     }
-    if (password.length < 8) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 8 caracteres');
+    if (!passwordValidation.isValid) {
+      Alert.alert('Mot de passe invalide', passwordValidation.errors.join('\n'));
       return false;
     }
     if (password !== confirmPassword) {
@@ -166,6 +170,29 @@ export default function RegisterScreen() {
                 />
               </TouchableOpacity>
             </View>
+            {/* Indicateur de force du mot de passe */}
+            {password.length > 0 && (
+              <View style={styles.passwordStrength}>
+                <View style={styles.strengthBars}>
+                  <View style={[styles.strengthBar, passwordValidation.strength !== 'weak' && styles.strengthBarWeak]} />
+                  <View style={[styles.strengthBar, passwordValidation.strength === 'medium' && styles.strengthBarMedium, passwordValidation.strength === 'strong' && styles.strengthBarMedium]} />
+                  <View style={[styles.strengthBar, passwordValidation.strength === 'strong' && styles.strengthBarStrong]} />
+                </View>
+                <Text style={[
+                  styles.strengthText,
+                  passwordValidation.strength === 'weak' && styles.strengthTextWeak,
+                  passwordValidation.strength === 'medium' && styles.strengthTextMedium,
+                  passwordValidation.strength === 'strong' && styles.strengthTextStrong,
+                ]}>
+                  {passwordValidation.strength === 'weak' ? 'Faible' : passwordValidation.strength === 'medium' ? 'Moyen' : 'Fort'}
+                </Text>
+              </View>
+            )}
+            {password.length > 0 && !passwordValidation.isValid && (
+              <Text style={styles.passwordHint}>
+                Requis: majuscule, minuscule, chiffre, 8+ caracteres
+              </Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -346,5 +373,49 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     color: COLORS.primary[500],
     fontWeight: '700',
+  },
+  passwordStrength: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  strengthBars: {
+    flexDirection: 'row',
+    gap: 4,
+    flex: 1,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.neutral.gray200,
+  },
+  strengthBarWeak: {
+    backgroundColor: '#EF4444',
+  },
+  strengthBarMedium: {
+    backgroundColor: '#F59E0B',
+  },
+  strengthBarStrong: {
+    backgroundColor: '#10B981',
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  strengthTextWeak: {
+    color: '#EF4444',
+  },
+  strengthTextMedium: {
+    color: '#F59E0B',
+  },
+  strengthTextStrong: {
+    color: '#10B981',
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: COLORS.text.muted,
+    marginTop: 4,
   },
 });

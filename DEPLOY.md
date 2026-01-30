@@ -1,49 +1,19 @@
-# Guide de déploiement - Feedback avec Resend
+# Guide de deploiement - Feedback avec Supabase Edge Functions + Resend
 
-## 🎯 Deux options de déploiement
+## Configuration
 
-### Option A : Serveur Express (Recommandé - Plus simple)
-Voir `server/README.md` pour déployer sur Railway, Render, ou votre serveur.
+### 1. Configurer Resend
 
-### Option B : Vercel Serverless Function
-Voir ci-dessous pour déployer sur Vercel.
+1. Creez un compte sur [resend.com](https://resend.com)
+2. Obtenez votre cle API depuis le tableau de bord
+3. Notez votre cle API : `re_xxxxxxxxxxxxx`
 
----
+### 2. Configurer les secrets Supabase
 
-## 🚀 Déploiement rapide sur Vercel
+Dans le tableau de bord Supabase de votre projet :
 
-### 1. Préparer votre projet
-
-1. Assurez-vous d'avoir un compte [Vercel](https://vercel.com)
-2. Installez Vercel CLI :
-   ```bash
-   npm i -g vercel
-   ```
-
-### 2. Configurer Resend
-
-1. Créez un compte sur [resend.com](https://resend.com)
-2. Obtenez votre clé API depuis le tableau de bord
-3. Notez votre clé API : `re_xxxxxxxxxxxxx`
-
-### 3. Déployer l'endpoint
-
-1. Dans le terminal, à la racine du projet :
-   ```bash
-   vercel
-   ```
-
-2. Suivez les instructions :
-   - Connectez-vous à Vercel
-   - Créez un nouveau projet ou liez un projet existant
-   - Vercel détectera automatiquement le fichier `api/feedback.ts`
-
-### 4. Configurer les variables d'environnement
-
-Dans le dashboard Vercel de votre projet :
-
-1. Allez dans **Settings** → **Environment Variables**
-2. Ajoutez ces variables :
+1. Allez dans **Project Settings** > **Edge Functions**
+2. Ajoutez ces secrets :
 
    ```
    RESEND_API_KEY = re_xxxxxxxxxxxxx
@@ -51,87 +21,74 @@ Dans le dashboard Vercel de votre projet :
    RESEND_FROM_EMAIL = ZeroGaspy <onboarding@resend.dev>
    ```
 
-3. **Important** : Cochez toutes les environnements (Production, Preview, Development)
+Ou via CLI :
 
-### 5. Configurer l'app React Native
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxx
+supabase secrets set FEEDBACK_RECIPIENT_EMAIL=votre-email@example.com
+supabase secrets set RESEND_FROM_EMAIL="ZeroGaspy <onboarding@resend.dev>"
+```
 
-1. Créez un fichier `.env` à la racine du projet :
-   ```env
-   EXPO_PUBLIC_FEEDBACK_API_URL=https://votre-projet.vercel.app/api/feedback
-   ```
+### 3. Deployer la Edge Function
 
-2. Remplacez `votre-projet.vercel.app` par l'URL réelle de votre déploiement Vercel
+```bash
+supabase functions deploy feedback
+```
 
-3. Redémarrez Expo :
-   ```bash
-   npm start
-   ```
+### 4. Configurer l'app React Native
 
-### 6. Tester
+Assurez-vous que votre fichier `.env` contient :
 
-1. Ouvrez l'app
-2. Ouvrez le modal de feedback
-3. Remplissez le formulaire et envoyez
-4. Vérifiez que vous recevez l'email
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
+```
 
-## 🔒 Sécurité
+## Securite
 
-- ✅ Validation des données côté serveur
-- ✅ Protection contre les injections XSS (escape HTML)
-- ✅ Limitation de la taille des images
-- ✅ Limitation du nombre d'images (max 5)
-- ✅ Limitation de la longueur du message (max 5000 caractères)
-- ✅ CORS configuré pour l'app mobile
+- Validation des donnees cote serveur
+- Protection contre les injections XSS (escape HTML)
+- Limitation de la taille des images (~10MB par image)
+- Limitation du nombre d'images (max 5)
+- Limitation de la longueur du message (max 5000 caracteres)
+- CORS configure pour l'app mobile
 
-## 📧 Configuration avancée
+## Configuration avancee
 
 ### Utiliser votre propre domaine
 
 1. Dans Resend, ajoutez votre domaine
-2. Vérifiez-le en ajoutant les enregistrements DNS
-3. Mettez à jour `RESEND_FROM_EMAIL` :
+2. Verifiez-le en ajoutant les enregistrements DNS
+3. Mettez a jour le secret `RESEND_FROM_EMAIL` :
+   ```bash
+   supabase secrets set RESEND_FROM_EMAIL="ZeroGaspy <feedback@votredomaine.com>"
    ```
-   RESEND_FROM_EMAIL = ZeroGaspy <feedback@votredomaine.com>
-   ```
 
-### Personnaliser l'email de réception
+## Depannage
 
-Changez simplement la variable `FEEDBACK_RECIPIENT_EMAIL` dans Vercel.
+### L'email n'est pas envoye
 
-## 🐛 Dépannage
-
-### L'email n'est pas envoyé
-
-1. Vérifiez les logs Vercel : Dashboard → Deployments → Votre déploiement → Functions
-2. Vérifiez que `RESEND_API_KEY` est bien configurée
-3. Vérifiez que votre domaine est vérifié dans Resend (si vous utilisez un domaine custom)
+1. Verifiez les logs Supabase : Dashboard > Edge Functions > feedback > Logs
+2. Verifiez que `RESEND_API_KEY` est bien configure
+3. Verifiez que votre domaine est verifie dans Resend (si vous utilisez un domaine custom)
 
 ### Erreur CORS
 
-L'endpoint gère automatiquement CORS. Si vous avez des problèmes :
-- Vérifiez que l'URL dans `.env` est correcte
-- Vérifiez que vous utilisez HTTPS
+L'endpoint gere automatiquement CORS. Si vous avez des problemes :
+- Verifiez que l'URL Supabase dans `.env` est correcte
+- Verifiez que vous utilisez la bonne anon key
 
-### Images trop volumineuses
-
-L'endpoint limite à ~10MB par image. Si nécessaire, compressez les images côté client avant l'envoi.
-
-## 📝 Structure des fichiers
+## Structure des fichiers
 
 ```
 ZeroGaspyLocal/
-├── api/
-│   ├── feedback.ts          # Endpoint Vercel serverless function
-│   └── vercel.json          # Configuration Vercel
+├── supabase/
+│   └── functions/
+│       └── feedback/
+│           └── index.ts      # Edge Function Supabase
 ├── utils/
-│   └── feedbackService.ts   # Service client pour envoyer les feedbacks
+│   └── feedbackService.ts    # Service client pour envoyer les feedbacks
 ├── components/
-│   └── FeedbackModal.tsx    # Modal de feedback
-├── .env.example             # Exemple de configuration
-└── DEPLOY.md               # Ce fichier
+│   └── FeedbackModal.tsx     # Modal de feedback
+└── DEPLOY.md                 # Ce fichier
 ```
-
-## 🎉 C'est prêt !
-
-Votre système de feedback est maintenant opérationnel avec Resend !
-

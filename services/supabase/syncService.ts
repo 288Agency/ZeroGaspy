@@ -58,6 +58,7 @@ export async function migrateLocalDataToCloud(userId: string): Promise<void> {
             user_id: userId,
             title: localList.title,
             color: localList.color || '#3C6E47',
+            icon: localList.icon || 'snow-outline',
             local_id: localList.id,
             created_at: localList.createdAt || new Date().toISOString(),
           })
@@ -79,6 +80,8 @@ export async function migrateLocalDataToCloud(userId: string): Promise<void> {
               name: item.name,
               expiration_date: convertDateToISO(item.expirationDate),
               quantity: item.quantity || 1,
+              weight: item.weight || null,
+              unit: item.unit || null,
               category: item.category || null,
               image_uri: item.imageUri || null,
               price: item.price || null,
@@ -139,6 +142,25 @@ export async function syncWithCloud(userId: string): Promise<void> {
 }
 
 /**
+ * Convertit un ID local de liste en UUID cloud
+ */
+async function getCloudListId(localListId: string): Promise<string | null> {
+  // Si c'est déjà un UUID, le retourner directement
+  if (localListId.includes('-') && localListId.length === 36) {
+    return localListId;
+  }
+
+  // Chercher l'UUID cloud correspondant au local_id
+  const { data } = await supabase
+    .from('lists')
+    .select('id')
+    .or(`local_id.eq.${localListId},id.eq.${localListId}`)
+    .single();
+
+  return data?.id || null;
+}
+
+/**
  * Envoie les changements en attente vers le cloud
  */
 async function pushPendingChanges(userId: string): Promise<void> {
@@ -152,10 +174,21 @@ async function pushPendingChanges(userId: string): Promise<void> {
     try {
       switch (item.operation) {
         case 'INSERT':
-          await supabase.from(item.tableName).insert({
-            ...item.payload,
-            user_id: userId,
-          });
+          // Pour les food_items, convertir list_id local en UUID cloud
+          let payload = { ...item.payload, user_id: userId };
+          if (item.tableName === 'food_items' && payload.list_id) {
+            const cloudListId = await getCloudListId(payload.list_id);
+            if (!cloudListId) {
+              // La liste n'existe plus, supprimer cet item de la queue (ne pas réessayer)
+              logger.debug(`[SYNC] Liste introuvable, item orphelin supprimé: ${payload.list_id}`);
+              continue; // Ne pas ajouter aux failedItems = supprimé de la queue
+            }
+            payload.list_id = cloudListId;
+          }
+          const { error: insertError } = await supabase.from(item.tableName).insert(payload);
+          if (insertError) {
+            logger.error(`[SYNC] Erreur insertion ${item.tableName}:`, insertError);
+          }
           break;
 
         case 'UPDATE':
@@ -211,38 +244,20 @@ async function pullFromCloud(userId: string): Promise<void> {
 
   const { data: cloudLists, error } = await query;
 
+  logger.debug(`[SYNC] Listes récupérées: ${cloudLists?.length || 0}`,
+    cloudLists?.map(l => ({ id: l.id, title: l.title })));
+
   if (error) {
+    logger.error('[SYNC] Erreur récupération listes:', error);
     throw error;
   }
 
-  // 2. Recuperer les listes partagées avec l'utilisateur
-  const { data: sharedListIds } = await supabase
-    .from('list_shares')
-    .select('list_id')
-    .eq('shared_with_user_id', userId)
-    .eq('status', 'accepted');
+  const allCloudLists = cloudLists || [];
 
-  const sharedLists = [];
-  if (sharedListIds && sharedListIds.length > 0) {
-    const listIds = sharedListIds.map(s => s.list_id);
-    const { data: sharedListsData } = await supabase
-      .from('lists')
-      .select(`
-        *,
-        food_items (*)
-      `)
-      .in('id', listIds)
-      .eq('is_deleted', false);
-
-    if (sharedListsData) {
-      sharedLists.push(...sharedListsData);
-    }
-  }
-
-  // Combiner les listes personnelles et partagées
-  const allCloudLists = [...(cloudLists || []), ...sharedLists];
+  logger.debug(`[SYNC] Total listes à synchroniser: ${allCloudLists.length}`);
 
   if (allCloudLists.length === 0) {
+    logger.debug('[SYNC] Aucune liste à synchroniser');
     return;
   }
 
@@ -252,14 +267,17 @@ async function pullFromCloud(userId: string): Promise<void> {
 
   // Fusionner les donnees cloud avec les locales
   for (const cloudList of allCloudLists) {
+    const listId = cloudList.local_id || cloudList.id;
+
     const localIndex = localLists.findIndex(
       l => l.id === cloudList.local_id || l.id === cloudList.id
     );
 
     const convertedList: List = {
-      id: cloudList.local_id || cloudList.id,
+      id: listId,
       title: cloudList.title,
       color: cloudList.color,
+      icon: cloudList.icon || 'snow-outline',
       createdAt: cloudList.created_at,
       items: (cloudList.food_items || [])
         .filter((item: CloudFoodItem) => !item.is_deleted)
@@ -385,6 +403,8 @@ function convertCloudItemToLocal(item: CloudFoodItem): FoodItem {
     name: item.name,
     expirationDate: convertISOToDate(item.expiration_date),
     quantity: item.quantity,
+    weight: item.weight || undefined,
+    unit: item.unit || undefined,
     category: item.category || undefined,
     imageUri: item.image_uri || undefined,
     price: item.price || undefined,

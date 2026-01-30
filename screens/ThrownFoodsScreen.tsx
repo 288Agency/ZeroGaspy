@@ -14,6 +14,7 @@ import { RootStackParamList } from '../types/navigation';
 import { loadLists } from '../utils/localStorage';
 import { FoodItem } from '../types';
 import Card from '../components/Card';
+import logger from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -45,7 +46,7 @@ export default function ThrownFoodsScreen() {
       
       setThrownItems(items);
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      logger.error('Erreur lors du chargement:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger les aliments jetés. Veuillez réessayer.',
@@ -62,54 +63,40 @@ export default function ThrownFoodsScreen() {
     }, [])
   );
 
-  const handleItemPress = (listId: string, listTitle: string, listColor?: string) => {
-    navigation.navigate('InventoryList', { listId, listTitle, listColor });
-  };
-
   const renderItem = ({ item }: { item: FoodItem & { listTitle: string; listId: string; listColor?: string } }) => {
     return (
-      <TouchableOpacity
-        onPress={() => handleItemPress(item.listId, item.listTitle, item.listColor)}
-        activeOpacity={0.7}
-        accessibilityLabel={`Voir ${item.name} dans ${item.listTitle}`}
-        accessibilityRole="button"
-        accessibilityHint="Double-tapez pour voir cet aliment dans sa liste"
-      >
-        <Card variant="elevated" className="p-5 mb-3">
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 mr-4">
-              <View className="flex-row items-center mb-2">
-                <Text className="text-xl font-bold text-[#3C6E47]">
-                  {item.name}
-                </Text>
-                <View className="ml-2 px-2 py-1 rounded-full bg-red-100">
-                  <Text className="text-xs font-semibold text-red-600">
-                    Jeté
-                  </Text>
-                </View>
-              </View>
-              
-              {item.expirationDate && (
-                <Text className="text-sm text-[#6A8A6E] mb-1">
-                  Date d'expiration: {item.expirationDate}
-                </Text>
-              )}
-              
-              <Text className="text-sm text-[#6A8A6E] mb-1">
-                Liste: {item.listTitle}
+      <Card variant="elevated" className="p-5 mb-3">
+        <View className="flex-row items-start">
+          <View className="flex-1">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-xl font-bold text-[#3C6E47]">
+                {item.name}
               </Text>
-              
-              {item.quantity !== undefined && (
-                <Text className="text-sm text-[#6A8A6E]">
-                  Quantité: {item.quantity}
+              <View className="ml-2 px-2 py-1 rounded-full bg-red-100">
+                <Text className="text-xs font-semibold text-red-600">
+                  Jeté
                 </Text>
-              )}
+              </View>
             </View>
-            
-            <Ionicons name="chevron-forward" size={24} color="#3C6E47" />
+
+            {item.expirationDate && (
+              <Text className="text-sm text-[#6A8A6E] mb-1">
+                Date d'expiration: {item.expirationDate}
+              </Text>
+            )}
+
+            <Text className="text-sm text-[#6A8A6E] mb-1">
+              Liste: {item.listTitle}
+            </Text>
+
+            {item.quantity !== undefined && (
+              <Text className="text-sm text-[#6A8A6E]">
+                Quantité: {item.quantity}
+              </Text>
+            )}
           </View>
-        </Card>
-      </TouchableOpacity>
+        </View>
+      </Card>
     );
   };
 

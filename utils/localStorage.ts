@@ -1,14 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { List, FoodItem } from '../types';
 import { scheduleExpirationNotifications } from '../services/notificationService';
 import { sanitizeString, validateListTitle } from './security';
 import { formatDateToDDMMYYYY, parseDDMMYYYY } from './dateUtils';
 import { addToSyncQueue, syncWithCloud } from '../services/supabase/syncService';
 import { supabase } from '../config/supabase';
+import { updateWidgetData } from '../widgets/widgetDataService';
 import logger from './logger';
 
 const LISTS_KEY = 'inventory_lists';
 const ALLOWED_KEYS = [LISTS_KEY, 'notification_settings', 'last_notification_check', 'supabase_'];
+
+// Convertit une date DD/MM/YYYY en ISO YYYY-MM-DD pour PostgreSQL
+function convertDateForCloud(dateStr: string | undefined): string | null {
+  if (!dateStr || dateStr.trim() === '') return null;
+  // Si déjà au format ISO (YYYY-MM-DD)
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+    return dateStr.split('T')[0];
+  }
+  // Format DD/MM/YYYY
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return null;
+}
 
 // Récupère l'ID utilisateur connecté (null si mode local)
 async function getCurrentUserId(): Promise<string | null> {
@@ -108,9 +126,11 @@ export async function loadLists(): Promise<List[]> {
 export async function saveLists(lists: List[]): Promise<void> {
   await AsyncStorage.setItem(LISTS_KEY, JSON.stringify(lists));
   scheduleExpirationNotifications().catch((e) => logger.error('Erreur notifications:', e.message));
+  // Mettre à jour les données du widget
+  updateWidgetData().catch((e) => logger.error('Erreur widget data:', e.message));
 }
 
-export async function createList(title: string, color?: string): Promise<List> {
+export async function createList(title: string, color?: string, icon?: string): Promise<List> {
   const validation = validateListTitle(title);
   if (!validation.valid) {
     throw new Error(validation.error || 'Titre invalide');
@@ -123,6 +143,7 @@ export async function createList(title: string, color?: string): Promise<List> {
     createdAt: new Date().toISOString(),
     items: [],
     color: color || '#3C6E47',
+    icon: icon || 'snow-outline',
   };
   lists.push(newList);
   await saveLists(lists);
@@ -132,6 +153,7 @@ export async function createList(title: string, color?: string): Promise<List> {
   await triggerCloudSync('INSERT', 'lists', newList.id, {
     title: newList.title,
     color: newList.color,
+    icon: newList.icon,
     local_id: newList.id,
     created_at: newList.createdAt,
   });
@@ -147,7 +169,7 @@ export async function deleteList(id: string): Promise<void> {
   await triggerCloudSync('DELETE', 'lists', id, {});
 }
 
-export async function updateList(id: string, updates: { title?: string; color?: string }): Promise<void> {
+export async function updateList(id: string, updates: { title?: string; color?: string; icon?: string }): Promise<void> {
   const lists = await loadLists();
   const listIndex = lists.findIndex((list) => list.id === id);
   if (listIndex === -1) {
@@ -170,6 +192,11 @@ export async function updateList(id: string, updates: { title?: string; color?: 
     cloudUpdates.color = updates.color;
   }
 
+  if (updates.icon !== undefined) {
+    lists[listIndex].icon = updates.icon;
+    cloudUpdates.icon = updates.icon;
+  }
+
   await saveLists(lists);
   logger.info('Liste mise à jour:', id);
 
@@ -188,14 +215,14 @@ export async function addItemToList(listId: string, item: FoodItem): Promise<voi
   await triggerCloudSync('INSERT', 'food_items', item.id, {
     list_id: listId,
     name: item.name,
-    expiration_date: item.expirationDate,
+    expiration_date: convertDateForCloud(item.expirationDate),
     quantity: item.quantity || 1,
     category: item.category || null,
     image_uri: item.imageUri || null,
     price: item.price || null,
     status: item.status || 'active',
     is_opened: item.isOpened || false,
-    opened_date: item.openedDate || null,
+    opened_date: convertDateForCloud(item.openedDate),
     days_after_opening: item.daysAfterOpening || null,
     local_id: item.id,
   });
@@ -286,9 +313,9 @@ export async function markItemAsOpened(
   // Sync avec le cloud
   await triggerCloudSync('UPDATE', 'food_items', itemId, {
     is_opened: true,
-    opened_date: openedDate,
+    opened_date: convertDateForCloud(openedDate),
     days_after_opening: daysAfterOpening,
-    expiration_date: item.expirationDate,
+    expiration_date: convertDateForCloud(item.expirationDate),
   });
 }
 
@@ -337,14 +364,14 @@ export async function updateItemStatusWithQuantity(
     await triggerCloudSync('INSERT', 'food_items', newItemId, {
       list_id: listId,
       name: newItem.name,
-      expiration_date: newItem.expirationDate,
+      expiration_date: convertDateForCloud(newItem.expirationDate),
       quantity: quantityToMark,
       category: newItem.category || null,
       image_uri: newItem.imageUri || null,
       price: newItem.price || null,
       status,
       is_opened: newItem.isOpened || false,
-      opened_date: newItem.openedDate || null,
+      opened_date: convertDateForCloud(newItem.openedDate),
       days_after_opening: newItem.daysAfterOpening || null,
       local_id: newItemId,
       consumed_at: timestamp,
@@ -375,9 +402,9 @@ export async function markItemAsOpenedWithQuantity(
     // Sync avec le cloud
     await triggerCloudSync('UPDATE', 'food_items', itemId, {
       is_opened: true,
-      opened_date: openedDate,
+      opened_date: convertDateForCloud(openedDate),
       days_after_opening: daysAfterOpening,
-      expiration_date: newExpirationDate,
+      expiration_date: convertDateForCloud(newExpirationDate),
     });
   } else {
     item.quantity = currentQuantity - quantityToOpen;
@@ -404,14 +431,14 @@ export async function markItemAsOpenedWithQuantity(
     await triggerCloudSync('INSERT', 'food_items', newItemId, {
       list_id: listId,
       name: newItem.name,
-      expiration_date: newExpirationDate,
+      expiration_date: convertDateForCloud(newExpirationDate),
       quantity: quantityToOpen,
       category: newItem.category || null,
       image_uri: newItem.imageUri || null,
       price: newItem.price || null,
       status: newItem.status || 'active',
       is_opened: true,
-      opened_date: openedDate,
+      opened_date: convertDateForCloud(openedDate),
       days_after_opening: daysAfterOpening,
       local_id: newItemId,
     });

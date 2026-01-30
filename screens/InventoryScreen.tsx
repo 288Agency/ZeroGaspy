@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { FoodItem, Inventory } from '../types';
 import { saveData, loadData } from '../utils/localStorage';
+import logger from '../utils/logger';
 
 const STORAGE_KEY = 'inventory';
 
@@ -29,7 +30,7 @@ export default function InventoryScreen() {
         setInventory(data);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'inventaire:', error);
+      logger.error('Erreur lors du chargement de l\'inventaire:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger l\'inventaire. Veuillez réessayer.',
@@ -43,7 +44,7 @@ export default function InventoryScreen() {
       await saveData(STORAGE_KEY, newInventory);
       setInventory(newInventory);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde de l\'inventaire:', error);
+      logger.error('Erreur lors de la sauvegarde de l\'inventaire:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder l\'inventaire');
     }
   };

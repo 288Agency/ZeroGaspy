@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { COLORS } from '../utils/designSystem';
+import { COLORS, hexToRgba } from '../utils/designSystem';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface TabIconProps {
   name: string;
@@ -29,20 +30,30 @@ function TabIcon({ name, focused, color }: TabIconProps) {
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
   const bottomPadding = Math.max(insets.bottom, 12);
+
+  // Couleurs dynamiques basées sur le thème
+  const glowColor = hexToRgba(colors.primary[500], 0.08);
+  const iconContainerFocusedColor = hexToRgba(colors.primary[500], 0.15);
+  const inactiveTextColor = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(60, 60, 67, 0.6)';
+  const glassOverlayColor = isDark
+    ? (Platform.OS === 'ios' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(30, 30, 30, 0.95)')
+    : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.92)');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)';
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPadding }]}>
       {/* Outer glow effect */}
-      <View style={styles.glowOuter} />
+      <View style={[styles.glowOuter, { backgroundColor: glowColor }]} />
 
       <BlurView
         intensity={Platform.OS === 'ios' ? 60 : 100}
-        tint={Platform.OS === 'ios' ? 'systemThinMaterialLight' : 'light'}
-        style={styles.blurContainer}
+        tint={Platform.OS === 'ios' ? (isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight') : (isDark ? 'dark' : 'light')}
+        style={[styles.blurContainer, { borderColor }]}
       >
         {/* Inner gradient overlay for glass effect */}
-        <View style={styles.glassOverlay} />
+        <View style={[styles.glassOverlay, { backgroundColor: glassOverlayColor }]} />
 
         <View style={styles.tabsContainer}>
           {state.routes.map((route, index) => {
@@ -86,18 +97,18 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
               >
                 <View style={[
                   styles.iconContainer,
-                  isFocused && styles.iconContainerFocused,
+                  isFocused && [styles.iconContainerFocused, { backgroundColor: iconContainerFocusedColor }],
                 ]}>
                   <TabIcon
                     name={route.name}
                     focused={isFocused}
-                    color={isFocused ? COLORS.primary[600] : 'rgba(60, 60, 67, 0.6)'}
+                    color={isFocused ? colors.primary[600] : inactiveTextColor}
                   />
                 </View>
                 <Text
                   style={[
                     styles.label,
-                    isFocused ? styles.labelFocused : styles.labelInactive,
+                    isFocused ? [styles.labelFocused, { color: colors.primary[600] }] : [styles.labelInactive, { color: inactiveTextColor }],
                   ]}
                   numberOfLines={1}
                 >
@@ -128,7 +139,6 @@ const styles = StyleSheet.create({
     right: 20,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(60, 110, 71, 0.08)',
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primary[500],
@@ -143,7 +153,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     overflow: 'hidden',
     borderWidth: Platform.OS === 'ios' ? 0.5 : 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -158,9 +167,6 @@ const styles = StyleSheet.create({
   },
   glassOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Platform.OS === 'ios'
-      ? 'rgba(255, 255, 255, 0.25)'
-      : 'rgba(255, 255, 255, 0.92)',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -182,7 +188,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   iconContainerFocused: {
-    backgroundColor: 'rgba(60, 110, 71, 0.15)',
+    // backgroundColor géré dynamiquement
   },
   label: {
     fontSize: 10,
@@ -190,10 +196,8 @@ const styles = StyleSheet.create({
   },
   labelFocused: {
     fontWeight: '600',
-    color: COLORS.primary[600],
   },
   labelInactive: {
     fontWeight: '500',
-    color: 'rgba(60, 60, 67, 0.6)',
   },
 });

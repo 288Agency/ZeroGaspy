@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { scanReceipt, ReceiptScanResult } from '../services/receiptScannerService';
 import { COLORS, SHADOWS, RADIUS } from '../utils/designSystem';
 import Constants from 'expo-constants';
+import logger from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -71,7 +72,7 @@ export default function ReceiptScannerModal({
         setScanState('preview');
       }
     } catch (error) {
-      console.error('Erreur prise de photo:', error);
+      logger.error('Erreur prise de photo:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', 'Impossible de prendre la photo');
     }
@@ -99,7 +100,7 @@ export default function ReceiptScannerModal({
         setScanState('preview');
       }
     } catch (error) {
-      console.error('Erreur selection image:', error);
+      logger.error('Erreur selection image:', error);
       Alert.alert('Erreur', 'Impossible de selectionner l\'image');
     }
   };
@@ -132,7 +133,7 @@ export default function ReceiptScannerModal({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
-      console.error('Erreur selection fichier:', error);
+      logger.error('Erreur selection fichier:', error);
       Alert.alert('Erreur', 'Impossible de selectionner le fichier');
     }
   };

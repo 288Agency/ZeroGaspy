@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
@@ -10,15 +11,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials not configured. Please add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.');
 }
 
+// SecureStore has a 2048 byte limit - use AsyncStorage for larger values
+const SECURE_STORE_LIMIT = 2048;
+
 // Adaptateur de stockage sécurisé pour Supabase
-// Utilise expo-secure-store (chiffré) sur mobile, localStorage sur web
+// Utilise expo-secure-store (chiffré) sur mobile quand possible, sinon AsyncStorage
 const SecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
     try {
       if (Platform.OS === 'web') {
         return localStorage.getItem(key);
       }
-      return await SecureStore.getItemAsync(key);
+      // Try SecureStore first, fallback to AsyncStorage for large values
+      const secureValue = await SecureStore.getItemAsync(key);
+      if (secureValue !== null) {
+        return secureValue;
+      }
+      // Check AsyncStorage for large values
+      return await AsyncStorage.getItem(key);
     } catch (error) {
       console.error('SecureStore getItem error:', error);
       return null;
@@ -30,7 +40,16 @@ const SecureStoreAdapter = {
         localStorage.setItem(key, value);
         return;
       }
-      await SecureStore.setItemAsync(key, value);
+      // Use SecureStore for small values, AsyncStorage for large ones
+      if (value.length <= SECURE_STORE_LIMIT) {
+        // Remove from AsyncStorage if it was previously stored there
+        await AsyncStorage.removeItem(key);
+        await SecureStore.setItemAsync(key, value);
+      } else {
+        // Remove from SecureStore if it was previously stored there
+        await SecureStore.deleteItemAsync(key);
+        await AsyncStorage.setItem(key, value);
+      }
     } catch (error) {
       console.error('SecureStore setItem error:', error);
     }
@@ -41,7 +60,9 @@ const SecureStoreAdapter = {
         localStorage.removeItem(key);
         return;
       }
+      // Remove from both storages
       await SecureStore.deleteItemAsync(key);
+      await AsyncStorage.removeItem(key);
     } catch (error) {
       console.error('SecureStore removeItem error:', error);
     }
@@ -74,6 +95,7 @@ export interface CloudList {
   user_id: string;
   title: string;
   color: string;
+  icon: string | null;
   local_id: string | null;
   created_at: string;
   updated_at: string;
@@ -87,6 +109,8 @@ export interface CloudFoodItem {
   name: string;
   expiration_date: string;
   quantity: number;
+  weight: number | null;
+  unit: string | null;
   category: string | null;
   image_uri: string | null;
   price: number | null;
@@ -98,18 +122,4 @@ export interface CloudFoodItem {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
-}
-
-export interface ListShare {
-  id: string;
-  list_id: string;
-  owner_id: string;
-  shared_with_email: string;
-  shared_with_user_id: string | null;
-  permission: 'view' | 'edit' | 'admin';
-  status: 'pending' | 'accepted' | 'declined';
-  invitation_code: string;
-  created_at: string;
-  accepted_at: string | null;
-  updated_at: string;
 }

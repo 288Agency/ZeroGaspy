@@ -265,6 +265,7 @@ const styles = StyleSheet.create({
   registerLink: {
     flexDirection: 'row',
     justifyContent: 'center',
+    marginTop: 24,
     marginBottom: 20,
   },
   registerLinkText: {

@@ -22,14 +22,20 @@ import {
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import PaywallModal from '../components/PaywallModal';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { FREE_LIMITS } from '../constants/subscription';
+import logger from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
 
 export default function ListsScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { isPremium } = useSubscription();
   const [lists, setLists] = useState<List[]>([]);
   const [newListTitle, setNewListTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
 
   // Charger les listes au démarrage
   useEffect(() => {
@@ -49,7 +55,7 @@ export default function ListsScreen() {
       const data = await loadLists();
       setLists(data);
     } catch (error) {
-      console.error('Erreur lors du chargement des listes:', error);
+      logger.error('Erreur lors du chargement des listes:', error);
       Alert.alert('Erreur', 'Impossible de charger les listes');
     }
   };
@@ -66,7 +72,7 @@ export default function ListsScreen() {
       setIsCreating(false);
       await loadListsData();
     } catch (error) {
-      console.error('Erreur lors de la création de la liste:', error);
+      logger.error('Erreur lors de la création de la liste:', error);
       Alert.alert('Erreur', 'Impossible de créer la liste');
     }
   };
@@ -85,7 +91,7 @@ export default function ListsScreen() {
               await deleteList(id);
               await loadListsData();
             } catch (error) {
-              console.error('Erreur lors de la suppression:', error);
+              logger.error('Erreur lors de la suppression:', error);
               Alert.alert('Erreur', 'Impossible de supprimer la liste');
             }
           },
@@ -100,6 +106,15 @@ export default function ListsScreen() {
       listTitle: list.title,
       listColor: list.color,
     });
+  };
+
+  const handlePressCreate = () => {
+    // Verifier la limite pour les utilisateurs gratuits
+    if (!isPremium && lists.length >= FREE_LIMITS.MAX_LISTS) {
+      setPaywallVisible(true);
+      return;
+    }
+    navigation.navigate('CreateList');
   };
 
   const formatDate = (dateString: string) => {
@@ -203,7 +218,7 @@ export default function ListsScreen() {
 
       {/* Bouton flottant pour créer une liste */}
       <Pressable
-        onPress={() => navigation.navigate('CreateList')}
+        onPress={handlePressCreate}
         hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
         className="absolute bottom-6 right-6 w-16 h-16 rounded-full bg-[#3C6E47] dark:bg-[#3C6E47] items-center justify-center shadow-lg active:opacity-80 active:scale-90"
         android_ripple={{
@@ -221,6 +236,13 @@ export default function ListsScreen() {
       >
         <Text className="text-white text-3xl font-light">+</Text>
       </Pressable>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        feature="lists"
+      />
 
       {/* Modal pour créer une nouvelle liste */}
       <Modal

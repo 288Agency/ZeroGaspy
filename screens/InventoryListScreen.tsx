@@ -38,6 +38,11 @@ import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designS
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
 import { supabase } from '../config/supabase';
+import { useGamification } from '../contexts/GamificationContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import PaywallModal from '../components/PaywallModal';
+import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
@@ -541,7 +546,10 @@ function FoodItemCard({
 export default function InventoryListScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
-  const { listId, listTitle, listColor = COLORS.primary[500] } = route.params;
+  const { trackFoodConsumed, trackFoodThrown } = useGamification();
+  const { colors, isDark } = useTheme();
+  const { isPremium } = useSubscription();
+  const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
   const [list, setList] = useState<List | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -561,6 +569,7 @@ export default function InventoryListScreen() {
   // Receipt scanner states
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
   const [scannedStoreName, setScannedStoreName] = useState<string | undefined>();
   const [scannedDate, setScannedDate] = useState<string | undefined>();
@@ -598,16 +607,16 @@ export default function InventoryListScreen() {
         table: 'food_items',
         filter: `list_id=eq.${listId}`
       }, (payload) => {
-        console.log('Changement détecté:', payload);
+        logger.debug('Changement détecté:', payload);
         // Recharger les données quand un changement est détecté
         loadListData();
       })
       .subscribe((status) => {
-        console.log('Status de la souscription:', status);
+        logger.debug('Status de la souscription:', status);
       });
 
     return () => {
-      console.log('Désinscription du channel');
+      logger.debug('Désinscription du channel');
       supabase.removeChannel(channel);
     };
   }, [listId]);
@@ -618,38 +627,6 @@ export default function InventoryListScreen() {
       headerTitle: listTitle,
       headerStyle: { backgroundColor: COLORS.secondary.cream },
       headerTintColor: listColor,
-      headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginRight: 16 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ListMembers', {
-              listId,
-              listTitle,
-              listColor
-            })}
-            style={{
-              backgroundColor: hexToRgba(listColor, 0.1),
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Ionicons name="share-social" size={18} color={listColor} />
-            <Text style={{ color: listColor, fontSize: 14, fontWeight: '600' }}>Partager</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ListMembers', {
-              listId,
-              listTitle,
-              listColor
-            })}
-          >
-            <Ionicons name="people" size={24} color={listColor} />
-          </TouchableOpacity>
-        </View>
-      ),
     });
   }, [listTitle, listColor, listId]);
 
@@ -670,7 +647,7 @@ export default function InventoryListScreen() {
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la liste:', error);
+      logger.error('Erreur lors du chargement de la liste:', error);
       Alert.alert('Erreur', 'Impossible de charger la liste');
     }
   };
@@ -780,8 +757,17 @@ export default function InventoryListScreen() {
 
   const markAsConsumedDirect = async (itemId: string, quantity: number) => {
     try {
+      // Verifier si l'aliment est consomme avant expiration
+      const item = list?.items.find(i => i.id === itemId);
+      const wasBeforeExpiration = item?.expirationDate
+        ? getDaysUntilExpiration(item.expirationDate) >= 0
+        : true;
+
       await updateItemStatusWithQuantity(listId, itemId, 'consumed', quantity);
       await loadListData();
+
+      // Tracker pour la gamification
+      trackFoodConsumed(wasBeforeExpiration);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de marquer comme consommé');
     }
@@ -791,6 +777,9 @@ export default function InventoryListScreen() {
     try {
       await updateItemStatusWithQuantity(listId, itemId, 'thrown', quantity);
       await loadListData();
+
+      // Tracker pour la gamification (reset du streak)
+      trackFoodThrown();
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de marquer comme jeté');
     }
@@ -859,7 +848,7 @@ export default function InventoryListScreen() {
         `${items.length} produit${items.length > 1 ? 's' : ''} ajouté${items.length > 1 ? 's' : ''} à la liste`
       );
     } catch (error) {
-      console.error('Erreur ajout produits:', error);
+      logger.error('Erreur ajout produits:', error);
       Alert.alert('Erreur', 'Impossible d\'ajouter les produits');
     }
   };
@@ -1043,15 +1032,15 @@ export default function InventoryListScreen() {
 
   if (!list) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.secondary.cream }]}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Text style={[styles.loadingText, { color: colors.text.secondary }]}>Chargement...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
       <BackgroundDecoration />
 
       {/* Search bar - only show if there are items */}
@@ -1213,7 +1202,11 @@ export default function InventoryListScreen() {
             <PressableScale
               onPress={() => {
                 setFabMenuOpen(false);
-                setReceiptScannerVisible(true);
+                if (!isPremium) {
+                  setPaywallVisible(true);
+                } else {
+                  setReceiptScannerVisible(true);
+                }
               }}
               style={[styles.fabSecondary, { backgroundColor: '#6366F1' }]}
               hapticType="medium"
@@ -1539,6 +1532,13 @@ export default function InventoryListScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        feature="scanner"
+      />
     </View>
   );
 }
@@ -1933,7 +1933,7 @@ const styles = StyleSheet.create({
   },
   fabOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'transparent',
     zIndex: 90,
   },
   fabMenuContainer: {

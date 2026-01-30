@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
 import { cn } from '../utils/cn';
+import logger from '../utils/logger';
 
 interface CategorySelectorProps {
   selectedCategory: string;
@@ -53,7 +54,7 @@ export default function CategorySelector({
         setCustomCategories(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des catégories:', error);
+      logger.error('Erreur lors du chargement des catégories:', error);
       Alert.alert(
         'Erreur',
         'Impossible de charger vos catégories personnalisées.',
@@ -67,7 +68,7 @@ export default function CategorySelector({
       await AsyncStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
       setCustomCategories(categories);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde des catégories:', error);
+      logger.error('Erreur lors de la sauvegarde des catégories:', error);
       Alert.alert(
         'Erreur',
         'Impossible de sauvegarder la catégorie.',
