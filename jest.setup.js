@@ -1,4 +1,5 @@
-import '@testing-library/jest-native/extend-expect';
+// Define global __DEV__ for React Native
+global.__DEV__ = true;
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({

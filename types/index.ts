@@ -2,7 +2,9 @@ export interface FoodItem {
   id: string;
   name: string;
   expirationDate: string;
-  quantity?: number;
+  quantity?: number; // Nombre d'unités (ex: 3 paquets)
+  weight?: number; // Poids/volume unitaire (ex: 150)
+  unit?: string; // Unité de mesure (g, kg, L, etc.)
   category?: string;
   imageUri?: string;
   status?: 'active' | 'consumed' | 'thrown';
@@ -19,6 +21,7 @@ export interface List {
   createdAt: string;
   items: FoodItem[];
   color?: string; // Couleur de la liste (hex)
+  icon?: string; // Icône de la liste (nom Ionicons)
 }
 
 // Couleurs disponibles pour les listes
@@ -33,6 +36,22 @@ export const LIST_COLORS = [
   { name: 'Turquoise', value: '#14B8A6' },
   { name: 'Indigo', value: '#6366F1' },
   { name: 'Gris', value: '#6B7280' },
+] as const;
+
+// Icônes disponibles pour les listes
+export const LIST_ICONS = [
+  { name: 'Frigo', value: 'snow-outline' },
+  { name: 'Épicerie', value: 'basket-outline' },
+  { name: 'Congélateur', value: 'cube-outline' },
+  { name: 'Fruits', value: 'nutrition-outline' },
+  { name: 'Légumes', value: 'leaf-outline' },
+  { name: 'Viande', value: 'restaurant-outline' },
+  { name: 'Boissons', value: 'wine-outline' },
+  { name: 'Cave', value: 'beer-outline' },
+  { name: 'Placard', value: 'file-tray-stacked-outline' },
+  { name: 'Bureau', value: 'briefcase-outline' },
+  { name: 'Maison', value: 'home-outline' },
+  { name: 'Courses', value: 'cart-outline' },
 ] as const;
 
 export type Inventory = FoodItem[];

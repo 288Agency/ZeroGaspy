@@ -79,17 +79,6 @@ function EmptyStateIllustration() {
   );
 }
 
-// Icon for space card based on title
-function getSpaceIcon(title: string): keyof typeof Ionicons.glyphMap {
-  const lowerTitle = title.toLowerCase();
-  if (lowerTitle.includes('frigo') || lowerTitle.includes('réfrigérateur')) return 'snow-outline';
-  if (lowerTitle.includes('congél') || lowerTitle.includes('freezer')) return 'thermometer-outline';
-  if (lowerTitle.includes('placard') || lowerTitle.includes('armoire')) return 'cube-outline';
-  if (lowerTitle.includes('cave')) return 'wine-outline';
-  if (lowerTitle.includes('épicerie') || lowerTitle.includes('courses')) return 'cart-outline';
-  return 'folder-outline';
-}
-
 export default function SpacesGrid({ lists, onCreateList, onListDeleted }: SpacesGridProps) {
   const navigation = useNavigation<NavigationProp>();
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -100,6 +89,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
       listId: list.id,
       listTitle: list.title,
       listColor: list.color,
+      listIcon: list.icon,
     });
   };
 
@@ -183,7 +173,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
           {lists.map((list, index) => {
             const activeCount = getActiveItemsCount(list);
             const listColor = list.color || COLORS.primary[500];
-            const icon = getSpaceIcon(list.title);
+            const icon = (list.icon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
 
             return (
               <AnimatedListItem

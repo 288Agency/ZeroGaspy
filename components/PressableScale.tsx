@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Pressable, PressableProps, Animated, ViewStyle } from 'react-native';
+import { Pressable, PressableProps, Animated, StyleProp, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 interface PressableScaleProps extends Omit<PressableProps, 'style'> {
@@ -7,7 +7,7 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   activeScale?: number;
   haptic?: boolean;
   hapticType?: 'light' | 'medium' | 'heavy' | 'selection';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   className?: string;
 }
 

@@ -1,8 +1,0 @@
-{
-  "functions": {
-    "api/feedback.ts": {
-      "maxDuration": 30
-    }
-  }
-}
-

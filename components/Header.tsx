@@ -2,7 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Circle, G } from 'react-native-svg';
 import PressableScale from './PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -15,29 +14,6 @@ interface HeaderProps {
   onRightPress?: () => void;
   transparent?: boolean;
   subtitle?: string;
-}
-
-// Decorative leaf SVG for header
-function HeaderDecoration() {
-  const svgWidth = scaleSize(isSmallScreen ? 48 : 60);
-  const svgHeight = scaleSize(isSmallScreen ? 32 : 40);
-  return (
-    <Svg width={svgWidth} height={svgHeight} viewBox="0 0 60 40" style={styles.decoration}>
-      <G opacity={0.15}>
-        <Path
-          d="M10 20 Q20 10 30 20 Q20 30 10 20"
-          fill={COLORS.primary[500]}
-          transform="rotate(-15 20 20)"
-        />
-        <Path
-          d="M35 15 Q45 5 55 15 Q45 25 35 15"
-          fill={COLORS.primary[500]}
-          transform="rotate(10 45 15)"
-        />
-        <Circle cx="25" cy="35" r="3" fill={COLORS.primary[500]} />
-      </G>
-    </Svg>
-  );
 }
 
 export default function Header({
@@ -71,9 +47,6 @@ export default function Header({
 
   return (
     <View style={[styles.container, transparent && styles.transparent]}>
-      {/* Background decoration */}
-      {!transparent && <HeaderDecoration />}
-
       {/* Back button */}
       {showBackButton ? (
         <PressableScale
@@ -147,11 +120,6 @@ const styles = StyleSheet.create({
   },
   transparent: {
     backgroundColor: 'transparent',
-  },
-  decoration: {
-    position: 'absolute',
-    top: scaleSpacing(isSmallScreen ? 40 : 50),
-    right: scaleSpacing(isSmallScreen ? 60 : 80),
   },
   backButton: {
     width: buttonSize,

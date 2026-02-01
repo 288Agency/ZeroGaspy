@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface FieldInputProps extends TextInputProps {
-  label: string;
+  label?: string;
   value: string;
   onChangeText: (text: string) => void;
   icon?: keyof typeof Ionicons.glyphMap;
@@ -23,11 +23,13 @@ export default function FieldInput({
   const focusAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(focusAnim, {
+    const animation = Animated.timing(focusAnim, {
       toValue: isFocused ? 1 : 0,
       duration: 200,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [isFocused]);
 
   const borderColor = focusAnim.interpolate({
@@ -41,9 +43,9 @@ export default function FieldInput({
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !label && styles.containerNoLabel]}>
       {/* Label */}
-      <Text style={styles.label}>{label}</Text>
+      {label && <Text style={styles.label}>{label}</Text>}
 
       {/* Input container */}
       <Animated.View
@@ -89,6 +91,9 @@ export default function FieldInput({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
+  },
+  containerNoLabel: {
+    marginBottom: 0,
   },
   label: {
     ...TYPOGRAPHY.label,

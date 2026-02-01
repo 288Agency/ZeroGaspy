@@ -2,68 +2,14 @@
   "expo": {
     "name": "ZeroGaspy",
     "slug": "ZeroGaspyLocal",
-    "version": "1.0.1",
-    "orientation": "portrait",
-    "icon": "./assets/logo.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F5E6"
-    },
-    "notification": {
-      "icon": "./assets/logo.png",
-      "color": "#3C6E47",
-      "androidMode": "default",
-      "androidCollapsedTitle": "ZeroGaspy"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.zerogaspy.app",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Cette application a besoin d'accéder à votre caméra pour prendre des photos d'aliments.",
-        "NSPhotoLibraryUsageDescription": "Cette application a besoin d'accéder à votre galerie photo pour sélectionner des images d'aliments.",
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "package": "com.zerogaspy.app",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#F7F5E6"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize",
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "SCHEDULE_EXACT_ALARM"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/logo.png"
-    },
     "plugins": [
       [
-        "expo-notifications",
+        "react-native-google-mobile-ads",
         {
-          "icon": "./assets/logo.png",
-          "color": "#3C6E47",
-          "sounds": []
+          "androidAppId": "ca-app-pub-7371774777716579~3489372499",
+          "iosAppId": "ca-app-pub-7371774777716579~3910128601"
         }
-      ],
-      "@react-native-community/datetimepicker"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "67db9e46-01d4-4c41-815b-237ba7f22681"
-      }
-    },
-    "owner": "288agency"
+      ]
+    ]
   }
 }

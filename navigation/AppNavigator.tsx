@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
 import CreateListScreen from '../screens/CreateListScreen';
@@ -9,9 +10,44 @@ import ExpiringSoonScreen from '../screens/ExpiringSoonScreen';
 import ThrownFoodsScreen from '../screens/ThrownFoodsScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import StatsScreen from '../screens/StatsScreen';
+import GlassTabBar from '../components/GlassTabBar';
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator();
+
+// Tab Navigator for main screens with Glass effect
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <GlassTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeScreen}
+        options={{ tabBarLabel: 'Accueil' }}
+      />
+      <Tab.Screen
+        name="RecipesTab"
+        component={RecipesScreen}
+        options={{ tabBarLabel: 'Recettes' }}
+      />
+      <Tab.Screen
+        name="StatsTab"
+        component={StatsScreen}
+        options={{ tabBarLabel: 'Impact' }}
+      />
+      <Tab.Screen
+        name="AccountTab"
+        component={AccountScreen}
+        options={{ tabBarLabel: 'Compte' }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function AppNavigator() {
   return (
@@ -24,7 +60,7 @@ export default function AppNavigator() {
     >
       <Stack.Screen
         name="Home"
-        component={HomeScreen}
+        component={MainTabs}
       />
       <Stack.Screen
         name="Lists"
@@ -108,4 +144,3 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
-

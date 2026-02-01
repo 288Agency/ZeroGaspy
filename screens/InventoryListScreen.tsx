@@ -10,6 +10,8 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -24,6 +26,7 @@ import {
   markItemAsOpened,
   markItemAsOpenedWithQuantity,
   addItemToList,
+  removeItemFromList,
 } from '../utils/localStorage';
 import MarkAsOpenedModal from '../components/MarkAsOpenedModal';
 import QuantityModal from '../components/QuantityModal';
@@ -31,8 +34,15 @@ import PressableScale from '../components/PressableScale';
 import ReceiptScannerModal from '../components/ReceiptScannerModal';
 import ReceiptReviewModal from '../components/ReceiptReviewModal';
 import { ReceiptScanResult, ReceiptItem } from '../services/receiptScannerService';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, EXPIRATION_COLORS } from '../utils/designSystem';
+import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
+import { getFoodIcon } from '../services/iconService';
+import { supabase } from '../config/supabase';
+import { useGamification } from '../contexts/GamificationContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import PaywallModal from '../components/PaywallModal';
+import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
@@ -144,14 +154,230 @@ function SearchBar({
   );
 }
 
-// Compact Food Card with colored dot
+// Filter menu component
+function FilterMenu({
+  categories,
+  selectedCategory,
+  onCategorySelect,
+  selectedExpirationFilter,
+  onExpirationFilterSelect,
+  listColor,
+}: {
+  categories: string[];
+  selectedCategory: string | null;
+  onCategorySelect: (category: string | null) => void;
+  selectedExpirationFilter: string | null;
+  onExpirationFilterSelect: (filter: string | null) => void;
+  listColor: string;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const expirationFilters = [
+    { id: 'expired', label: 'Expiré', icon: 'alert-circle' },
+    { id: 'today', label: "Aujourd'hui", icon: 'today' },
+    { id: 'soon', label: '3 jours', icon: 'time' },
+    { id: 'week', label: '7 jours', icon: 'calendar' },
+    { id: 'fresh', label: 'Frais', icon: 'leaf' },
+  ];
+
+  const hasActiveFilters = selectedCategory || selectedExpirationFilter;
+
+  return (
+    <View style={styles.filtersContainer}>
+      <View style={styles.filtersRow}>
+        {/* Filter button */}
+        <PressableScale
+          onPress={() => setMenuOpen(!menuOpen)}
+          style={[
+            styles.filterButton,
+            hasActiveFilters && { borderColor: listColor, backgroundColor: hexToRgba(listColor, 0.08) },
+          ]}
+          hapticType="light"
+          activeScale={0.97}
+        >
+          <Ionicons
+            name="funnel-outline"
+            size={20}
+            color={hasActiveFilters ? listColor : COLORS.text.secondary}
+          />
+          {hasActiveFilters && (
+            <View style={[styles.filterBadge, { backgroundColor: listColor }]}>
+              <Text style={styles.filterBadgeText}>
+                {(selectedCategory ? 1 : 0) + (selectedExpirationFilter ? 1 : 0)}
+              </Text>
+            </View>
+          )}
+        </PressableScale>
+
+        {/* Clear filters button */}
+        {hasActiveFilters && (
+          <PressableScale
+            onPress={() => {
+              onCategorySelect(null);
+              onExpirationFilterSelect(null);
+              setMenuOpen(false);
+            }}
+            style={styles.clearFiltersButton}
+            hapticType="light"
+            activeScale={0.95}
+          >
+            <Text style={styles.clearFiltersText}>Effacer</Text>
+          </PressableScale>
+        )}
+      </View>
+
+      {/* Filter menu */}
+      {menuOpen && (
+        <>
+          {/* Overlay */}
+          <TouchableOpacity
+            style={styles.filterOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuOpen(false)}
+          />
+
+          {/* Menu content */}
+          <View style={styles.filterMenuContent}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Categories section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Catégories</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.filterMenuItem,
+                    !selectedCategory && styles.filterMenuItemActive,
+                  ]}
+                  onPress={() => {
+                    onCategorySelect(null);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <View style={styles.filterMenuItemContent}>
+                    <Ionicons name="apps-outline" size={20} color={COLORS.text.secondary} />
+                    <Text
+                      style={[
+                        styles.filterMenuItemText,
+                        !selectedCategory && { color: listColor, fontWeight: '600' },
+                      ]}
+                    >
+                      Toutes
+                    </Text>
+                  </View>
+                  {!selectedCategory && (
+                    <Ionicons name="checkmark" size={20} color={listColor} />
+                  )}
+                </TouchableOpacity>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.filterMenuItem,
+                      selectedCategory === category && styles.filterMenuItemActive,
+                    ]}
+                    onPress={() => {
+                      onCategorySelect(category);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <View style={styles.filterMenuItemContent}>
+                      <Ionicons name="fast-food-outline" size={20} color={COLORS.text.secondary} />
+                      <Text
+                        style={[
+                          styles.filterMenuItemText,
+                          selectedCategory === category && { color: listColor, fontWeight: '600' },
+                        ]}
+                      >
+                        {category}
+                      </Text>
+                    </View>
+                    {selectedCategory === category && (
+                      <Ionicons name="checkmark" size={20} color={listColor} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Divider */}
+              <View style={styles.filterDivider} />
+
+              {/* Expiration section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Date de péremption</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.filterMenuItem,
+                    !selectedExpirationFilter && styles.filterMenuItemActive,
+                  ]}
+                  onPress={() => {
+                    onExpirationFilterSelect(null);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <View style={styles.filterMenuItemContent}>
+                    <Ionicons name="infinite-outline" size={20} color={COLORS.text.secondary} />
+                    <Text
+                      style={[
+                        styles.filterMenuItemText,
+                        !selectedExpirationFilter && { color: listColor, fontWeight: '600' },
+                      ]}
+                    >
+                      Toutes
+                    </Text>
+                  </View>
+                  {!selectedExpirationFilter && (
+                    <Ionicons name="checkmark" size={20} color={listColor} />
+                  )}
+                </TouchableOpacity>
+                {expirationFilters.map((filter) => (
+                  <TouchableOpacity
+                    key={filter.id}
+                    style={[
+                      styles.filterMenuItem,
+                      selectedExpirationFilter === filter.id && styles.filterMenuItemActive,
+                    ]}
+                    onPress={() => {
+                      onExpirationFilterSelect(filter.id);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <View style={styles.filterMenuItemContent}>
+                      <Ionicons
+                        name={filter.icon as any}
+                        size={20}
+                        color={COLORS.text.secondary}
+                      />
+                      <Text
+                        style={[
+                          styles.filterMenuItemText,
+                          selectedExpirationFilter === filter.id && { color: listColor, fontWeight: '600' },
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </View>
+                    {selectedExpirationFilter === filter.id && (
+                      <Ionicons name="checkmark" size={20} color={listColor} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+// Food Card with image placeholder and status indicator
 function FoodItemCard({
   item,
   onConsumed,
   onThrown,
   onMarkAsOpened,
+  onMenuPress,
+  onCardPress,
   listColor,
-  searchQuery,
   isSelectionMode,
   isSelected,
   onToggleSelect,
@@ -161,166 +387,174 @@ function FoodItemCard({
   onConsumed: () => void;
   onThrown: () => void;
   onMarkAsOpened: () => void;
+  onMenuPress: () => void;
+  onCardPress: () => void;
   listColor: string;
-  searchQuery: string;
   isSelectionMode: boolean;
   isSelected: boolean;
   onToggleSelect: () => void;
   onLongPress: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const days = getDaysUntilExpiration(item.expirationDate);
 
-  // Determine status color for dot
-  let dotColor = COLORS.semantic.success;
-  let statusText = 'Frais';
+  // Determine status color for indicator dot
+  let dotColor = '#4ADE80'; // Green - fresh (bright green)
   if (days !== null) {
     if (days < 0) {
-      dotColor = COLORS.semantic.danger;
-      statusText = `Expiré (${Math.abs(days)}j)`;
-    } else if (days === 0) {
-      dotColor = COLORS.accent.carrot;
-      statusText = "Aujourd'hui";
+      dotColor = '#EF4444'; // Red - expired
     } else if (days <= 3) {
-      dotColor = COLORS.semantic.warning;
-      statusText = `${days}j`;
-    } else {
-      statusText = `${days}j`;
+      dotColor = '#FB923C'; // Orange - expiring soon
     }
-  } else {
-    dotColor = COLORS.neutral.gray400;
-    statusText = 'Pas de date';
   }
 
   const handlePress = () => {
     if (isSelectionMode) {
       onToggleSelect();
     } else {
-      setExpanded(!expanded);
+      onCardPress();
     }
   };
 
+  const foodIconData = getFoodIcon(item.name);
+
   return (
-    <PressableScale
-      onPress={handlePress}
-      onLongPress={onLongPress}
-      activeScale={0.98}
+    <View
       style={[
         styles.card,
         isSelected && styles.cardSelected,
         isSelected && { borderColor: listColor },
       ]}
     >
-      {/* Main row */}
-      <View style={styles.cardRow}>
-        {/* Selection checkbox */}
-        {isSelectionMode && (
-          <PressableScale
-            onPress={onToggleSelect}
-            style={styles.checkboxContainer}
-            hapticType="light"
+      {/* Selection checkbox */}
+      {isSelectionMode && (
+        <PressableScale
+          onPress={onToggleSelect}
+          style={styles.checkboxContainer}
+          hapticType="light"
+        >
+          <View
+            style={[
+              styles.checkbox,
+              isSelected && { backgroundColor: listColor, borderColor: listColor },
+            ]}
           >
-            <View
-              style={[
-                styles.checkbox,
-                isSelected && { backgroundColor: listColor, borderColor: listColor },
-              ]}
-            >
-              {isSelected && (
-                <Ionicons name="checkmark" size={14} color={COLORS.neutral.white} />
+            {isSelected && (
+              <Ionicons name="checkmark" size={14} color={COLORS.neutral.white} />
+            )}
+          </View>
+        </PressableScale>
+      )}
+
+      {/* Main card content - clickable area for popup */}
+      <PressableScale
+        onPress={handlePress}
+        onLongPress={onLongPress}
+        activeScale={0.98}
+        style={styles.cardInner}
+      >
+        {/* Left: Image placeholder with status indicator */}
+        <View style={styles.imageWrapper}>
+          <View style={styles.imagePlaceholder}>
+            {item.imageUri ? (
+              <Image source={{ uri: item.imageUri }} style={styles.foodImage} />
+            ) : (
+              <Ionicons
+                name={foodIconData.icon}
+                size={36}
+                color={hexToRgba(COLORS.primary[500], 0.35)}
+              />
+            )}
+          </View>
+          {/* Status indicator dot - overlapping */}
+          <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+        </View>
+
+        {/* Right: Content */}
+        <View style={styles.cardRight}>
+          {/* Top section: Name, quantity, price, menu */}
+          <View style={styles.topSection}>
+            <View style={styles.textContent}>
+              <Text style={styles.foodName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <View style={styles.quantityPriceRow}>
+                <Text style={styles.quantityLabel}>x{item.quantity || 1}</Text>
+                {item.price !== undefined && item.price > 0 && (
+                  <Text style={styles.priceLabel}>{item.price.toFixed(2).replace('.', ',')} €</Text>
+                )}
+              </View>
+              {/* Date de péremption */}
+              {item.expirationDate && (
+                <View style={styles.expirationDateContainer}>
+                  <Ionicons name="calendar-outline" size={14} color={dotColor} />
+                  <Text style={[styles.expirationDateText, { color: dotColor }]}>
+                    {item.expirationDate}
+                  </Text>
+                </View>
               )}
             </View>
-          </PressableScale>
-        )}
-
-        {/* Status dot */}
-        <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
-
-        {/* Food info */}
-        <View style={styles.foodInfo}>
-          <Text style={styles.foodName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <View style={styles.metaRow}>
-            {item.quantity && item.quantity > 1 && (
-              <Text style={styles.quantityText}>×{item.quantity}</Text>
+            {/* Three dots menu */}
+            {!isSelectionMode && (
+              <TouchableOpacity
+                onPress={onMenuPress}
+                style={styles.dotsMenu}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <View style={styles.dotItem} />
+                <View style={styles.dotItem} />
+                <View style={styles.dotItem} />
+              </TouchableOpacity>
             )}
-            {item.isOpened && (
-              <View style={styles.openedBadge}>
-                <Text style={styles.openedText}>Ouvert</Text>
-              </View>
-            )}
-            <Text style={[styles.expirationText, { color: dotColor }]}>
-              {statusText}
-            </Text>
           </View>
         </View>
+      </PressableScale>
 
-        {/* Expand chevron */}
-        {!isSelectionMode && (
-          <View style={styles.chevronContainer}>
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={COLORS.neutral.gray400}
-            />
-          </View>
-        )}
-      </View>
-
-      {/* Expanded actions */}
-      {expanded && !isSelectionMode && (
-        <View style={styles.expandedActions}>
-          <PressableScale
-            onPress={() => { onConsumed(); setExpanded(false); }}
-            style={styles.actionBtn}
-            hapticType="medium"
-            activeScale={0.95}
+      {/* Bottom section: Action buttons - outside clickable area */}
+      {!isSelectionMode && (
+        <View style={styles.buttonsRow}>
+          <TouchableOpacity
+            onPress={onConsumed}
+            style={styles.btnConsumed}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.primary[500] }]}>
-              <Ionicons name="checkmark" size={18} color={COLORS.neutral.white} />
-            </View>
-            <Text style={styles.actionBtnLabel}>Consommé</Text>
-          </PressableScale>
+            <Text style={styles.btnTextWhite}>Consommé</Text>
+          </TouchableOpacity>
 
-          <PressableScale
-            onPress={() => { onThrown(); setExpanded(false); }}
-            style={styles.actionBtn}
-            hapticType="medium"
-            activeScale={0.95}
+          <TouchableOpacity
+            onPress={onThrown}
+            style={styles.btnThrown}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.accent.tomato }]}>
-              <Ionicons name="trash" size={16} color={COLORS.neutral.white} />
-            </View>
-            <Text style={styles.actionBtnLabel}>Jeté</Text>
-          </PressableScale>
+            <Text style={styles.btnTextWhite}>Jeter</Text>
+          </TouchableOpacity>
 
-          {!item.isOpened && (
-            <PressableScale
-              onPress={() => { onMarkAsOpened(); setExpanded(false); }}
-              style={styles.actionBtn}
-              hapticType="light"
-              activeScale={0.95}
-            >
-              <View style={[styles.actionBtnIcon, { backgroundColor: COLORS.accent.carrot }]}>
-                <Ionicons name="lock-open" size={16} color={COLORS.neutral.white} />
-              </View>
-              <Text style={styles.actionBtnLabel}>Ouvrir</Text>
-            </PressableScale>
-          )}
+          <TouchableOpacity
+            onPress={item.isOpened ? undefined : onMarkAsOpened}
+            style={[styles.btnOpened, item.isOpened && styles.btnOpenedActive]}
+            activeOpacity={item.isOpened ? 1 : 0.8}
+          >
+            <Text style={[styles.btnTextDark, item.isOpened && styles.btnTextOpenedActive]}>
+              Ouvert
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
-    </PressableScale>
+    </View>
   );
 }
 
 export default function InventoryListScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
-  const { listId, listTitle, listColor = COLORS.primary[500] } = route.params;
+  const { trackFoodConsumed, trackFoodThrown } = useGamification();
+  const { colors, isDark } = useTheme();
+  const { isPremium } = useSubscription();
+  const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
   const [list, setList] = useState<List | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedExpirationFilter, setSelectedExpirationFilter] = useState<string | null>(null);
   const [markAsOpenedModalVisible, setMarkAsOpenedModalVisible] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItemName, setSelectedItemName] = useState<string>('');
@@ -335,10 +569,19 @@ export default function InventoryListScreen() {
   // Receipt scanner states
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
   const [scannedStoreName, setScannedStoreName] = useState<string | undefined>();
   const [scannedDate, setScannedDate] = useState<string | undefined>();
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
+
+  // Menu popup state
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
+  const [menuSelectedItem, setMenuSelectedItem] = useState<FoodItem | null>(null);
+
+  // Detail popup state
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [detailSelectedItem, setDetailSelectedItem] = useState<FoodItem | null>(null);
 
   const emptyFade = useRef(new Animated.Value(0)).current;
 
@@ -353,6 +596,31 @@ export default function InventoryListScreen() {
     return unsubscribe;
   }, [navigation, listId]);
 
+  // Synchronisation temps réel avec Supabase Realtime
+  useEffect(() => {
+    // S'abonner aux changements de la liste en temps réel
+    const channel = supabase
+      .channel(`list_${listId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'food_items',
+        filter: `list_id=eq.${listId}`
+      }, (payload) => {
+        logger.debug('Changement détecté:', payload);
+        // Recharger les données quand un changement est détecté
+        loadListData();
+      })
+      .subscribe((status) => {
+        logger.debug('Status de la souscription:', status);
+      });
+
+    return () => {
+      logger.debug('Désinscription du channel');
+      supabase.removeChannel(channel);
+    };
+  }, [listId]);
+
   // Set navigation header
   useEffect(() => {
     navigation.setOptions({
@@ -360,7 +628,7 @@ export default function InventoryListScreen() {
       headerStyle: { backgroundColor: COLORS.secondary.cream },
       headerTintColor: listColor,
     });
-  }, [listTitle, listColor]);
+  }, [listTitle, listColor, listId]);
 
   const loadListData = async () => {
     try {
@@ -379,7 +647,7 @@ export default function InventoryListScreen() {
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la liste:', error);
+      logger.error('Erreur lors du chargement de la liste:', error);
       Alert.alert('Erreur', 'Impossible de charger la liste');
     }
   };
@@ -392,16 +660,60 @@ export default function InventoryListScreen() {
     );
   }, [list]);
 
-  // Filter by search query
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return activeItems;
-    const query = searchQuery.toLowerCase().trim();
-    return activeItems.filter((item) => {
-      const nameMatch = item.name.toLowerCase().includes(query);
-      const categoryMatch = item.category?.toLowerCase().includes(query);
-      return nameMatch || categoryMatch;
+  // Get unique categories from active items
+  const availableCategories = useMemo(() => {
+    const categories = new Set<string>();
+    activeItems.forEach(item => {
+      if (item.category) {
+        categories.add(item.category);
+      }
     });
-  }, [activeItems, searchQuery]);
+    return Array.from(categories).sort();
+  }, [activeItems]);
+
+  // Filter by search query, category, and expiration
+  const filteredItems = useMemo(() => {
+    let items = activeItems;
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter((item) => {
+        const nameMatch = item.name.toLowerCase().includes(query);
+        const categoryMatch = item.category?.toLowerCase().includes(query);
+        return nameMatch || categoryMatch;
+      });
+    }
+
+    // Category filter
+    if (selectedCategory) {
+      items = items.filter(item => item.category === selectedCategory);
+    }
+
+    // Expiration filter
+    if (selectedExpirationFilter) {
+      items = items.filter(item => {
+        const days = getDaysUntilExpiration(item.expirationDate);
+
+        switch (selectedExpirationFilter) {
+          case 'expired':
+            return days !== null && days < 0;
+          case 'today':
+            return days !== null && days === 0;
+          case 'soon': // Expires in 3 days or less
+            return days !== null && days >= 0 && days <= 3;
+          case 'week': // Expires in 7 days or less
+            return days !== null && days >= 0 && days <= 7;
+          case 'fresh': // More than 7 days
+            return days === null || days > 7;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return items;
+  }, [activeItems, searchQuery, selectedCategory, selectedExpirationFilter]);
 
   const handleMarkAsConsumed = (item: FoodItem) => {
     const quantity = item.quantity || 1;
@@ -445,8 +757,17 @@ export default function InventoryListScreen() {
 
   const markAsConsumedDirect = async (itemId: string, quantity: number) => {
     try {
+      // Verifier si l'aliment est consomme avant expiration
+      const item = list?.items.find(i => i.id === itemId);
+      const wasBeforeExpiration = item?.expirationDate
+        ? getDaysUntilExpiration(item.expirationDate) >= 0
+        : true;
+
       await updateItemStatusWithQuantity(listId, itemId, 'consumed', quantity);
       await loadListData();
+
+      // Tracker pour la gamification
+      trackFoodConsumed(wasBeforeExpiration);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de marquer comme consommé');
     }
@@ -456,6 +777,9 @@ export default function InventoryListScreen() {
     try {
       await updateItemStatusWithQuantity(listId, itemId, 'thrown', quantity);
       await loadListData();
+
+      // Tracker pour la gamification (reset du streak)
+      trackFoodThrown();
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de marquer comme jeté');
     }
@@ -510,6 +834,7 @@ export default function InventoryListScreen() {
           category: item.category,
           expirationDate: item.expirationDate || '',
           status: 'active',
+          price: item.price, // Prix extrait du ticket pour le calcul des économies
         };
         await addItemToList(listId, newFoodItem);
       }
@@ -523,7 +848,7 @@ export default function InventoryListScreen() {
         `${items.length} produit${items.length > 1 ? 's' : ''} ajouté${items.length > 1 ? 's' : ''} à la liste`
       );
     } catch (error) {
-      console.error('Erreur ajout produits:', error);
+      logger.error('Erreur ajout produits:', error);
       Alert.alert('Erreur', 'Impossible d\'ajouter les produits');
     }
   };
@@ -597,8 +922,37 @@ export default function InventoryListScreen() {
     }
   };
 
-  const confirmBulkAction = (action: 'consumed' | 'thrown') => {
+  const handleBulkDelete = async () => {
+    try {
+      for (const itemId of selectedItems) {
+        await removeItemFromList(listId, itemId);
+      }
+      exitSelectionMode();
+      await loadListData();
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de supprimer les aliments');
+    }
+  };
+
+  const confirmBulkAction = (action: 'consumed' | 'thrown' | 'delete') => {
     const count = selectedItems.size;
+
+    if (action === 'delete') {
+      Alert.alert(
+        'Supprimer définitivement',
+        `Supprimer ${count} aliment${count > 1 ? 's' : ''} de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Supprimer',
+            style: 'destructive',
+            onPress: handleBulkDelete,
+          },
+        ]
+      );
+      return;
+    }
+
     const actionText = action === 'consumed' ? 'consommé' : 'jeté';
     const actionPlural = action === 'consumed' ? 'consommés' : 'jetés';
 
@@ -615,14 +969,60 @@ export default function InventoryListScreen() {
     );
   };
 
-  const renderItem = ({ item, index }: { item: FoodItem; index: number }) => (
+  // Menu handlers
+  const handleOpenMenu = (item: FoodItem) => {
+    setMenuSelectedItem(item);
+    setMenuModalVisible(true);
+  };
+
+  const handleEditItem = () => {
+    if (menuSelectedItem) {
+      setMenuModalVisible(false);
+      navigation.navigate('AddFood', { listId, editItem: menuSelectedItem });
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!menuSelectedItem) return;
+
+    Alert.alert(
+      'Supprimer l\'aliment',
+      `Êtes-vous sûr de vouloir supprimer "${menuSelectedItem.name}" ? Cet aliment ne sera pas comptabilisé dans les statistiques.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Suppression définitive (pas de trace dans les stats)
+              await removeItemFromList(listId, menuSelectedItem.id);
+              setMenuModalVisible(false);
+              setMenuSelectedItem(null);
+              await loadListData();
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer l\'aliment');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCardPress = (item: FoodItem) => {
+    setDetailSelectedItem(item);
+    setDetailModalVisible(true);
+  };
+
+  const renderItem = ({ item }: { item: FoodItem }) => (
     <FoodItemCard
       item={item}
       onConsumed={() => handleMarkAsConsumed(item)}
       onThrown={() => handleMarkAsThrown(item)}
       onMarkAsOpened={() => handleOpenMarkAsOpenedModal(item)}
+      onMenuPress={() => handleOpenMenu(item)}
+      onCardPress={() => handleCardPress(item)}
       listColor={listColor}
-      searchQuery={searchQuery}
       isSelectionMode={isSelectionMode}
       isSelected={selectedItems.has(item.id)}
       onToggleSelect={() => toggleItemSelection(item.id)}
@@ -632,15 +1032,15 @@ export default function InventoryListScreen() {
 
   if (!list) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.secondary.cream }]}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Text style={[styles.loadingText, { color: colors.text.secondary }]}>Chargement...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
       <BackgroundDecoration />
 
       {/* Search bar - only show if there are items */}
@@ -648,6 +1048,18 @@ export default function InventoryListScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
+          listColor={listColor}
+        />
+      )}
+
+      {/* Filter menu */}
+      {activeItems.length > 0 && (
+        <FilterMenu
+          categories={availableCategories}
+          selectedCategory={selectedCategory}
+          onCategorySelect={setSelectedCategory}
+          selectedExpirationFilter={selectedExpirationFilter}
+          onExpirationFilterSelect={setSelectedExpirationFilter}
           listColor={listColor}
         />
       )}
@@ -707,29 +1119,27 @@ export default function InventoryListScreen() {
       {/* Selection Action Bar */}
       {isSelectionMode && (
         <View style={styles.selectionBar}>
-          <View style={styles.selectionBarContent}>
-            {/* Selection info and controls */}
-            <View style={styles.selectionInfo}>
-              <PressableScale
-                onPress={exitSelectionMode}
-                style={styles.closeSelectionButton}
-                hapticType="light"
-              >
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
-              </PressableScale>
-              <Text style={styles.selectionCount}>
-                {selectedItems.size} sélectionné{selectedItems.size > 1 ? 's' : ''}
-              </Text>
-            </View>
+          {/* Header row */}
+          <View style={styles.selectionBarHeader}>
+            <PressableScale
+              onPress={exitSelectionMode}
+              style={styles.closeSelectionButton}
+              hapticType="light"
+            >
+              <Ionicons name="close" size={22} color={COLORS.text.secondary} />
+            </PressableScale>
 
-            {/* Select all / Deselect all */}
+            <Text style={styles.selectionCount}>
+              {selectedItems.size} sélectionné{selectedItems.size > 1 ? 's' : ''}
+            </Text>
+
             <PressableScale
               onPress={selectedItems.size === filteredItems.length ? deselectAllItems : selectAllItems}
               style={styles.selectAllButton}
               hapticType="light"
             >
               <Text style={[styles.selectAllText, { color: listColor }]}>
-                {selectedItems.size === filteredItems.length ? 'Tout désélect.' : 'Tout sélect.'}
+                {selectedItems.size === filteredItems.length ? 'Désélect.' : 'Tout'}
               </Text>
             </PressableScale>
           </View>
@@ -738,22 +1148,38 @@ export default function InventoryListScreen() {
           <View style={styles.selectionActions}>
             <PressableScale
               onPress={() => confirmBulkAction('consumed')}
-              style={[styles.bulkActionButton, { backgroundColor: COLORS.primary[500] }]}
+              style={styles.bulkActionButton}
               hapticType="medium"
               activeScale={0.95}
             >
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.neutral.white} />
-              <Text style={styles.bulkActionText}>Consommé</Text>
+              <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.primary[500] }]}>
+                <Ionicons name="checkmark" size={20} color={COLORS.neutral.white} />
+              </View>
+              <Text style={[styles.bulkActionText, { color: COLORS.primary[500] }]}>Consommé</Text>
             </PressableScale>
 
             <PressableScale
               onPress={() => confirmBulkAction('thrown')}
-              style={[styles.bulkActionButton, { backgroundColor: COLORS.accent.tomato }]}
+              style={styles.bulkActionButton}
               hapticType="medium"
               activeScale={0.95}
             >
-              <Ionicons name="trash-outline" size={20} color={COLORS.neutral.white} />
-              <Text style={styles.bulkActionText}>Jeté</Text>
+              <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.accent.tomato }]}>
+                <Ionicons name="trash-outline" size={18} color={COLORS.neutral.white} />
+              </View>
+              <Text style={[styles.bulkActionText, { color: COLORS.accent.tomato }]}>Jeté</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() => confirmBulkAction('delete')}
+              style={styles.bulkActionButton}
+              hapticType="medium"
+              activeScale={0.95}
+            >
+              <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.neutral.gray500 }]}>
+                <Ionicons name="close" size={20} color={COLORS.neutral.white} />
+              </View>
+              <Text style={[styles.bulkActionText, { color: COLORS.neutral.gray500 }]}>Supprimer</Text>
             </PressableScale>
           </View>
         </View>
@@ -776,7 +1202,11 @@ export default function InventoryListScreen() {
             <PressableScale
               onPress={() => {
                 setFabMenuOpen(false);
-                setReceiptScannerVisible(true);
+                if (!isPremium) {
+                  setPaywallVisible(true);
+                } else {
+                  setReceiptScannerVisible(true);
+                }
               }}
               style={[styles.fabSecondary, { backgroundColor: '#6366F1' }]}
               hapticType="medium"
@@ -868,6 +1298,247 @@ export default function InventoryListScreen() {
         maxQuantity={selectedItemQuantity}
         actionType={quantityActionType}
       />
+
+      {/* Menu Popup Modal */}
+      <Modal
+        visible={menuModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuModalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuModalVisible(false)}
+        >
+          <View style={styles.menuModalContent}>
+            <Text style={styles.menuModalTitle}>{menuSelectedItem?.name}</Text>
+
+            <TouchableOpacity
+              style={styles.menuModalOption}
+              onPress={handleEditItem}
+            >
+              <Ionicons name="pencil-outline" size={22} color={COLORS.primary[500]} />
+              <Text style={styles.menuModalOptionText}>Modifier</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuModalOption, styles.menuModalOptionDanger]}
+              onPress={handleDeleteItem}
+            >
+              <Ionicons name="trash-outline" size={22} color={COLORS.accent.tomato} />
+              <Text style={[styles.menuModalOptionText, styles.menuModalOptionTextDanger]}>Supprimer</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Detail Popup Modal */}
+      <Modal
+        visible={detailModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDetailModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.detailModalOverlay}
+          activeOpacity={1}
+          onPress={() => setDetailModalVisible(false)}
+        >
+          <View style={styles.detailModalContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {detailSelectedItem && (() => {
+                const days = getDaysUntilExpiration(detailSelectedItem.expirationDate);
+                const foodIconData = getFoodIcon(detailSelectedItem.name);
+                let statusColor = '#4ADE80';
+                let statusText = 'Frais';
+                let statusIcon = 'checkmark-circle';
+
+                if (days !== null) {
+                  if (days < 0) {
+                    statusColor = '#EF4444';
+                    statusText = `Expiré depuis ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}`;
+                    statusIcon = 'close-circle';
+                  } else if (days === 0) {
+                    statusColor = '#FB923C';
+                    statusText = "Expire aujourd'hui";
+                    statusIcon = 'alert-circle';
+                  } else if (days <= 3) {
+                    statusColor = '#FB923C';
+                    statusText = `Expire dans ${days} jour${days > 1 ? 's' : ''}`;
+                    statusIcon = 'time';
+                  } else {
+                    statusText = `Expire dans ${days} jour${days > 1 ? 's' : ''}`;
+                    statusIcon = 'checkmark-circle';
+                  }
+                }
+
+                return (
+                  <>
+                    {/* Header with close button */}
+                    <View style={styles.detailModalHeader}>
+                    <Text style={styles.detailModalTitle}>Détails de l'aliment</Text>
+                    <TouchableOpacity
+                      onPress={() => setDetailModalVisible(false)}
+                      style={styles.detailModalClose}
+                    >
+                      <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Image */}
+                  <View style={styles.detailImageContainer}>
+                    {detailSelectedItem.imageUri ? (
+                      <Image source={{ uri: detailSelectedItem.imageUri }} style={styles.detailImage} />
+                    ) : (
+                      <View style={styles.detailImagePlaceholder}>
+                        <Ionicons
+                          name={foodIconData.icon}
+                          size={64}
+                          color={hexToRgba(COLORS.primary[500], 0.35)}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Food name */}
+                  <Text style={styles.detailFoodName}>{detailSelectedItem.name}</Text>
+
+                  {/* Status badge */}
+                  <View style={[styles.detailStatusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}>
+                    <Ionicons name={statusIcon as any} size={18} color={statusColor} />
+                    <Text style={[styles.detailStatusText, { color: statusColor }]}>{statusText}</Text>
+                  </View>
+
+                  {/* Details section */}
+                  <View style={styles.detailInfoSection}>
+                    {/* Category */}
+                    {detailSelectedItem.category && (
+                      <View style={styles.detailInfoRow}>
+                        <View style={styles.detailInfoLabel}>
+                          <Ionicons name="fast-food-outline" size={20} color={COLORS.text.secondary} />
+                          <Text style={styles.detailInfoLabelText}>Catégorie</Text>
+                        </View>
+                        <Text style={styles.detailInfoValue}>{detailSelectedItem.category}</Text>
+                      </View>
+                    )}
+
+                    {/* Quantity */}
+                    <View style={styles.detailInfoRow}>
+                      <View style={styles.detailInfoLabel}>
+                        <Ionicons name="layers-outline" size={20} color={COLORS.text.secondary} />
+                        <Text style={styles.detailInfoLabelText}>Quantité</Text>
+                      </View>
+                      <Text style={styles.detailInfoValue}>x{detailSelectedItem.quantity || 1}</Text>
+                    </View>
+
+                    {/* Price */}
+                    {detailSelectedItem.price !== undefined && detailSelectedItem.price > 0 && (
+                      <View style={styles.detailInfoRow}>
+                        <View style={styles.detailInfoLabel}>
+                          <Ionicons name="pricetag-outline" size={20} color={COLORS.text.secondary} />
+                          <Text style={styles.detailInfoLabelText}>Prix</Text>
+                        </View>
+                        <Text style={styles.detailInfoValue}>
+                          {detailSelectedItem.price.toFixed(2).replace('.', ',')} €
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Expiration date */}
+                    {detailSelectedItem.expirationDate && (
+                      <View style={styles.detailInfoRow}>
+                        <View style={styles.detailInfoLabel}>
+                          <Ionicons name="calendar-outline" size={20} color={COLORS.text.secondary} />
+                          <Text style={styles.detailInfoLabelText}>Date de péremption</Text>
+                        </View>
+                        <Text style={[styles.detailInfoValue, { color: statusColor, fontWeight: '700' }]}>
+                          {detailSelectedItem.expirationDate}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Opened status */}
+                    {detailSelectedItem.isOpened && (
+                      <>
+                        <View style={styles.detailInfoRow}>
+                          <View style={styles.detailInfoLabel}>
+                            <Ionicons name="open-outline" size={20} color={COLORS.text.secondary} />
+                            <Text style={styles.detailInfoLabelText}>Statut</Text>
+                          </View>
+                          <Text style={styles.detailInfoValue}>Ouvert</Text>
+                        </View>
+
+                        {detailSelectedItem.openedDate && (
+                          <View style={styles.detailInfoRow}>
+                            <View style={styles.detailInfoLabel}>
+                              <Ionicons name="time-outline" size={20} color={COLORS.text.secondary} />
+                              <Text style={styles.detailInfoLabelText}>Date d'ouverture</Text>
+                            </View>
+                            <Text style={styles.detailInfoValue}>{detailSelectedItem.openedDate}</Text>
+                          </View>
+                        )}
+
+                        {detailSelectedItem.daysAfterOpening && (
+                          <View style={styles.detailInfoRow}>
+                            <View style={styles.detailInfoLabel}>
+                              <Ionicons name="hourglass-outline" size={20} color={COLORS.text.secondary} />
+                              <Text style={styles.detailInfoLabelText}>Durée après ouverture</Text>
+                            </View>
+                            <Text style={styles.detailInfoValue}>
+                              {detailSelectedItem.daysAfterOpening} jour{detailSelectedItem.daysAfterOpening > 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </View>
+
+                  {/* Action buttons */}
+                  <View style={styles.detailActionButtons}>
+                    <PressableScale
+                      onPress={() => {
+                        setDetailModalVisible(false);
+                        handleMarkAsConsumed(detailSelectedItem);
+                      }}
+                      style={[styles.detailActionButton, { backgroundColor: COLORS.primary[500] }]}
+                      hapticType="medium"
+                      activeScale={0.96}
+                    >
+                      <Ionicons name="checkmark-circle" size={22} color={COLORS.neutral.white} />
+                      <Text style={styles.detailActionButtonText}>Consommé</Text>
+                    </PressableScale>
+
+                    <PressableScale
+                      onPress={() => {
+                        setDetailModalVisible(false);
+                        handleMarkAsThrown(detailSelectedItem);
+                      }}
+                      style={[styles.detailActionButton, { backgroundColor: '#EF4444' }]}
+                      hapticType="medium"
+                      activeScale={0.96}
+                    >
+                      <Ionicons name="trash" size={20} color={COLORS.neutral.white} />
+                      <Text style={styles.detailActionButtonText}>Jeter</Text>
+                    </PressableScale>
+                  </View>
+                </>
+              );
+            })()}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        feature="scanner"
+      />
     </View>
   );
 }
@@ -922,6 +1593,119 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
+  filtersContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+    position: 'relative',
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: hexToRgba(COLORS.primary[500], 0.15),
+    ...SHADOWS.xs,
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    color: COLORS.neutral.white,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: hexToRgba(COLORS.neutral.gray300, 0.5),
+    ...SHADOWS.xs,
+  },
+  clearFiltersText: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
+  },
+  filterOverlay: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    bottom: -1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 10,
+  },
+  filterMenuContent: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: hexToRgba(COLORS.primary[500], 0.15),
+    ...SHADOWS.lg,
+    maxHeight: 400,
+    zIndex: 11,
+  },
+  filterSection: {
+    paddingVertical: 12,
+  },
+  filterSectionTitle: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '700',
+    color: COLORS.text.secondary,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    letterSpacing: 0.5,
+  },
+  filterMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  filterMenuItemActive: {
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.05),
+  },
+  filterMenuItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  filterMenuItemText: {
+    ...TYPOGRAPHY.body,
+    fontSize: 15,
+    color: COLORS.text.primary,
+  },
+  filterDivider: {
+    height: 1,
+    backgroundColor: hexToRgba(COLORS.neutral.gray200, 0.5),
+    marginHorizontal: 16,
+  },
   counterHeader: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -941,96 +1725,160 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 120,
   },
-  // Compact Card Design
+  // Card Design
   card: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.lg,
-    marginBottom: 8,
+    borderRadius: 20,
+    marginBottom: 14,
     padding: 14,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.neutral.gray200, 0.6),
+    borderWidth: 1.5,
+    borderColor: hexToRgba(COLORS.neutral.gray200, 0.5),
     ...SHADOWS.sm,
   },
   cardSelected: {
     borderWidth: 2,
     backgroundColor: hexToRgba(COLORS.primary[500], 0.05),
   },
-  cardRow: {
+  cardInner: {
     flexDirection: 'row',
+  },
+  // Image wrapper with status dot
+  imageWrapper: {
+    position: 'relative',
+    marginRight: 14,
+  },
+  imagePlaceholder: {
+    width: 95,
+    height: 95,
+    borderRadius: 16,
+    backgroundColor: COLORS.secondary.sage,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  // Status dot
+  foodImage: {
+    width: '100%',
+    height: '100%',
+  },
   statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
   },
-  // Food info
-  foodInfo: {
+  // Right content area
+  cardRight: {
     flex: 1,
-    marginRight: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  topSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  textContent: {
+    flex: 1,
+    paddingRight: 8,
   },
   foodName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  quantityLabel: {
     fontSize: 15,
     fontWeight: '600',
     color: COLORS.text.primary,
-    marginBottom: 3,
   },
-  metaRow: {
+  quantityPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  quantityText: {
-    fontSize: 12,
+  priceLabel: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.primary[500],
   },
-  openedBadge: {
-    backgroundColor: hexToRgba(COLORS.accent.carrot, 0.12),
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-  },
-  openedText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.accent.carrot,
-  },
-  expirationText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  // Chevron
-  chevronContainer: {
-    padding: 4,
-  },
-  // Expanded actions - icon buttons
-  expandedActions: {
+  expirationDateContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: hexToRgba(COLORS.neutral.gray200, 0.6),
-  },
-  actionBtn: {
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    marginTop: 6,
   },
-  actionBtnIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.sm,
-  },
-  actionBtnLabel: {
-    fontSize: 11,
+  expirationDateText: {
+    fontSize: 13,
     fontWeight: '600',
+  },
+  // Three dots menu
+  dotsMenu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  dotItem: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.9),
+  },
+  // Action buttons
+  buttonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 4,
+  },
+  btnConsumed: {
+    flex: 1,
+    backgroundColor: COLORS.primary[500],
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnThrown: {
+    flex: 1,
+    backgroundColor: '#EF4444',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnOpened: {
+    flex: 1,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.7),
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnOpenedActive: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.5),
+  },
+  btnTextWhite: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  btnTextDark: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  btnTextOpenedActive: {
     color: COLORS.text.secondary,
   },
   emptyState: {
@@ -1085,7 +1933,7 @@ const styles = StyleSheet.create({
   },
   fabOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'transparent',
     zIndex: 90,
   },
   fabMenuContainer: {
@@ -1138,55 +1986,241 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.neutral.white,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     ...SHADOWS.lg,
     zIndex: 100,
   },
-  selectionBarContent: {
+  selectionBarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
-  },
-  selectionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 4,
   },
   closeSelectionButton: {
-    padding: 4,
-    marginRight: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: hexToRgba(COLORS.neutral.gray200, 0.6),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectionCount: {
-    ...TYPOGRAPHY.h4,
+    fontSize: 16,
+    fontWeight: '600',
     color: COLORS.text.primary,
+    flex: 1,
+    marginLeft: 12,
   },
   selectAllButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
+    borderRadius: RADIUS.lg,
   },
   selectAllText: {
-    ...TYPOGRAPHY.buttonSm,
+    fontSize: 13,
     fontWeight: '600',
   },
   selectionActions: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-around',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: hexToRgba(COLORS.neutral.gray200, 0.6),
   },
   bulkActionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    minWidth: 80,
+  },
+  bulkActionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    ...SHADOWS.sm,
+  },
+  bulkActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Menu Modal styles
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuModalContent: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+    ...SHADOWS.lg,
+  },
+  menuModalTitle: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral.gray200,
+  },
+  menuModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    marginBottom: 8,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
+  },
+  menuModalOptionDanger: {
+    backgroundColor: hexToRgba(COLORS.accent.tomato, 0.08),
+    marginBottom: 0,
+  },
+  menuModalOptionText: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+    color: COLORS.primary[500],
+    marginLeft: 12,
+  },
+  menuModalOptionTextDanger: {
+    color: COLORS.accent.tomato,
+  },
+  // Detail Modal styles
+  detailModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  detailModalContent: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '85%',
+    ...SHADOWS.lg,
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  detailModalTitle: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.text.primary,
+    fontWeight: '700',
+  },
+  detailModalClose: {
+    padding: 4,
+  },
+  detailImageContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  detailImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 20,
+  },
+  detailImagePlaceholder: {
+    width: 140,
+    height: 140,
+    borderRadius: 20,
+    backgroundColor: COLORS.secondary.sage,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailFoodName: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '700',
+  },
+  detailStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.full,
+    marginBottom: 20,
+    alignSelf: 'center',
+  },
+  detailStatusText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  detailInfoSection: {
+    backgroundColor: hexToRgba(COLORS.neutral.gray100, 0.5),
+    borderRadius: RADIUS.lg,
+    padding: 16,
+    marginBottom: 16,
+  },
+  detailInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.neutral.gray200, 0.5),
+  },
+  detailInfoLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  detailInfoLabelText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.text.secondary,
+    fontSize: 14,
+  },
+  detailInfoValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.text.primary,
+    fontWeight: '600',
+    fontSize: 15,
+    textAlign: 'right',
+  },
+  detailActionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  detailActionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: RADIUS.lg,
-    gap: 8,
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.md,
   },
-  bulkActionText: {
-    ...TYPOGRAPHY.button,
+  detailActionButtonText: {
     color: COLORS.neutral.white,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

@@ -14,16 +14,19 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import Svg, { Path, Circle, G } from 'react-native-svg';
 import { RootStackParamList } from '../types/navigation';
-import { addItemToList } from '../utils/localStorage';
+import { addItemToList, updateItem } from '../utils/localStorage';
 import Header from '../components/Header';
 import ImagePickerButton from '../components/ImagePickerButton';
 import FieldInput from '../components/FieldInput';
 import DatePickerField from '../components/DatePickerField';
 import CategorySelector from '../components/CategorySelector';
+import UnitSelector from '../components/UnitSelector';
 import BarcodeButton from '../components/BarcodeButton';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
+import { useGamification } from '../contexts/GamificationContext';
+import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'AddFood'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFood'>;
@@ -45,16 +48,22 @@ function BackgroundDecoration() {
 export default function AddFoodScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
-  const { listId } = route.params;
+  const { trackFoodAdded } = useGamification();
+  const { listId, editItem } = route.params;
 
-  const [foodName, setFoodName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [category, setCategory] = useState('');
-  const [expirationDate, setExpirationDate] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [isOpened, setIsOpened] = useState(false);
-  const [openedDate, setOpenedDate] = useState('');
-  const [daysAfterOpening, setDaysAfterOpening] = useState('');
+  const isEditMode = !!editItem;
+
+  const [foodName, setFoodName] = useState(editItem?.name || '');
+  const [quantity, setQuantity] = useState(editItem?.quantity?.toString() || '1');
+  const [weight, setWeight] = useState(editItem?.weight?.toString() || '');
+  const [unit, setUnit] = useState(editItem?.unit || 'g');
+  const [category, setCategory] = useState(editItem?.category || '');
+  const [expirationDate, setExpirationDate] = useState(editItem?.expirationDate || '');
+  const [imageUri, setImageUri] = useState<string | null>(editItem?.imageUri || null);
+  const [isOpened, setIsOpened] = useState(editItem?.isOpened || false);
+  const [openedDate, setOpenedDate] = useState(editItem?.openedDate || '');
+  const [daysAfterOpening, setDaysAfterOpening] = useState(editItem?.daysAfterOpening?.toString() || '');
+  const [price, setPrice] = useState(editItem?.price?.toString() || '');
   const [isAdding, setIsAdding] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
 
@@ -63,7 +72,7 @@ export default function AddFoodScreen() {
   const formSlide = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(formFade, {
         toValue: 1,
         duration: 400,
@@ -75,7 +84,12 @@ export default function AddFoodScreen() {
         friction: 8,
         tension: 40,
       }),
-    ]).start();
+    ]);
+
+    animation.start();
+
+    // Cleanup: Stop animation if component unmounts
+    return () => animation.stop();
   }, []);
 
   const handleAddFood = async () => {
@@ -96,24 +110,36 @@ export default function AddFoodScreen() {
 
     setIsAdding(true);
     try {
-      const newItem = {
-        id: Date.now().toString(),
+      const itemData = {
         name: foodName.trim(),
         expirationDate: finalExpirationDate || '',
-        quantity: quantity.trim() ? parseInt(quantity, 10) : undefined,
+        quantity: quantity.trim() ? parseInt(quantity, 10) : 1,
+        weight: weight.trim() ? parseFloat(weight.replace(',', '.')) : undefined,
+        unit: weight.trim() ? unit : undefined,
         category: category.trim() || undefined,
         imageUri: imageUri || undefined,
-        status: 'active' as const,
         isOpened: isOpened || undefined,
         openedDate: isOpened && openedDate.trim() ? openedDate.trim() : undefined,
         daysAfterOpening: isOpened && daysAfterOpening.trim() ? parseInt(daysAfterOpening, 10) : undefined,
+        price: price.trim() ? parseFloat(price.replace(',', '.')) : undefined,
       };
 
-      await addItemToList(listId, newItem);
+      if (isEditMode && editItem) {
+        await updateItem(listId, editItem.id, itemData);
+      } else {
+        const newItem = {
+          id: Date.now().toString(),
+          ...itemData,
+          status: 'active' as const,
+        };
+        await addItemToList(listId, newItem);
+        // Tracker pour la gamification
+        trackFoodAdded();
+      }
       navigation.goBack();
     } catch (error) {
-      console.error('Erreur lors de l\'ajout:', error);
-      Alert.alert('Erreur', 'Impossible d\'ajouter l\'aliment');
+      logger.error('Erreur lors de l\'ajout:', error);
+      Alert.alert('Erreur', isEditMode ? 'Impossible de modifier l\'aliment' : 'Impossible d\'ajouter l\'aliment');
     } finally {
       setIsAdding(false);
     }
@@ -181,7 +207,7 @@ export default function AddFoodScreen() {
         { cancelable: true }
       );
     } catch (error) {
-      console.error('Erreur lors de la sélection d\'image:', error);
+      logger.error('Erreur lors de la sélection d\'image:', error);
       Alert.alert('Erreur', 'Impossible de sélectionner une image');
     }
   };
@@ -200,9 +226,23 @@ export default function AddFoodScreen() {
     setFoodName(product.name);
 
     if (product.quantity) {
-      const quantityMatch = product.quantity.match(/(\d+)/);
-      if (quantityMatch) {
-        setQuantity(quantityMatch[1]);
+      // Parser la quantité pour extraire le poids/volume et l'unité
+      // Exemples: "500g", "1L", "250 ml", "1,5 L", "500 g", "33cl"
+      const quantityStr = product.quantity.toLowerCase().replace(',', '.');
+      const match = quantityStr.match(/(\d+(?:\.\d+)?)\s*(g|kg|ml|cl|l)\b/i);
+
+      if (match) {
+        const value = match[1];
+        let parsedUnit = match[2].toLowerCase();
+
+        // Normaliser les unités
+        if (parsedUnit === 'l') parsedUnit = 'L';
+        else if (parsedUnit === 'ml') parsedUnit = 'mL';
+        else if (parsedUnit === 'cl') parsedUnit = 'cL';
+
+        setWeight(value);
+        setUnit(parsedUnit);
+        setQuantity('1'); // Par défaut 1 article
       }
     }
 
@@ -216,7 +256,7 @@ export default function AddFoodScreen() {
 
     Alert.alert(
       'Produit trouvé !',
-      `${product.name}${product.quantity ? `\nQuantité: ${product.quantity}` : ''}`,
+      `${product.name}${product.quantity ? `\nContenance: ${product.quantity}` : ''}`,
       [{ text: 'OK' }]
     );
   };
@@ -226,7 +266,7 @@ export default function AddFoodScreen() {
   return (
     <View style={styles.container}>
       <BackgroundDecoration />
-      <Header title="Ajouter un aliment" showIcon={false} />
+      <Header title={isEditMode ? "Modifier l'aliment" : "Ajouter un aliment"} showIcon={false} />
 
       <ScrollView
         style={styles.scrollView}
@@ -249,6 +289,11 @@ export default function AddFoodScreen() {
             />
           </View>
 
+          {/* Barcode section */}
+          <View style={styles.barcodeSection}>
+            <BarcodeButton onPress={handleBarcodeScan} />
+          </View>
+
           {/* Form section */}
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Informations</Text>
@@ -259,16 +304,44 @@ export default function AddFoodScreen() {
               onChangeText={setFoodName}
               placeholder="Ex: Tomates cerises"
               icon="restaurant-outline"
-              autoFocus
             />
 
             <FieldInput
-              label="Quantité"
+              label="Nombre"
               value={quantity}
               onChangeText={setQuantity}
-              placeholder="Ex: 2"
-              icon="layers-outline"
+              placeholder="Ex: 3"
+              icon="copy-outline"
               keyboardType="numeric"
+              hint="Nombre d'articles (ex: 3 paquets)"
+            />
+
+            <Text style={styles.fieldLabel}>Contenance</Text>
+            <View style={styles.weightRow}>
+              <View style={styles.weightInputContainer}>
+                <FieldInput
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="Ex: 150"
+                  icon="scale-outline"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <UnitSelector
+                selectedUnit={unit}
+                onUnitSelect={setUnit}
+              />
+            </View>
+            <Text style={styles.fieldHint}>Poids ou volume par article</Text>
+
+            <FieldInput
+              label="Prix total (€)"
+              value={price}
+              onChangeText={setPrice}
+              placeholder="Ex: 4,50"
+              icon="cash-outline"
+              keyboardType="decimal-pad"
+              hint="Prix pour la quantité totale (comme sur le ticket)"
             />
 
             <CategorySelector
@@ -339,11 +412,6 @@ export default function AddFoodScreen() {
             )}
           </View>
 
-          {/* Barcode section */}
-          <View style={styles.barcodeSection}>
-            <BarcodeButton onPress={handleBarcodeScan} />
-          </View>
-
           {/* Submit button */}
           <View style={styles.submitSection}>
             <PressableScale
@@ -357,11 +425,11 @@ export default function AddFoodScreen() {
               activeScale={0.97}
             >
               {isAdding ? (
-                <Text style={styles.submitButtonText}>Ajout en cours...</Text>
+                <Text style={styles.submitButtonText}>{isEditMode ? 'Modification en cours...' : 'Ajout en cours...'}</Text>
               ) : (
                 <>
                   <Ionicons
-                    name="add-circle"
+                    name={isEditMode ? "checkmark-circle" : "add-circle"}
                     size={22}
                     color={isFormValid ? COLORS.neutral.white : COLORS.text.muted}
                   />
@@ -371,7 +439,7 @@ export default function AddFoodScreen() {
                       !isFormValid && styles.submitButtonTextDisabled,
                     ]}
                   >
-                    Ajouter l'aliment
+                    {isEditMode ? "Enregistrer" : "Ajouter l'aliment"}
                   </Text>
                 </>
               )}
@@ -463,6 +531,26 @@ const styles = StyleSheet.create({
   },
   barcodeSection: {
     marginBottom: 24,
+  },
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weightInputContainer: {
+    flex: 1,
+  },
+  fieldLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  fieldHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.text.secondary,
+    marginTop: 6,
+    marginBottom: 16,
   },
   submitSection: {
     marginTop: 8,

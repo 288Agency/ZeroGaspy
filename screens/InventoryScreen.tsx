@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { FoodItem, Inventory } from '../types';
 import { saveData, loadData } from '../utils/localStorage';
+import logger from '../utils/logger';
 
 const STORAGE_KEY = 'inventory';
 
@@ -29,7 +30,12 @@ export default function InventoryScreen() {
         setInventory(data);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'inventaire:', error);
+      logger.error('Erreur lors du chargement de l\'inventaire:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger l\'inventaire. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -38,7 +44,7 @@ export default function InventoryScreen() {
       await saveData(STORAGE_KEY, newInventory);
       setInventory(newInventory);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde de l\'inventaire:', error);
+      logger.error('Erreur lors de la sauvegarde de l\'inventaire:', error);
       Alert.alert('Erreur', 'Impossible de sauvegarder l\'inventaire');
     }
   };
@@ -94,6 +100,9 @@ export default function InventoryScreen() {
       <TouchableOpacity
         className="bg-red-500 rounded-xl py-2 px-4 active:opacity-80"
         onPress={() => handleDeleteFood(item.id)}
+        accessibilityLabel={`Supprimer ${item.name}`}
+        accessibilityRole="button"
+        accessibilityHint="Double-tapez pour supprimer cet aliment"
       >
         <Text className="text-white text-sm font-bold">Supprimer</Text>
       </TouchableOpacity>
@@ -124,6 +133,8 @@ export default function InventoryScreen() {
         <TouchableOpacity
           className="bg-[#3C6E47] rounded-2xl p-4 items-center active:opacity-80"
           onPress={handleAddFood}
+          accessibilityLabel="Ajouter l'aliment à l'inventaire"
+          accessibilityRole="button"
         >
           <Text className="text-white text-base font-bold">Ajouter</Text>
         </TouchableOpacity>

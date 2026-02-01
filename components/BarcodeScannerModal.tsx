@@ -16,6 +16,7 @@ import {
   extractMainCategory,
   OpenFoodFactsProduct,
 } from '../services/openFoodFactsService';
+import logger from '../utils/logger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.7;
@@ -84,7 +85,7 @@ export default function BarcodeScannerModal({
         }, 2000);
       }
     } catch (err) {
-      console.error('Erreur lors du scan:', err);
+      logger.error('Erreur lors du scan:', err);
       setError('Erreur lors de la recherche du produit');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setTimeout(() => {

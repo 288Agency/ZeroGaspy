@@ -27,15 +27,15 @@
 - **Validation des codes-barres** : Avant envoi à l'API
 - **Sanitisation des réponses** : Les données reçues sont nettoyées
 
-### 5. Sécurité des feedbacks (`utils/feedbackService.ts`)
-- **Variable d'environnement** : L'email est stocké dans `.env`
-- **Validation complète** : Nom, email, message sont validés
-- **Limite des pièces jointes** : Maximum 5 images
+### 5. Securite des feedbacks (`utils/feedbackService.ts`)
+- **Supabase Edge Function** : Les feedbacks sont envoyes via une Edge Function securisee
+- **Validation complete** : Nom, email, message sont valides cote client et serveur
+- **Limite des pieces jointes** : Maximum 5 images
 
 ## Configuration
 
 ### Variables d'environnement
-Créez un fichier `.env` à partir de `env.example` :
+Creez un fichier `.env` a partir de `env.example` :
 
 ```bash
 cp env.example .env
@@ -43,19 +43,15 @@ cp env.example .env
 
 Contenu du fichier :
 ```env
-EXPO_PUBLIC_FEEDBACK_EMAIL=votre-email@example.com
+EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
 ```
 
-⚠️ **Ne jamais commiter le fichier `.env` !** Il est dans le `.gitignore`.
+Ne jamais commiter le fichier `.env` ! Il est dans le `.gitignore`.
 
-## Vulnérabilités connues
+## Vulnerabilites connues
 
-### Dépendances npm
-Les vulnérabilités suivantes sont dans `@vercel/node` (backend Vercel) et n'impactent pas l'application mobile :
-- `esbuild` : Vulnérabilité du serveur de développement (mode dev uniquement)
-- `path-to-regexp` : Regex backtracking (impact faible)
-
-Pour mettre à jour les dépendances :
+Pour mettre a jour les dependances :
 ```bash
 npm update
 npm audit fix
@@ -96,9 +92,10 @@ npm audit fix
 
 ### Pour les utilisateurs
 
-- L'application stocke les données **localement** sur l'appareil
-- Aucune donnée n'est envoyée à des serveurs tiers (sauf OpenFoodFacts pour les codes-barres)
-- Les feedbacks sont envoyés via l'application email native
+- L'application stocke les donnees **localement** sur l'appareil
+- Les donnees peuvent etre synchronisees avec Supabase (optionnel)
+- OpenFoodFacts est utilise pour les codes-barres
+- Les feedbacks sont envoyes via Supabase Edge Functions + Resend
 
 ## Signaler une vulnérabilité
 

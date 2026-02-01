@@ -6,7 +6,13 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jiyhldfgztzknkccuidq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppeWhsZGZnenR6a25rY2N1aWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MzQyODksImV4cCI6MjA4NDMxMDI4OX0.GRcHVqfo9CUuBn8-1VcOKn4KwjnDXg8XatPd2b7pHws",
+        "EXPO_PUBLIC_GOOGLE_VISION_API_KEY": "AIzaSyA2AzEaQZQdKOPirq8BMqrthRPnwZZlEWU",
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "contact@288agency.com"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -15,6 +21,12 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jiyhldfgztzknkccuidq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppeWhsZGZnenR6a25rY2N1aWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MzQyODksImV4cCI6MjA4NDMxMDI4OX0.GRcHVqfo9CUuBn8-1VcOKn4KwjnDXg8XatPd2b7pHws",
+        "EXPO_PUBLIC_GOOGLE_VISION_API_KEY": "AIzaSyA2AzEaQZQdKOPirq8BMqrthRPnwZZlEWU",
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "contact@288agency.com"
       }
     },
     "production": {
@@ -22,7 +34,27 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "autoIncrement": true
+        "autoIncrement": true,
+        "image": "macos-sequoia-15.4-xcode-16.3"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jiyhldfgztzknkccuidq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppeWhsZGZnenR6a25rY2N1aWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MzQyODksImV4cCI6MjA4NDMxMDI4OX0.GRcHVqfo9CUuBn8-1VcOKn4KwjnDXg8XatPd2b7pHws",
+        "EXPO_PUBLIC_GOOGLE_VISION_API_KEY": "AIzaSyA2AzEaQZQdKOPirq8BMqrthRPnwZZlEWU",
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "contact@288agency.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "quentin@288.agency",
+        "ascAppId": "6740466814",
+        "appleTeamId": "M32LP7D76G"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

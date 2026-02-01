@@ -3,6 +3,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { validateBarcode, sanitizeString } from '../utils/security';
+import { canMakeRequest, recordRequest } from '../utils/rateLimiter';
 import logger from '../utils/logger';
 
 // Durée de validité du cache (30 jours en millisecondes)
@@ -139,9 +140,18 @@ export async function getProductByBarcode(barcode: string): Promise<OpenFoodFact
   }
 
   try {
+    // Vérifier le rate limiting
+    if (!canMakeRequest('openfoodfacts')) {
+      logger.warn('Rate limit atteint pour OpenFoodFacts');
+      return null;
+    }
+
     // Créer un controller pour le timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+    // Enregistrer la requête
+    recordRequest('openfoodfacts');
 
     const response = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${cleanBarcode}.json`,

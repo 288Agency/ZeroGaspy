@@ -41,19 +41,23 @@ export default function Input({
   const labelAnim = useRef(new Animated.Value(props.value ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(focusAnim, {
+    const animation = Animated.timing(focusAnim, {
       toValue: isFocused ? 1 : 0,
       duration: 200,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [isFocused]);
 
   useEffect(() => {
-    Animated.timing(labelAnim, {
+    const animation = Animated.timing(labelAnim, {
       toValue: isFocused || props.value ? 1 : 0,
       duration: 200,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [isFocused, props.value]);
 
   const handleFocus = (e: any) => {

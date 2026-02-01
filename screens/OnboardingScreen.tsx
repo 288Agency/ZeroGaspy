@@ -23,6 +23,7 @@ import {
   responsive,
   isSmallScreen,
 } from '../utils/responsive';
+import logger from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,7 +36,7 @@ const ONBOARDING_KEY = 'onboarding_completed';
 // ============================================
 
 // Stylized Carrot Illustration
-function CarrotIllustration({ scale = 1 }: { scale?: number }) {
+const CarrotIllustration = React.memo(function CarrotIllustration({ scale = 1 }: { scale?: number }) {
   return (
     <Svg width={120 * scale} height={140 * scale} viewBox="0 0 120 140">
       <Defs>
@@ -63,10 +64,10 @@ function CarrotIllustration({ scale = 1 }: { scale?: number }) {
       <Path d="M60 35 C70 30 85 25 85 15 C85 10 65 20 60 35" fill="url(#leafGrad)" />
     </Svg>
   );
-}
+});
 
 // Stylized Apple Illustration
-function AppleIllustration({ scale = 1 }: { scale?: number }) {
+const AppleIllustration = React.memo(function AppleIllustration({ scale = 1 }: { scale?: number }) {
   return (
     <Svg width={110 * scale} height={130 * scale} viewBox="0 0 110 130">
       <Defs>
@@ -100,10 +101,10 @@ function AppleIllustration({ scale = 1 }: { scale?: number }) {
       <Ellipse cx="35" cy="55" rx="12" ry="18" fill="white" opacity="0.2" />
     </Svg>
   );
-}
+});
 
 // Stylized Broccoli Illustration
-function BroccoliIllustration({ scale = 1 }: { scale?: number }) {
+const BroccoliIllustration = React.memo(function BroccoliIllustration({ scale = 1 }: { scale?: number }) {
   return (
     <Svg width={120 * scale} height={140 * scale} viewBox="0 0 120 140">
       <Defs>
@@ -136,10 +137,10 @@ function BroccoliIllustration({ scale = 1 }: { scale?: number }) {
       <Circle cx="80" cy="58" r="2" fill="#4A9E3D" opacity="0.6" />
     </Svg>
   );
-}
+});
 
 // Stylized Bell/Notification Illustration
-function NotificationIllustration({ scale = 1 }: { scale?: number }) {
+const NotificationIllustration = React.memo(function NotificationIllustration({ scale = 1 }: { scale?: number }) {
   return (
     <Svg width={120 * scale} height={140 * scale} viewBox="0 0 120 140">
       <Defs>
@@ -173,10 +174,10 @@ function NotificationIllustration({ scale = 1 }: { scale?: number }) {
       <Path d="M12 45 Q-8 60 12 75" stroke="#FFD93D" strokeWidth="3" fill="none" opacity="0.4" />
     </Svg>
   );
-}
+});
 
 // Decorative Leaf Pattern
-function LeafPattern({ color = '#3C6E47', opacity = 0.1 }: { color?: string; opacity?: number }) {
+const LeafPattern = React.memo(function LeafPattern({ color = '#3C6E47', opacity = 0.1 }: { color?: string; opacity?: number }) {
   return (
     <Svg width={width} height={300} viewBox={`0 0 ${width} 300`} style={{ position: 'absolute', top: 0 }}>
       <G opacity={opacity}>
@@ -190,7 +191,7 @@ function LeafPattern({ color = '#3C6E47', opacity = 0.1 }: { color?: string; opa
       </G>
     </Svg>
   );
-}
+});
 
 // Animated floating element wrapper
 function FloatingElement({
@@ -211,7 +212,7 @@ function FloatingElement({
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    const entranceAnimation = Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
         Animated.spring(scaleAnim, {
@@ -226,9 +227,10 @@ function FloatingElement({
           useNativeDriver: true,
         }),
       ]),
-    ]).start();
+    ]);
+    entranceAnimation.start();
 
-    Animated.loop(
+    const loopAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
           toValue: 1,
@@ -243,7 +245,13 @@ function FloatingElement({
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    loopAnimation.start();
+
+    return () => {
+      entranceAnimation.stop();
+      loopAnimation.stop();
+    };
   }, []);
 
   const translateY = floatAnim.interpolate({
@@ -673,7 +681,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete();
     } catch (error) {
-      console.error('Error saving onboarding state:', error);
+      logger.error('Error saving onboarding state:', error);
       onComplete();
     }
   };
@@ -688,6 +696,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         <TouchableOpacity
           onPress={handleSkip}
           activeOpacity={0.7}
+          accessibilityLabel="Passer l'introduction"
+          accessibilityRole="button"
           style={{
             position: 'absolute',
             top: scaleSpacing(isSmallScreen ? 45 : 55),
@@ -752,6 +762,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           <TouchableOpacity
             onPress={handleNext}
             activeOpacity={0.9}
+            accessibilityLabel={isLastSlide ? "Commencer à utiliser l'application" : "Passer à la page suivante"}
+            accessibilityRole="button"
             style={{
               backgroundColor: currentSlide.accentColor,
               borderRadius: scaleSize(16),

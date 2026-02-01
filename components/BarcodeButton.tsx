@@ -28,9 +28,6 @@ export default function BarcodeButton({ onPress }: BarcodeButtonProps) {
         <Text className="text-white font-semibold text-base">
           Scanner un code-barres
         </Text>
-        <Text className="text-white/70 text-sm">
-          Remplissage auto avec OpenFoodFacts
-        </Text>
       </View>
       
       {/* Chevron */}

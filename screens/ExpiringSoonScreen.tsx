@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +15,7 @@ import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import Card from '../components/Card';
 import ExpirationBadge from '../components/ExpirationBadge';
+import logger from '../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -77,7 +79,12 @@ export default function ExpiringSoonScreen() {
       
       setExpiringItems(items);
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
+      logger.error('Erreur lors du chargement:', error);
+      Alert.alert(
+        'Erreur',
+        'Impossible de charger les aliments à expiration proche. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
@@ -100,6 +107,9 @@ export default function ExpiringSoonScreen() {
       <TouchableOpacity
         onPress={() => handleItemPress(item.listId, item.listTitle)}
         activeOpacity={0.7}
+        accessibilityLabel={`Voir ${item.name} dans ${item.listTitle}`}
+        accessibilityRole="button"
+        accessibilityHint="Double-tapez pour voir cet aliment dans sa liste"
       >
         <Card variant="elevated" className="p-5 mb-3">
           <View className="flex-row items-start justify-between">
@@ -156,6 +166,9 @@ export default function ExpiringSoonScreen() {
           onPress={() => navigation.goBack()}
           className="w-10 h-10 items-center justify-center"
           activeOpacity={0.7}
+          accessibilityLabel="Retour"
+          accessibilityRole="button"
+          accessibilityHint="Retourner à l'écran précédent"
         >
           <Ionicons name="arrow-back" size={24} color="#3C6E47" />
         </TouchableOpacity>
