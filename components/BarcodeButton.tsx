@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 
 interface BarcodeButtonProps {
   onPress: () => void;
@@ -13,25 +14,55 @@ export default function BarcodeButton({ onPress }: BarcodeButtonProps) {
       onPress={onPress}
       activeScale={0.98}
       hapticType="light"
-      className="flex-row items-center justify-center bg-[#3C6E47] rounded-2xl px-6 py-4 shadow-sm"
+      style={styles.button}
       accessible={true}
       accessibilityLabel="Scanner le code-barres"
       accessibilityRole="button"
     >
-      {/* Icône de scan */}
-      <View className="w-10 h-10 rounded-xl bg-white/20 items-center justify-center mr-3">
-        <Ionicons name="barcode-outline" size={24} color="white" />
+      {/* Icone de scan */}
+      <View style={styles.iconContainer}>
+        <Ionicons name="barcode-outline" size={24} color={COLORS.neutral.white} />
       </View>
-      
+
       {/* Texte */}
-      <View className="flex-1">
-        <Text className="text-white font-semibold text-base">
+      <View style={styles.textContainer}>
+        <Text style={styles.buttonText}>
           Scanner un code-barres
         </Text>
       </View>
-      
+
       {/* Chevron */}
-      <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+      <Ionicons name="chevron-forward" size={20} color={hexToRgba(COLORS.neutral.white, 0.7)} />
     </PressableScale>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING['2xl'],
+    paddingVertical: SPACING.lg,
+    ...SHADOWS.sm,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.xl,
+    backgroundColor: hexToRgba(COLORS.neutral.white, 0.2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  buttonText: {
+    color: COLORS.neutral.white,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+});

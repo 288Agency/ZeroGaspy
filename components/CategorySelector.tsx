@@ -4,18 +4,20 @@ import {
   Text,
   TextInput,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
-import { cn } from '../utils/cn';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 import logger from '../utils/logger';
 
 interface CategorySelectorProps {
   selectedCategory: string;
   onCategorySelect: (category: string) => void;
-  className?: string;
+  style?: any;
 }
 
 const DEFAULT_CATEGORIES = [
@@ -36,8 +38,9 @@ const CATEGORIES_STORAGE_KEY = 'user_categories';
 export default function CategorySelector({
   selectedCategory,
   onCategorySelect,
-  className,
+  style,
 }: CategorySelectorProps) {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -114,24 +117,24 @@ export default function CategorySelector({
   const displayValue = selectedCategory || 'Sélectionner';
 
   return (
-    <View className={cn('mb-6', className)}>
+    <View style={[styles.container, style]}>
       <PressableScale
         onPress={() => setShowModal(true)}
-        className="flex-row items-center bg-[#A3C9A8] rounded-2xl px-5 py-4 border border-[#3C6E47]/30 min-h-[60px]"
+        style={styles.trigger}
       >
-        <Text className="text-[#3C6E47] font-medium text-base mr-4 min-w-[100px]">
+        <Text style={styles.triggerLabel}>
           Catégorie
         </Text>
-        <View className="flex-1 flex-row items-center justify-end">
+        <View style={styles.triggerValueRow}>
           <Text
-            className={cn(
-              'text-base font-medium mr-2',
-              selectedCategory ? 'text-[#3C6E47]' : 'text-[#6A8A6E]'
-            )}
+            style={[
+              styles.triggerValue,
+              !selectedCategory && styles.triggerValuePlaceholder,
+            ]}
           >
             {displayValue}
           </Text>
-          <Ionicons name="chevron-forward" size={18} color="#3C6E47" />
+          <Ionicons name="chevron-forward" size={18} color={COLORS.primary[500]} />
         </View>
       </PressableScale>
 
@@ -140,42 +143,44 @@ export default function CategorySelector({
         onClose={() => setShowModal(false)}
         position="center"
       >
-        <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl">
+        <View style={styles.modalContainer}>
           {/* Header */}
-          <View className="flex-row justify-between items-center px-4 py-3 border-b border-[#3C6E47]/20">
+          <View style={styles.modalHeader}>
             <PressableScale
               onPress={() => setShowModal(false)}
-              className="px-3 py-2 rounded-xl"
+              style={styles.headerButton}
             >
-              <Text className="text-[#3C6E47] font-medium text-base">Fermer</Text>
+              <Text style={styles.headerButtonText}>Fermer</Text>
             </PressableScale>
 
-            <Text className="text-[#3C6E47] font-bold text-lg">Catégories</Text>
+            <Text style={styles.headerTitle}>Catégories</Text>
 
-            <View className="w-16" />
+            <View style={styles.headerSpacer} />
           </View>
 
           {/* Content */}
-          <View className="p-4">
+          <View style={styles.content}>
             {/* Categories grid - compact */}
-            <View className="flex-row flex-wrap gap-2 mb-4">
+            <View style={styles.categoriesGrid}>
               {allCategories.map((category, index) => (
                 <PressableScale
                   key={index}
                   onPress={() => handleCategoryPress(category)}
                   hapticType="selection"
-                  className={cn(
-                    'px-3 py-2 rounded-xl border',
+                  style={[
+                    styles.categoryItem,
                     selectedCategory === category
-                      ? 'bg-[#3C6E47] border-[#3C6E47]'
-                      : 'bg-[#A3C9A8]/40 border-[#3C6E47]/20'
-                  )}
+                      ? styles.categoryItemSelected
+                      : styles.categoryItemUnselected,
+                  ]}
                 >
                   <Text
-                    className={cn(
-                      'font-medium text-sm',
-                      selectedCategory === category ? 'text-white' : 'text-[#3C6E47]'
-                    )}
+                    style={[
+                      styles.categoryLabel,
+                      selectedCategory === category
+                        ? styles.categoryLabelSelected
+                        : styles.categoryLabelUnselected,
+                    ]}
                   >
                     {category}
                   </Text>
@@ -184,15 +189,14 @@ export default function CategorySelector({
             </View>
 
             {/* Add new category - compact */}
-            <View className="pt-3 border-t border-[#3C6E47]/20">
-              <View className="flex-row gap-2">
+            <View style={styles.addSection}>
+              <View style={styles.addRow}>
                 <TextInput
                   value={newCategoryName}
                   onChangeText={setNewCategoryName}
-                  placeholder="Nouvelle catégorie..."
-                  placeholderTextColor="#6A8A6E"
-                  className="flex-1 bg-[#A3C9A8]/40 rounded-xl px-4 py-3 border border-[#3C6E47]/20 text-[#3C6E47] text-sm"
-                  style={{ fontSize: 14 }}
+                  placeholder={t('categorySelector.newCategory')}
+                  placeholderTextColor={COLORS.text.tertiary}
+                  style={styles.addInput}
                   onSubmitEditing={handleAddCategory}
                   returnKeyType="done"
                 />
@@ -200,17 +204,17 @@ export default function CategorySelector({
                   onPress={handleAddCategory}
                   disabled={isAddingCategory || !newCategoryName.trim()}
                   hapticType="medium"
-                  className={cn(
-                    'w-11 h-11 rounded-xl items-center justify-center',
+                  style={[
+                    styles.addButton,
                     isAddingCategory || !newCategoryName.trim()
-                      ? 'bg-[#A3C9A8]/40'
-                      : 'bg-[#3C6E47]'
-                  )}
+                      ? styles.addButtonDisabled
+                      : styles.addButtonEnabled,
+                  ]}
                 >
                   <Ionicons
                     name="add"
                     size={22}
-                    color={isAddingCategory || !newCategoryName.trim() ? '#6A8A6E' : 'white'}
+                    color={isAddingCategory || !newCategoryName.trim() ? COLORS.text.tertiary : COLORS.neutral.white}
                   />
                 </PressableScale>
               </View>
@@ -221,3 +225,140 @@ export default function CategorySelector({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: SPACING['2xl'],
+  },
+  trigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary.sage,
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+    minHeight: 60,
+  },
+  triggerLabel: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+    marginRight: SPACING.lg,
+    minWidth: 100,
+  },
+  triggerValueRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  triggerValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: SPACING.sm,
+    color: COLORS.primary[500],
+  },
+  triggerValuePlaceholder: {
+    color: COLORS.text.tertiary,
+  },
+  modalContainer: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
+  headerButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  headerTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  headerSpacer: {
+    width: 64,
+  },
+  content: {
+    padding: SPACING.lg,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  categoryItem: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+  },
+  categoryItemSelected: {
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
+  },
+  categoryItemUnselected: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  categoryLabel: {
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  categoryLabelSelected: {
+    color: COLORS.neutral.white,
+  },
+  categoryLabelUnselected: {
+    color: COLORS.primary[500],
+  },
+  addSection: {
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  addRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  addInput: {
+    flex: 1,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    color: COLORS.primary[500],
+    fontSize: 14,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+  },
+  addButtonEnabled: {
+    backgroundColor: COLORS.primary[500],
+  },
+});

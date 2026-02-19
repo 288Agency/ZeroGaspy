@@ -4,10 +4,13 @@ import {
   Text,
   TextInput,
   Alert,
+  StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
 import DatePickerField from './DatePickerField';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface MarkAsOpenedModalProps {
   visible: boolean;
@@ -22,6 +25,7 @@ export default function MarkAsOpenedModal({
   onConfirm,
   itemName,
 }: MarkAsOpenedModalProps) {
+  const { t } = useTranslation();
   const [openedDate, setOpenedDate] = useState('');
   const [daysAfterOpening, setDaysAfterOpening] = useState('');
 
@@ -38,17 +42,17 @@ export default function MarkAsOpenedModal({
 
   const handleConfirm = () => {
     if (!openedDate.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer une date d\'ouverture');
+      Alert.alert(t('common.error'), t('markAsOpened.errorOpenDate'));
       return;
     }
     if (!daysAfterOpening.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer le nombre de jours');
+      Alert.alert(t('common.error'), t('markAsOpened.errorDaysCount'));
       return;
     }
 
     const days = parseInt(daysAfterOpening, 10);
     if (isNaN(days) || days <= 0) {
-      Alert.alert('Erreur', 'Le nombre de jours doit être positif');
+      Alert.alert(t('common.error'), t('markAsOpened.errorDaysPositive'));
       return;
     }
 
@@ -71,69 +75,166 @@ export default function MarkAsOpenedModal({
       onClose={handleClose}
       position="center"
     >
-      <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl">
+      <View style={styles.modalContainer}>
         {/* Header */}
-        <View className="flex-row justify-between items-center px-4 py-3 border-b border-[#3C6E47]/20">
-          <PressableScale onPress={handleClose} className="px-3 py-2 rounded-xl">
-            <Text className="text-[#3C6E47] font-medium text-base">Annuler</Text>
+        <View style={styles.header}>
+          <PressableScale onPress={handleClose} style={styles.headerButton}>
+            <Text style={styles.headerButtonText}>{t('markAsOpened.cancel')}</Text>
           </PressableScale>
 
-          <Text className="text-[#3C6E47] font-bold text-lg">Marquer ouvert</Text>
+          <Text style={styles.headerTitle}>{t('markAsOpened.title')}</Text>
 
           <PressableScale
             onPress={handleConfirm}
             disabled={!isValid}
             hapticType="medium"
-            className="px-3 py-2 rounded-xl"
+            style={styles.headerButton}
           >
-            <Text className={`font-semibold text-base ${isValid ? 'text-[#3C6E47]' : 'text-[#6A8A6E]'}`}>
-              Valider
+            <Text style={[styles.validateText, !isValid && styles.validateTextDisabled]}>
+              {t('markAsOpened.validate')}
             </Text>
           </PressableScale>
         </View>
 
         {/* Content */}
-        <View className="p-5">
+        <View style={styles.content}>
           {/* Item name */}
-          <View className="mb-4 p-3 bg-[#A3C9A8]/30 rounded-2xl">
-            <Text className="text-[#3C6E47] font-semibold text-base text-center" numberOfLines={1}>
+          <View style={styles.itemNameContainer}>
+            <Text style={styles.itemNameText} numberOfLines={1}>
               {itemName}
             </Text>
           </View>
 
           {/* Date d'ouverture */}
-          <DatePickerField
-            label="Date d'ouverture"
-            value={openedDate}
-            onDateChange={setOpenedDate}
-            className="mb-4"
-          />
+          <View style={styles.datePickerWrapper}>
+            <DatePickerField
+              label={t('markAsOpened.openingDate')}
+              value={openedDate}
+              onDateChange={setOpenedDate}
+            />
+          </View>
 
           {/* Jours après ouverture */}
-          <View className="flex-row items-center bg-[#A3C9A8] rounded-2xl px-5 py-4 border border-[#3C6E47]/30">
-            <Text className="text-[#3C6E47] font-medium text-base flex-1">
-              Périmé après
+          <View style={styles.daysRow}>
+            <Text style={styles.daysLabel}>
+              {t('markAsOpened.expiresAfter')}
             </Text>
-            <View className="flex-row items-center">
+            <View style={styles.daysInputRow}>
               <TextInput
                 value={daysAfterOpening}
                 onChangeText={setDaysAfterOpening}
                 placeholder="0"
-                placeholderTextColor="#6A8A6E"
+                placeholderTextColor={COLORS.text.tertiary}
                 keyboardType="numeric"
-                className="text-[#3C6E47] text-lg font-semibold text-center min-w-[40px]"
-                style={{ fontSize: 18 }}
+                style={styles.daysInput}
                 maxLength={3}
               />
-              <Text className="text-[#3C6E47] font-medium text-base ml-1">jours</Text>
+              <Text style={styles.daysUnit}>{t('markAsOpened.days')}</Text>
             </View>
           </View>
 
-          <Text className="text-[#3C6E47]/50 text-xs text-center mt-3">
-            La date d'expiration sera recalculée
+          <Text style={styles.helperText}>
+            {t('markAsOpened.recalculated')}
           </Text>
         </View>
       </View>
     </AnimatedModal>
   );
 }
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
+  headerButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  headerTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  validateText: {
+    fontWeight: '600',
+    fontSize: 16,
+    color: COLORS.primary[500],
+  },
+  validateTextDisabled: {
+    color: COLORS.text.tertiary,
+  },
+  content: {
+    padding: SPACING.xl,
+  },
+  itemNameContainer: {
+    marginBottom: SPACING.lg,
+    padding: SPACING.md,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
+    borderRadius: RADIUS['2xl'],
+  },
+  itemNameText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary.sage,
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+  },
+  daysLabel: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+    flex: 1,
+  },
+  daysInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  daysInput: {
+    color: COLORS.primary[500],
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    minWidth: 40,
+  },
+  daysUnit: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+    marginLeft: SPACING.xs,
+  },
+  datePickerWrapper: {
+    marginBottom: SPACING.lg,
+  },
+  helperText: {
+    color: hexToRgba(COLORS.primary[500], 0.5),
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+  },
+});

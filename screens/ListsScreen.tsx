@@ -9,7 +9,9 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { List } from '../types';
@@ -26,10 +28,12 @@ import PaywallModal from '../components/PaywallModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { FREE_LIMITS } from '../constants/subscription';
 import logger from '../utils/logger';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
 
 export default function ListsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { isPremium } = useSubscription();
   const [lists, setLists] = useState<List[]>([]);
@@ -55,14 +59,14 @@ export default function ListsScreen() {
       const data = await loadLists();
       setLists(data);
     } catch (error) {
-      logger.error('Erreur lors du chargement des listes:', error);
-      Alert.alert('Erreur', 'Impossible de charger les listes');
+      logger.error('Error loading lists:', error);
+      Alert.alert(t('common.error'), t('lists.loadError'));
     }
   };
 
   const handleCreateList = async () => {
     if (!newListTitle.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un titre pour la liste');
+      Alert.alert(t('common.error'), t('lists.titleRequired'));
       return;
     }
 
@@ -72,27 +76,27 @@ export default function ListsScreen() {
       setIsCreating(false);
       await loadListsData();
     } catch (error) {
-      logger.error('Erreur lors de la création de la liste:', error);
-      Alert.alert('Erreur', 'Impossible de créer la liste');
+      logger.error('Error creating list:', error);
+      Alert.alert(t('common.error'), t('lists.createError'));
     }
   };
 
   const handleDeleteList = (id: string, title: string) => {
     Alert.alert(
-      'Supprimer la liste',
-      `Êtes-vous sûr de vouloir supprimer "${title}" ?`,
+      t('lists.deleteList'),
+      t('lists.deleteConfirm', { title }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteList(id);
               await loadListsData();
             } catch (error) {
-              logger.error('Erreur lors de la suppression:', error);
-              Alert.alert('Erreur', 'Impossible de supprimer la liste');
+              logger.error('Error deleting list:', error);
+              Alert.alert(t('common.error'), t('lists.deleteError'));
             }
           },
         },
@@ -127,14 +131,13 @@ export default function ListsScreen() {
   };
 
   const renderList = ({ item }: { item: List }) => {
-    const listColor = item.color || '#3C6E47';
+    const listColor = item.color || COLORS.primary[500];
 
     return (
       <Card
         onPress={() => handleSelectList(item)}
         variant="elevated"
-        className="p-5 overflow-hidden"
-        style={{ backgroundColor: listColor + '20' }} // Couleur avec 12% opacité
+        style={[styles.cardItem, { backgroundColor: listColor + '20' }]}
       >
         {/* Bande de couleur à gauche */}
         <View
@@ -150,28 +153,28 @@ export default function ListsScreen() {
           }}
         />
 
-        <View className="flex-row items-center justify-between pl-2">
-          <View className="flex-1 mr-4">
-            <View className="flex-row items-center mb-2">
+        <View style={styles.listRow}>
+          <View style={styles.listContent}>
+            <View style={styles.listTitleRow}>
               <View
                 style={{
                   width: 12,
                   height: 12,
                   borderRadius: 6,
                   backgroundColor: listColor,
-                  marginRight: 8,
+                  marginRight: SPACING.sm,
                 }}
               />
-              <Text className="text-xl font-bold text-gray-900">
+              <Text style={styles.listTitle}>
                 {item.title}
               </Text>
             </View>
-            <View className="flex-row items-center ml-5">
-              <Text className="text-sm text-gray-600 mr-3">
-                {item.items.length} aliment{item.items.length > 1 ? 's' : ''}
+            <View style={styles.listMeta}>
+              <Text style={styles.listItemCount}>
+                {t('lists.itemsCount', { count: item.items.length })}
               </Text>
-              <Text className="text-sm text-gray-500">
-                • Créée le {formatDate(item.createdAt)}
+              <Text style={styles.listDate}>
+                • {t('lists.createdOn')} {formatDate(item.createdAt)}
               </Text>
             </View>
           </View>
@@ -180,11 +183,10 @@ export default function ListsScreen() {
               e.stopPropagation();
               handleDeleteList(item.id, item.title);
             }}
-            style={{ backgroundColor: listColor }}
-            className="w-10 h-10 rounded-full items-center justify-center active:opacity-80"
+            style={[styles.deleteCircle, { backgroundColor: listColor }]}
             activeOpacity={0.7}
           >
-            <Text className="text-white text-lg font-bold">✕</Text>
+            <Text style={styles.deleteCircleText}>✕</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -192,10 +194,10 @@ export default function ListsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F5E6]">
-      <View className="px-5 pt-16 pb-6 bg-[#F7F5E6] border-b border-gray-200">
-        <Text className="text-3xl font-bold text-gray-900 text-center">
-          Mes Listes d'Inventaire
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          {t('lists.myInventoryLists')}
         </Text>
       </View>
 
@@ -203,14 +205,14 @@ export default function ListsScreen() {
         data={lists}
         renderItem={renderList}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: SPACING.xl }}
         ListEmptyComponent={
-          <View className="items-center justify-center py-20">
-            <Text className="text-lg text-gray-500 text-center mb-2">
-              Aucune liste
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>
+              {t('lists.emptyLists')}
             </Text>
-            <Text className="text-base text-gray-400 text-center">
-              Créez-en une pour commencer !
+            <Text style={styles.emptySubtitle}>
+              {t('lists.emptyListsAction')}
             </Text>
           </View>
         }
@@ -220,21 +222,17 @@ export default function ListsScreen() {
       <Pressable
         onPress={handlePressCreate}
         hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-        className="absolute bottom-6 right-6 w-16 h-16 rounded-full bg-[#3C6E47] dark:bg-[#3C6E47] items-center justify-center shadow-lg active:opacity-80 active:scale-90"
+        style={styles.fab}
         android_ripple={{
           color: 'rgba(255, 255, 255, 0.3)',
           borderless: true,
           radius: 32,
         }}
         accessible={true}
-        accessibilityLabel="Créer une nouvelle liste"
+        accessibilityLabel={t('lists.createNewList')}
         accessibilityRole="button"
-        accessibilityHint="Ouvre l'écran de création de liste"
-        style={{
-          elevation: 8, // Android shadow
-        }}
       >
-        <Text className="text-white text-3xl font-light">+</Text>
+        <Text style={styles.fabText}>+</Text>
       </Pressable>
 
       {/* Paywall Modal */}
@@ -253,39 +251,39 @@ export default function ListsScreen() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
+          style={styles.modalKeyboard}
         >
-          <View className="flex-1 bg-black/50 items-center justify-center px-5">
-            <Card variant="elevated" className="w-full max-w-md p-6">
-              <Text className="text-2xl font-bold text-gray-900 mb-6">
-                Nouvelle Liste
+          <View style={styles.modalOverlay}>
+            <Card variant="elevated" style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                {t('lists.newList')}
               </Text>
-              
+
               <Input
-                placeholder="Titre de la liste"
+                placeholder={t('lists.listTitlePlaceholder')}
                 value={newListTitle}
                 onChangeText={setNewListTitle}
                 autoFocus
                 onSubmitEditing={handleCreateList}
               />
 
-              <View className="flex-row gap-3 mt-2">
+              <View style={styles.modalButtons}>
                 <Button
                   variant="outline"
                   onPress={() => {
                     setIsCreating(false);
                     setNewListTitle('');
                   }}
-                  className="flex-1"
+                  style={styles.modalButton}
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant="primary"
                   onPress={handleCreateList}
-                  className="flex-1"
+                  style={styles.modalButton}
                 >
-                  Créer
+                  {t('common.create')}
                 </Button>
               </View>
             </Card>
@@ -295,3 +293,137 @@ export default function ListsScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.secondary.cream,
+  },
+  header: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 64,
+    paddingBottom: SPACING['2xl'],
+    backgroundColor: COLORS.secondary.cream,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral.gray200,
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: COLORS.neutral.gray900,
+    textAlign: 'center',
+  },
+  cardItem: {
+    padding: SPACING.xl,
+    overflow: 'hidden',
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: SPACING.sm,
+  },
+  listContent: {
+    flex: 1,
+    marginRight: SPACING.lg,
+  },
+  listTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  listTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.neutral.gray900,
+  },
+  listMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: SPACING.xl,
+  },
+  listItemCount: {
+    fontSize: 14,
+    color: COLORS.neutral.gray600,
+    marginRight: SPACING.md,
+  },
+  listDate: {
+    fontSize: 14,
+    color: COLORS.neutral.gray500,
+  },
+  deleteCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteCircleText: {
+    color: COLORS.neutral.white,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    color: COLORS.neutral.gray500,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: COLORS.neutral.gray400,
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: SPACING['2xl'],
+    right: SPACING['2xl'],
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.lg,
+    elevation: 8,
+  },
+  fabText: {
+    color: COLORS.neutral.white,
+    fontSize: 30,
+    fontWeight: '300',
+  },
+  modalKeyboard: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 448,
+    padding: SPACING['2xl'],
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.neutral.gray900,
+    marginBottom: SPACING['2xl'],
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  modalButton: {
+    flex: 1,
+  },
+});

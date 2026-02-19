@@ -22,7 +22,7 @@ import StatsCardsRow from '../components/StatsCardsRow';
 import SpacesGrid from '../components/SpacesGrid';
 import FeedbackModal from '../components/FeedbackModal';
 import PressableScale from '../components/PressableScale';
-import AdBanner from '../components/AdBanner';
+
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { useTheme } from '../contexts/ThemeContext';
@@ -284,9 +284,6 @@ export default function HomeScreen() {
           />
         </Animated.View>
       </ScrollView>
-
-      {/* Banner Ad - uniquement pour les non-Premium */}
-      <AdBanner style={styles.adBanner} />
 
       {/* Feedback modal */}
       <FeedbackModal

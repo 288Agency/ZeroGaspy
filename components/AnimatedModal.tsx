@@ -8,6 +8,7 @@ import {
   Animated,
   StatusBar,
   Dimensions,
+  StyleSheet,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -98,39 +99,35 @@ export default function AnimatedModal({
       onRequestClose={onClose}
     >
       <StatusBar backgroundColor="transparent" translucent />
-      <View className="flex-1">
+      <View style={styles.container}>
         {/* Backdrop */}
         <TouchableWithoutFeedback onPress={handleBackdropPress}>
           <Animated.View
-            className="absolute inset-0 bg-black/50"
-            style={{ opacity: fadeAnim }}
+            style={[styles.backdrop, { opacity: fadeAnim }]}
           />
         </TouchableWithoutFeedback>
 
         {/* Modal Content */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className={`flex-1 ${
-            position === 'center'
-              ? 'justify-center items-center'
-              : 'justify-end'
-          }`}
+          style={[
+            styles.keyboardView,
+            position === 'center' ? styles.centerContent : styles.bottomContent,
+          ]}
           pointerEvents="box-none"
         >
           <TouchableWithoutFeedback>
             <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [
-                  { translateY: slideAnim },
-                  { scale: scaleAnim },
-                ],
-              }}
-              className={`${
-                position === 'center'
-                  ? 'mx-5 max-w-md w-full'
-                  : 'w-full'
-              }`}
+              style={[
+                position === 'center' ? styles.centerModal : styles.bottomModal,
+                {
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: slideAnim },
+                    { scale: scaleAnim },
+                  ],
+                },
+              ]}
             >
               {children}
             </Animated.View>
@@ -140,3 +137,35 @@ export default function AnimatedModal({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomContent: {
+    justifyContent: 'flex-end',
+  },
+  centerModal: {
+    marginHorizontal: 20,
+    maxWidth: 448,
+    width: '100%',
+  },
+  bottomModal: {
+    width: '100%',
+  },
+});

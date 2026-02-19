@@ -6,14 +6,18 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { FoodItem, Inventory } from '../types';
 import { saveData, loadData } from '../utils/localStorage';
 import logger from '../utils/logger';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 const STORAGE_KEY = 'inventory';
 
 export default function InventoryScreen() {
+  const { t } = useTranslation();
   const [inventory, setInventory] = useState<Inventory>([]);
   const [foodName, setFoodName] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
@@ -30,11 +34,11 @@ export default function InventoryScreen() {
         setInventory(data);
       }
     } catch (error) {
-      logger.error('Erreur lors du chargement de l\'inventaire:', error);
+      logger.error('Error loading inventory:', error);
       Alert.alert(
-        'Erreur',
-        'Impossible de charger l\'inventaire. Veuillez réessayer.',
-        [{ text: 'OK' }]
+        t('common.error'),
+        t('inventory.loadError'),
+        [{ text: t('common.ok') }]
       );
     }
   };
@@ -44,18 +48,18 @@ export default function InventoryScreen() {
       await saveData(STORAGE_KEY, newInventory);
       setInventory(newInventory);
     } catch (error) {
-      logger.error('Erreur lors de la sauvegarde de l\'inventaire:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder l\'inventaire');
+      logger.error('Error saving inventory:', error);
+      Alert.alert(t('common.error'), t('inventory.saveError'));
     }
   };
 
   const handleAddFood = () => {
     if (!foodName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un nom d\'aliment');
+      Alert.alert(t('common.error'), t('inventory.nameRequired'));
       return;
     }
     if (!expirationDate.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer une date d\'expiration');
+      Alert.alert(t('common.error'), t('inventory.dateRequired'));
       return;
     }
 
@@ -75,12 +79,12 @@ export default function InventoryScreen() {
 
   const handleDeleteFood = (id: string) => {
     Alert.alert(
-      'Supprimer',
-      'Êtes-vous sûr de vouloir supprimer cet aliment ?',
+      t('common.delete'),
+      t('inventory.confirmDelete'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
             const newInventory = inventory.filter((item) => item.id !== id);
@@ -92,51 +96,51 @@ export default function InventoryScreen() {
   };
 
   const renderItem = ({ item }: { item: FoodItem }) => (
-    <View className="flex-row justify-between items-center bg-[#A3C9A8]/20 rounded-2xl p-4 mb-3 border border-[#3C6E47]/20">
-      <View className="flex-1">
-        <Text className="text-lg font-bold mb-1 text-[#3C6E47]">{item.name}</Text>
-        <Text className="text-sm text-[#3C6E47]/70">Expire le: {item.expirationDate}</Text>
+    <View style={styles.listItem}>
+      <View style={styles.listItemContent}>
+        <Text style={styles.listItemName}>{item.name}</Text>
+        <Text style={styles.listItemDate}>{t('inventory.expiresOn')} {item.expirationDate}</Text>
       </View>
       <TouchableOpacity
-        className="bg-red-500 rounded-xl py-2 px-4 active:opacity-80"
+        style={styles.deleteButton}
         onPress={() => handleDeleteFood(item.id)}
-        accessibilityLabel={`Supprimer ${item.name}`}
+        activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityHint="Double-tapez pour supprimer cet aliment"
       >
-        <Text className="text-white text-sm font-bold">Supprimer</Text>
+        <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View className="flex-1 p-5 bg-[#F7F5E6]">
-      <Text className="text-2xl font-bold mb-5 text-center text-[#3C6E47]">
-        Inventaire des Aliments
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        {t('inventory.inventoryTitle')}
       </Text>
 
-      <View className="mb-5">
+      <View style={styles.formContainer}>
         <TextInput
-          className="border border-[#3C6E47]/30 bg-white rounded-2xl p-4 mb-3 text-base text-[#3C6E47]"
-          placeholder="Nom de l'aliment"
-          placeholderTextColor="#3C6E47/50"
+          style={styles.input}
+          placeholder={t('addFood.name')}
+          placeholderTextColor={hexToRgba(COLORS.primary[500], 0.5)}
           value={foodName}
           onChangeText={setFoodName}
         />
         <TextInput
-          className="border border-[#3C6E47]/30 bg-white rounded-2xl p-4 mb-3 text-base text-[#3C6E47]"
-          placeholder="Date d'expiration (JJ/MM/AAAA)"
-          placeholderTextColor="#3C6E47/50"
+          style={styles.input}
+          placeholder={t('inventory.dateFormat')}
+          placeholderTextColor={hexToRgba(COLORS.primary[500], 0.5)}
           value={expirationDate}
           onChangeText={setExpirationDate}
         />
         <TouchableOpacity
-          className="bg-[#3C6E47] rounded-2xl p-4 items-center active:opacity-80"
+          style={styles.addButton}
           onPress={handleAddFood}
-          accessibilityLabel="Ajouter l'aliment à l'inventaire"
+          activeOpacity={0.8}
+          accessibilityLabel={t('inventory.addFood')}
           accessibilityRole="button"
         >
-          <Text className="text-white text-base font-bold">Ajouter</Text>
+          <Text style={styles.addButtonText}>{t('common.add')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -144,13 +148,96 @@ export default function InventoryScreen() {
         data={inventory}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        className="flex-1"
+        style={styles.list}
         ListEmptyComponent={
-          <Text className="text-center text-[#3C6E47]/50 text-base mt-12">
-            Aucun aliment dans l'inventaire
+          <Text style={styles.emptyText}>
+            {t('inventory.noFood')}
           </Text>
         }
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: SPACING.xl,
+    backgroundColor: COLORS.secondary.cream,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: SPACING.xl,
+    textAlign: 'center',
+    color: COLORS.primary[500],
+  },
+  formContainer: {
+    marginBottom: SPACING.xl,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    fontSize: 16,
+    color: COLORS.primary[500],
+  },
+  addButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: COLORS.neutral.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.2),
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  listItemContent: {
+    flex: 1,
+  },
+  listItemName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: SPACING.xs,
+    color: COLORS.primary[500],
+  },
+  listItemDate: {
+    fontSize: 14,
+    color: hexToRgba(COLORS.primary[500], 0.7),
+  },
+  deleteButton: {
+    backgroundColor: COLORS.semantic.danger,
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
+  deleteButtonText: {
+    color: COLORS.neutral.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  list: {
+    flex: 1,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: hexToRgba(COLORS.primary[500], 0.5),
+    fontSize: 16,
+    marginTop: SPACING['5xl'],
+  },
+});

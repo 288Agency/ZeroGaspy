@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import {
   getProductByBarcode,
@@ -17,6 +18,7 @@ import {
   OpenFoodFactsProduct,
 } from '../services/openFoodFactsService';
 import logger from '../utils/logger';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.7;
@@ -38,6 +40,7 @@ export default function BarcodeScannerModal({
   onClose,
   onProductFound,
 }: BarcodeScannerModalProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,7 +69,7 @@ export default function BarcodeScannerModal({
 
       if (product) {
         const category = extractMainCategory(product.categories);
-        
+
         onProductFound({
           name: product.brand ? `${product.name} - ${product.brand}` : product.name,
           quantity: product.quantity,
@@ -76,9 +79,9 @@ export default function BarcodeScannerModal({
         });
         onClose();
       } else {
-        setError('Produit non trouvé dans la base de données');
+        setError(t('barcodeScanner.productNotFound'));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        // Permettre de rescanner après 2 secondes
+        // Permettre de rescanner apres 2 secondes
         setTimeout(() => {
           setScanned(false);
           setError(null);
@@ -86,7 +89,7 @@ export default function BarcodeScannerModal({
       }
     } catch (err) {
       logger.error('Erreur lors du scan:', err);
-      setError('Erreur lors de la recherche du produit');
+      setError(t('barcodeScanner.searchError'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setTimeout(() => {
         setScanned(false);
@@ -100,29 +103,29 @@ export default function BarcodeScannerModal({
   const renderContent = () => {
     if (!permission) {
       return (
-        <View className="flex-1 items-center justify-center bg-black">
-          <ActivityIndicator size="large" color="#A3C9A8" />
-          <Text className="text-white mt-4">Chargement...</Text>
+        <View style={styles.centeredBlack}>
+          <ActivityIndicator size="large" color={COLORS.secondary.sage} />
+          <Text style={styles.loadingText}>{t('barcodeScanner.loading')}</Text>
         </View>
       );
     }
 
     if (!permission.granted) {
       return (
-        <View className="flex-1 items-center justify-center bg-[#F7F5E6] px-8">
-          <Ionicons name="camera-outline" size={64} color="#3C6E47" />
-          <Text className="text-xl font-bold text-[#3C6E47] text-center mt-6 mb-4">
-            Accès à la caméra requis
+        <View style={styles.permissionContainer}>
+          <Ionicons name="camera-outline" size={64} color={COLORS.primary[500]} />
+          <Text style={styles.permissionTitle}>
+            {t('barcodeScanner.cameraRequired')}
           </Text>
-          <Text className="text-base text-[#6A8A6E] text-center mb-8">
-            Pour scanner les codes-barres, nous avons besoin d'accéder à votre caméra.
+          <Text style={styles.permissionDesc}>
+            {t('barcodeScanner.cameraDesc')}
           </Text>
           <TouchableOpacity
             onPress={requestPermission}
-            className="bg-[#3C6E47] rounded-2xl px-8 py-4"
+            style={styles.permissionButton}
           >
-            <Text className="text-white font-semibold text-base">
-              Autoriser l'accès
+            <Text style={styles.permissionButtonText}>
+              {t('barcodeScanner.allowAccess')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -130,7 +133,7 @@ export default function BarcodeScannerModal({
     }
 
     return (
-      <View className="flex-1 bg-black">
+      <View style={styles.cameraContainer}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
           facing="back"
@@ -151,60 +154,54 @@ export default function BarcodeScannerModal({
         />
 
         {/* Overlay avec zone de scan */}
-        <View className="flex-1">
+        <View style={styles.overlay}>
           {/* Zone du haut */}
-          <View className="flex-1 bg-black/60" />
-          
-          <View className="flex-row">
+          <View style={styles.overlayTop} />
+
+          <View style={styles.overlayMiddleRow}>
             {/* Zone de gauche */}
-            <View className="bg-black/60" style={{ width: (SCREEN_WIDTH - SCAN_AREA_SIZE) / 2 }} />
-            
+            <View style={[styles.overlaySide, { width: (SCREEN_WIDTH - SCAN_AREA_SIZE) / 2 }]} />
+
             {/* Zone de scan */}
-            <View
-              style={{
-                width: SCAN_AREA_SIZE,
-                height: SCAN_AREA_SIZE * 0.6,
-              }}
-              className="border-2 border-white rounded-3xl overflow-hidden"
-            >
-              {/* Coins décoratifs */}
-              <View className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-[#A3C9A8] rounded-tl-2xl" />
-              <View className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-[#A3C9A8] rounded-tr-2xl" />
-              <View className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-[#A3C9A8] rounded-bl-2xl" />
-              <View className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[#A3C9A8] rounded-br-2xl" />
-              
-              {/* Ligne de scan animée */}
+            <View style={styles.scanArea}>
+              {/* Coins decoratifs */}
+              <View style={styles.cornerTL} />
+              <View style={styles.cornerTR} />
+              <View style={styles.cornerBL} />
+              <View style={styles.cornerBR} />
+
+              {/* Ligne de scan animee */}
               {!loading && !error && (
-                <View className="absolute top-1/2 left-4 right-4 h-0.5 bg-[#A3C9A8]" />
+                <View style={styles.scanLine} />
               )}
             </View>
-            
+
             {/* Zone de droite */}
-            <View className="bg-black/60" style={{ width: (SCREEN_WIDTH - SCAN_AREA_SIZE) / 2 }} />
+            <View style={[styles.overlaySide, { width: (SCREEN_WIDTH - SCAN_AREA_SIZE) / 2 }]} />
           </View>
-          
+
           {/* Zone du bas */}
-          <View className="flex-1 bg-black/60 items-center pt-8">
+          <View style={styles.overlayBottom}>
             {loading ? (
-              <View className="items-center">
-                <ActivityIndicator size="large" color="#A3C9A8" />
-                <Text className="text-white mt-4 text-base">
-                  Recherche du produit...
+              <View style={styles.statusContainer}>
+                <ActivityIndicator size="large" color={COLORS.secondary.sage} />
+                <Text style={styles.statusText}>
+                  {t('barcodeScanner.searching')}
                 </Text>
               </View>
             ) : error ? (
-              <View className="items-center px-8">
-                <Ionicons name="alert-circle" size={32} color="#ef4444" />
-                <Text className="text-white mt-2 text-base text-center">
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={32} color={COLORS.semantic.danger} />
+                <Text style={styles.errorText}>
                   {error}
                 </Text>
-                <Text className="text-white/60 mt-2 text-sm">
-                  Réessayez dans un instant...
+                <Text style={styles.retryText}>
+                  {t('barcodeScanner.retryingSoon')}
                 </Text>
               </View>
             ) : (
-              <Text className="text-white text-base text-center px-8">
-                Placez le code-barres dans le cadre
+              <Text style={styles.instructionText}>
+                {t('barcodeScanner.placeBarcode')}
               </Text>
             )}
           </View>
@@ -213,15 +210,15 @@ export default function BarcodeScannerModal({
         {/* Bouton fermer */}
         <TouchableOpacity
           onPress={onClose}
-          className="absolute top-16 right-6 w-12 h-12 rounded-full bg-black/50 items-center justify-center"
+          style={styles.closeButton}
         >
-          <Ionicons name="close" size={28} color="white" />
+          <Ionicons name="close" size={28} color={COLORS.neutral.white} />
         </TouchableOpacity>
 
         {/* Titre */}
-        <View className="absolute top-16 left-0 right-0 items-center">
-          <Text className="text-white text-xl font-bold">
-            Scanner le code-barres
+        <View style={styles.titleContainer}>
+          <Text style={styles.titleText}>
+            {t('barcodeScanner.scanBarcode')}
           </Text>
         </View>
       </View>
@@ -239,3 +236,183 @@ export default function BarcodeScannerModal({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  centeredBlack: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.neutral.black,
+  },
+  loadingText: {
+    color: COLORS.neutral.white,
+    marginTop: SPACING.lg,
+  },
+  permissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.secondary.cream,
+    paddingHorizontal: SPACING['3xl'],
+  },
+  permissionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    textAlign: 'center',
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.lg,
+  },
+  permissionDesc: {
+    fontSize: 16,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
+    marginBottom: SPACING['3xl'],
+  },
+  permissionButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING['3xl'],
+    paddingVertical: SPACING.lg,
+  },
+  permissionButtonText: {
+    color: COLORS.neutral.white,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.black,
+  },
+  overlay: {
+    flex: 1,
+  },
+  overlayTop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  overlayMiddleRow: {
+    flexDirection: 'row',
+  },
+  overlaySide: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  scanArea: {
+    width: SCAN_AREA_SIZE,
+    height: SCAN_AREA_SIZE * 0.6,
+    borderWidth: 2,
+    borderColor: COLORS.neutral.white,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+  },
+  cornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 32,
+    height: 32,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: COLORS.secondary.sage,
+    borderTopLeftRadius: RADIUS['2xl'],
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderColor: COLORS.secondary.sage,
+    borderTopRightRadius: RADIUS['2xl'],
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 32,
+    height: 32,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: COLORS.secondary.sage,
+    borderBottomLeftRadius: RADIUS['2xl'],
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderColor: COLORS.secondary.sage,
+    borderBottomRightRadius: RADIUS['2xl'],
+  },
+  scanLine: {
+    position: 'absolute',
+    top: '50%',
+    left: SPACING.lg,
+    right: SPACING.lg,
+    height: 2,
+    backgroundColor: COLORS.secondary.sage,
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    paddingTop: SPACING['3xl'],
+  },
+  statusContainer: {
+    alignItems: 'center',
+  },
+  statusText: {
+    color: COLORS.neutral.white,
+    marginTop: SPACING.lg,
+    fontSize: 16,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingHorizontal: SPACING['3xl'],
+  },
+  errorText: {
+    color: COLORS.neutral.white,
+    marginTop: SPACING.sm,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryText: {
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: SPACING.sm,
+    fontSize: 14,
+  },
+  instructionText: {
+    color: COLORS.neutral.white,
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: SPACING['3xl'],
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 64,
+    right: SPACING['2xl'],
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    position: 'absolute',
+    top: 64,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  titleText: {
+    color: COLORS.neutral.white,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+});

@@ -10,10 +10,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import PressableScale from './PressableScale';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface AccountSettingsModalProps {
   visible: boolean;
@@ -23,6 +26,7 @@ interface AccountSettingsModalProps {
 type SettingsSection = 'main' | 'name' | 'email' | 'password' | 'delete';
 
 export default function AccountSettingsModal({ visible, onClose }: AccountSettingsModalProps) {
+  const { t } = useTranslation();
   const { user, updateProfile, updateEmail, updatePassword, deleteAccount, refreshUser } = useAuth();
   const [currentSection, setCurrentSection] = useState<SettingsSection>('main');
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +64,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
 
   const handleUpdateName = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un nom');
+      Alert.alert(t('common.error'), t('accountSettings.errorEnterName'));
       return;
     }
 
@@ -69,22 +73,22 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     setIsLoading(false);
 
     if (error) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     } else {
       await refreshUser();
-      Alert.alert('Succes', 'Votre nom a ete mis a jour');
+      Alert.alert(t('common.success'), t('accountSettings.nameUpdated'));
       setCurrentSection('main');
     }
   };
 
   const handleUpdateEmail = async () => {
     if (!newEmail.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un email');
+      Alert.alert(t('common.error'), t('accountSettings.errorEnterEmail'));
       return;
     }
 
     if (newEmail.trim().toLowerCase() === user?.email?.toLowerCase()) {
-      Alert.alert('Erreur', 'Le nouvel email doit etre different');
+      Alert.alert(t('common.error'), t('accountSettings.errorSameEmail'));
       return;
     }
 
@@ -93,24 +97,24 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     setIsLoading(false);
 
     if (error) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     } else {
       Alert.alert(
-        'Email de confirmation envoye',
-        'Verifiez votre boite mail (ancienne et nouvelle adresse) pour confirmer le changement.',
-        [{ text: 'OK', onPress: () => setCurrentSection('main') }]
+        t('accountSettings.emailConfirmSent'),
+        t('accountSettings.emailConfirmSentDesc'),
+        [{ text: t('common.ok'), onPress: () => setCurrentSection('main') }]
       );
     }
   };
 
   const handleUpdatePassword = async () => {
     if (newPassword.length < 6) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caracteres');
+      Alert.alert(t('common.error'), t('accountSettings.passwordTooShort'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      Alert.alert(t('common.error'), t('accountSettings.passwordMismatch'));
       return;
     }
 
@@ -119,28 +123,30 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     setIsLoading(false);
 
     if (error) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert(t('common.error'), error.message);
     } else {
-      Alert.alert('Succes', 'Votre mot de passe a ete mis a jour');
+      Alert.alert(t('common.success'), t('accountSettings.passwordUpdated'));
       setNewPassword('');
       setConfirmPassword('');
       setCurrentSection('main');
     }
   };
 
+  const deleteConfirmWord = t('accountSettings.deleteConfirmWord');
+
   const handleDeleteAccount = async () => {
-    if (deleteConfirmation !== 'SUPPRIMER') {
-      Alert.alert('Erreur', 'Veuillez taper SUPPRIMER pour confirmer');
+    if (deleteConfirmation !== deleteConfirmWord) {
+      Alert.alert(t('common.error'), t('accountSettings.errorTypeDelete'));
       return;
     }
 
     Alert.alert(
-      'Confirmation finale',
-      'Cette action est irreversible. Toutes vos donnees seront supprimees definitivement.',
+      t('accountSettings.finalConfirmation'),
+      t('accountSettings.finalConfirmationDesc'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer mon compte',
+          text: t('accountSettings.deleteAccount'),
           style: 'destructive',
           onPress: async () => {
             setIsLoading(true);
@@ -148,7 +154,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
             setIsLoading(false);
 
             if (error) {
-              Alert.alert('Erreur', error.message);
+              Alert.alert(t('common.error'), error.message);
             } else {
               handleClose();
             }
@@ -160,89 +166,89 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
 
   const renderMainSection = () => (
     <View>
-      <Text className="text-xl font-bold text-[#3C6E47] mb-6 text-center">
-        Parametres du compte
+      <Text style={styles.mainTitle}>
+        {t('accountSettings.title')}
       </Text>
 
       {/* Info utilisateur */}
-      <View className="bg-[#F7F5E6] rounded-xl p-4 mb-6">
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 rounded-full bg-[#3C6E47] items-center justify-center mr-3">
-            <Text className="text-white text-lg font-bold">
+      <View style={styles.userInfoBox}>
+        <View style={styles.rowCenter}>
+          <View style={styles.userAvatar}>
+            <Text style={styles.userAvatarText}>
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">
-              {user?.user_metadata?.full_name || 'Utilisateur'}
+          <View style={styles.flex1}>
+            <Text style={styles.userName}>
+              {user?.user_metadata?.full_name || t('accountSettings.user')}
             </Text>
-            <Text className="text-[#6A8A6E] text-sm">{user?.email}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
           </View>
         </View>
       </View>
 
       {/* Options */}
-      <View className="gap-3">
+      <View style={styles.optionsGap}>
         <PressableScale
           onPress={() => setCurrentSection('name')}
-          className="bg-white border border-[#3C6E47]/20 rounded-xl p-4 flex-row items-center"
+          style={styles.optionCard}
           hapticType="light"
         >
-          <View className="w-10 h-10 rounded-full bg-[#A3C9A8]/30 items-center justify-center mr-3">
-            <Ionicons name="person-outline" size={20} color="#3C6E47" />
+          <View style={styles.optionIcon}>
+            <Ionicons name="person-outline" size={20} color={COLORS.primary[500]} />
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">Modifier mon nom</Text>
-            <Text className="text-[#6A8A6E] text-sm">Changez votre nom d'affichage</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.optionTitle}>{t('accountSettings.changeName')}</Text>
+            <Text style={styles.optionSubtitle}>{t('accountSettings.changeNameDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
           onPress={() => setCurrentSection('email')}
-          className="bg-white border border-[#3C6E47]/20 rounded-xl p-4 flex-row items-center"
+          style={styles.optionCard}
           hapticType="light"
         >
-          <View className="w-10 h-10 rounded-full bg-[#A3C9A8]/30 items-center justify-center mr-3">
-            <Ionicons name="mail-outline" size={20} color="#3C6E47" />
+          <View style={styles.optionIcon}>
+            <Ionicons name="mail-outline" size={20} color={COLORS.primary[500]} />
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">Modifier mon email</Text>
-            <Text className="text-[#6A8A6E] text-sm">Changez votre adresse email</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.optionTitle}>{t('accountSettings.changeEmail')}</Text>
+            <Text style={styles.optionSubtitle}>{t('accountSettings.changeEmailDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
           onPress={() => setCurrentSection('password')}
-          className="bg-white border border-[#3C6E47]/20 rounded-xl p-4 flex-row items-center"
+          style={styles.optionCard}
           hapticType="light"
         >
-          <View className="w-10 h-10 rounded-full bg-[#A3C9A8]/30 items-center justify-center mr-3">
-            <Ionicons name="lock-closed-outline" size={20} color="#3C6E47" />
+          <View style={styles.optionIcon}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary[500]} />
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">Modifier mon mot de passe</Text>
-            <Text className="text-[#6A8A6E] text-sm">Securisez votre compte</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.optionTitle}>{t('accountSettings.changePassword')}</Text>
+            <Text style={styles.optionSubtitle}>{t('accountSettings.changePasswordDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
-        <View className="h-4" />
+        <View style={styles.spacer} />
 
         <PressableScale
           onPress={() => setCurrentSection('delete')}
-          className="bg-red-50 border border-red-200 rounded-xl p-4 flex-row items-center"
+          style={styles.deleteCard}
           hapticType="medium"
         >
-          <View className="w-10 h-10 rounded-full bg-red-100 items-center justify-center mr-3">
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <View style={styles.deleteIcon}>
+            <Ionicons name="trash-outline" size={20} color={COLORS.semantic.dangerLight} />
           </View>
-          <View className="flex-1">
-            <Text className="text-red-500 font-semibold">Supprimer mon compte</Text>
-            <Text className="text-red-400 text-sm">Action irreversible</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.deleteTitle}>{t('accountSettings.deleteAccount')}</Text>
+            <Text style={styles.deleteSubtitle}>{t('accountSettings.deleteAccountDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.semantic.dangerLight} />
         </PressableScale>
       </View>
     </View>
@@ -252,36 +258,36 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('main')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-[#3C6E47] mb-6">
-        Modifier mon nom
+      <Text style={styles.sectionTitle}>
+        {t('accountSettings.changeName')}
       </Text>
 
-      <Text className="text-[#6A8A6E] mb-2">Nom complet</Text>
+      <Text style={styles.fieldLabel}>{t('accountSettings.fullName')}</Text>
       <TextInput
         value={fullName}
         onChangeText={setFullName}
-        placeholder="Votre nom"
-        className="bg-[#F7F5E6] border border-[#3C6E47]/20 rounded-xl px-4 py-3 text-[#3C6E47] mb-6"
-        placeholderTextColor="#6A8A6E"
+        placeholder={t('accountSettings.yourName')}
+        style={styles.textInput}
+        placeholderTextColor={COLORS.text.tertiary}
         autoCapitalize="words"
       />
 
       <PressableScale
         onPress={handleUpdateName}
-        className="bg-[#3C6E47] rounded-xl p-4 items-center"
+        style={styles.primaryButton}
         hapticType="medium"
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={COLORS.neutral.white} />
         ) : (
-          <Text className="text-white font-semibold">Enregistrer</Text>
+          <Text style={styles.primaryButtonText}>{t('accountSettings.save')}</Text>
         )}
       </PressableScale>
     </View>
@@ -291,33 +297,33 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('main')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-[#3C6E47] mb-6">
-        Modifier mon email
+      <Text style={styles.sectionTitle}>
+        {t('accountSettings.changeEmail')}
       </Text>
 
-      <View className="bg-[#FFF3E0] rounded-xl p-3 mb-4 flex-row items-start">
-        <Ionicons name="information-circle-outline" size={20} color="#E85D04" />
-        <Text className="text-[#E85D04] text-sm ml-2 flex-1">
-          Un email de confirmation sera envoye aux deux adresses (ancienne et nouvelle).
+      <View style={styles.warningBox}>
+        <Ionicons name="information-circle-outline" size={20} color={COLORS.semantic.warningDark} />
+        <Text style={styles.warningText}>
+          {t('accountSettings.emailConfirmationWarning')}
         </Text>
       </View>
 
-      <Text className="text-[#6A8A6E] mb-2">Email actuel</Text>
-      <Text className="text-[#3C6E47] font-medium mb-4">{user?.email}</Text>
+      <Text style={styles.fieldLabel}>{t('accountSettings.currentEmail')}</Text>
+      <Text style={styles.currentEmailText}>{user?.email}</Text>
 
-      <Text className="text-[#6A8A6E] mb-2">Nouvel email</Text>
+      <Text style={styles.fieldLabel}>{t('accountSettings.newEmail')}</Text>
       <TextInput
         value={newEmail}
         onChangeText={setNewEmail}
-        placeholder="nouvel@email.com"
-        className="bg-[#F7F5E6] border border-[#3C6E47]/20 rounded-xl px-4 py-3 text-[#3C6E47] mb-6"
-        placeholderTextColor="#6A8A6E"
+        placeholder={t('accountSettings.newEmailPlaceholder')}
+        style={styles.textInput}
+        placeholderTextColor={COLORS.text.tertiary}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -325,14 +331,14 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
 
       <PressableScale
         onPress={handleUpdateEmail}
-        className="bg-[#3C6E47] rounded-xl p-4 items-center"
+        style={styles.primaryButton}
         hapticType="medium"
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={COLORS.neutral.white} />
         ) : (
-          <Text className="text-white font-semibold">Envoyer le lien de confirmation</Text>
+          <Text style={styles.primaryButtonText}>{t('accountSettings.sendConfirmationLink')}</Text>
         )}
       </PressableScale>
     </View>
@@ -342,70 +348,70 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('main')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-[#3C6E47] mb-6">
-        Modifier mon mot de passe
+      <Text style={styles.sectionTitle}>
+        {t('accountSettings.changePassword')}
       </Text>
 
-      <Text className="text-[#6A8A6E] mb-2">Nouveau mot de passe</Text>
-      <View className="flex-row items-center bg-[#F7F5E6] border border-[#3C6E47]/20 rounded-xl mb-4">
+      <Text style={styles.fieldLabel}>{t('accountSettings.newPassword')}</Text>
+      <View style={styles.passwordRow}>
         <TextInput
           value={newPassword}
           onChangeText={setNewPassword}
-          placeholder="Minimum 6 caracteres"
-          className="flex-1 px-4 py-3 text-[#3C6E47]"
-          placeholderTextColor="#6A8A6E"
+          placeholder={t('accountSettings.minChars')}
+          style={styles.passwordInput}
+          placeholderTextColor={COLORS.text.tertiary}
           secureTextEntry={!showPassword}
         />
         <TouchableOpacity
           onPress={() => setShowPassword(!showPassword)}
-          className="px-4"
+          style={styles.eyeButton}
         >
           <Ionicons
             name={showPassword ? 'eye-off-outline' : 'eye-outline'}
             size={20}
-            color="#6A8A6E"
+            color={COLORS.text.tertiary}
           />
         </TouchableOpacity>
       </View>
 
-      <Text className="text-[#6A8A6E] mb-2">Confirmer le mot de passe</Text>
+      <Text style={styles.fieldLabel}>{t('accountSettings.confirmPassword')}</Text>
       <TextInput
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        placeholder="Retapez le mot de passe"
-        className="bg-[#F7F5E6] border border-[#3C6E47]/20 rounded-xl px-4 py-3 text-[#3C6E47] mb-6"
-        placeholderTextColor="#6A8A6E"
+        placeholder={t('accountSettings.retypePassword')}
+        style={styles.textInput}
+        placeholderTextColor={COLORS.text.tertiary}
         secureTextEntry={!showPassword}
       />
 
       {newPassword.length > 0 && newPassword.length < 6 && (
-        <Text className="text-red-500 text-sm mb-4">
-          Le mot de passe doit contenir au moins 6 caracteres
+        <Text style={styles.errorText}>
+          {t('accountSettings.passwordTooShort')}
         </Text>
       )}
 
       {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-        <Text className="text-red-500 text-sm mb-4">
-          Les mots de passe ne correspondent pas
+        <Text style={styles.errorText}>
+          {t('accountSettings.passwordMismatch')}
         </Text>
       )}
 
       <PressableScale
         onPress={handleUpdatePassword}
-        className="bg-[#3C6E47] rounded-xl p-4 items-center"
+        style={styles.primaryButton}
         hapticType="medium"
         disabled={isLoading || newPassword.length < 6 || newPassword !== confirmPassword}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={COLORS.neutral.white} />
         ) : (
-          <Text className="text-white font-semibold">Modifier le mot de passe</Text>
+          <Text style={styles.primaryButtonText}>{t('accountSettings.updatePassword')}</Text>
         )}
       </PressableScale>
     </View>
@@ -415,59 +421,60 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('main')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-red-500 mb-4">
-        Supprimer mon compte
+      <Text style={styles.deleteSectionTitle}>
+        {t('accountSettings.deleteAccount')}
       </Text>
 
-      <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-        <View className="flex-row items-start mb-3">
-          <Ionicons name="warning-outline" size={24} color="#EF4444" />
-          <Text className="text-red-600 font-semibold ml-2 flex-1">
-            Attention : Cette action est irreversible !
+      <View style={styles.dangerBox}>
+        <View style={styles.dangerHeader}>
+          <Ionicons name="warning-outline" size={24} color={COLORS.semantic.dangerLight} />
+          <Text style={styles.dangerHeaderText}>
+            {t('accountSettings.deleteWarning')}
           </Text>
         </View>
-        <Text className="text-red-500 text-sm">
-          En supprimant votre compte, vous perdrez :
+        <Text style={styles.dangerBodyText}>
+          {t('accountSettings.deleteConsequences')}
         </Text>
-        <View className="mt-2 ml-2">
-          <Text className="text-red-500 text-sm">• Toutes vos listes d'aliments</Text>
-          <Text className="text-red-500 text-sm">• Votre historique</Text>
-          <Text className="text-red-500 text-sm">• Vos statistiques</Text>
-          <Text className="text-red-500 text-sm">• Vos parametres</Text>
+        <View style={styles.dangerList}>
+          <Text style={styles.dangerListItem}>• {t('accountSettings.deleteLists')}</Text>
+          <Text style={styles.dangerListItem}>• {t('accountSettings.deleteHistory')}</Text>
+          <Text style={styles.dangerListItem}>• {t('accountSettings.deleteStats')}</Text>
+          <Text style={styles.dangerListItem}>• {t('accountSettings.deleteSettings')}</Text>
         </View>
       </View>
 
-      <Text className="text-[#6A8A6E] mb-2">
-        Pour confirmer, tapez SUPPRIMER ci-dessous :
+      <Text style={styles.fieldLabel}>
+        {t('accountSettings.deleteConfirmLabel')}
       </Text>
       <TextInput
         value={deleteConfirmation}
         onChangeText={setDeleteConfirmation}
-        placeholder="SUPPRIMER"
-        className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-500 mb-6 text-center font-bold"
-        placeholderTextColor="#EF444480"
+        placeholder={t('accountSettings.deleteConfirmPlaceholder')}
+        style={styles.deleteInput}
+        placeholderTextColor={`${COLORS.semantic.dangerLight}80`}
         autoCapitalize="characters"
       />
 
       <PressableScale
         onPress={handleDeleteAccount}
-        className={`rounded-xl p-4 items-center ${
-          deleteConfirmation === 'SUPPRIMER' ? 'bg-red-500' : 'bg-red-200'
-        }`}
+        style={[
+          styles.deleteButton,
+          deleteConfirmation === deleteConfirmWord ? styles.deleteButtonActive : styles.deleteButtonInactive,
+        ]}
         hapticType="heavy"
-        disabled={isLoading || deleteConfirmation !== 'SUPPRIMER'}
+        disabled={isLoading || deleteConfirmation !== deleteConfirmWord}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={COLORS.neutral.white} />
         ) : (
-          <Text className="text-white font-semibold">
-            Supprimer definitivement mon compte
+          <Text style={styles.deleteButtonText}>
+            {t('accountSettings.deletePermanently')}
           </Text>
         )}
       </PressableScale>
@@ -498,19 +505,19 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 bg-white"
+        style={styles.modalContainer}
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-2 border-b border-[#3C6E47]/10">
-          <View className="w-10" />
-          <View className="w-10 h-1 bg-[#3C6E47]/20 rounded-full" />
-          <TouchableOpacity onPress={handleClose} className="w-10 items-end">
-            <Ionicons name="close" size={24} color="#3C6E47" />
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <View style={styles.headerHandle} />
+          <TouchableOpacity onPress={handleClose} style={styles.headerCloseButton}>
+            <Ionicons name="close" size={24} color={COLORS.primary[500]} />
           </TouchableOpacity>
         </View>
 
         <ScrollView
-          className="flex-1"
+          style={styles.flex1}
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -521,3 +528,279 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.white,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  headerHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.full,
+  },
+  headerCloseButton: {
+    width: 40,
+    alignItems: 'flex-end',
+  },
+  flex1: {
+    flex: 1,
+  },
+  mainTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: SPACING['2xl'],
+    textAlign: 'center',
+  },
+  userInfoBox: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING['2xl'],
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  userAvatarText: {
+    color: COLORS.neutral.white,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  userName: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+  },
+  userEmail: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+  optionsGap: {
+    gap: SPACING.md,
+  },
+  optionCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  optionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  optionTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+  },
+  optionSubtitle: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+  spacer: {
+    height: SPACING.lg,
+  },
+  deleteCard: {
+    backgroundColor: COLORS.surface.dangerBgLight,
+    borderWidth: 1,
+    borderColor: COLORS.surface.dangerBorder,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface.dangerBgMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  deleteTitle: {
+    color: COLORS.semantic.danger,
+    fontWeight: '600',
+  },
+  deleteSubtitle: {
+    color: COLORS.semantic.dangerMuted,
+    fontSize: 14,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  backText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: SPACING['2xl'],
+  },
+  fieldLabel: {
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.sm,
+  },
+  textInput: {
+    backgroundColor: COLORS.secondary.cream,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    color: COLORS.primary[500],
+    marginBottom: SPACING['2xl'],
+  },
+  primaryButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: COLORS.neutral.white,
+    fontWeight: '600',
+  },
+  warningBox: {
+    backgroundColor: COLORS.surface.warningBg,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  warningText: {
+    color: COLORS.semantic.warningDark,
+    fontSize: 14,
+    marginLeft: SPACING.sm,
+    flex: 1,
+  },
+  currentEmailText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    marginBottom: SPACING.lg,
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary.cream,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.lg,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    color: COLORS.primary[500],
+  },
+  eyeButton: {
+    paddingHorizontal: SPACING.lg,
+  },
+  errorText: {
+    color: COLORS.semantic.danger,
+    fontSize: 14,
+    marginBottom: SPACING.lg,
+  },
+  deleteSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.semantic.danger,
+    marginBottom: SPACING.lg,
+  },
+  dangerBox: {
+    backgroundColor: COLORS.surface.dangerBgLight,
+    borderWidth: 1,
+    borderColor: COLORS.surface.dangerBorder,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING['2xl'],
+  },
+  dangerHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.md,
+  },
+  dangerHeaderText: {
+    color: COLORS.semantic.dangerDark,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+    flex: 1,
+  },
+  dangerBodyText: {
+    color: COLORS.semantic.danger,
+    fontSize: 14,
+  },
+  dangerList: {
+    marginTop: SPACING.sm,
+    marginLeft: SPACING.sm,
+  },
+  dangerListItem: {
+    color: COLORS.semantic.danger,
+    fontSize: 14,
+  },
+  deleteInput: {
+    backgroundColor: COLORS.surface.dangerBgLight,
+    borderWidth: 1,
+    borderColor: COLORS.surface.dangerBorder,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    color: COLORS.semantic.danger,
+    marginBottom: SPACING['2xl'],
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  deleteButton: {
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  deleteButtonActive: {
+    backgroundColor: COLORS.semantic.danger,
+  },
+  deleteButtonInactive: {
+    backgroundColor: COLORS.surface.dangerBorder,
+  },
+  deleteButtonText: {
+    color: COLORS.neutral.white,
+    fontWeight: '600',
+  },
+});

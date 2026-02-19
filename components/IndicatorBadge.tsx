@@ -1,57 +1,54 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { cn } from '../utils/cn';
+import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface IndicatorBadgeProps {
   count: number;
   variant?: 'warning' | 'danger' | 'info';
   size?: 'sm' | 'md' | 'lg';
-  className?: string;
+  style?: ViewStyle;
 }
 
 export default function IndicatorBadge({
   count,
   variant = 'warning',
   size = 'md',
-  className,
+  style,
 }: IndicatorBadgeProps) {
   if (count === 0) return null;
 
-  const variantStyles = {
-    warning: 'bg-warning-500 dark:bg-warning-600',
-    danger: 'bg-accent-500 dark:bg-accent-600',
-    info: 'bg-[#3C6E47] dark:bg-[#3C6E47]',
+  const variantStyles: Record<string, ViewStyle> = {
+    warning: { backgroundColor: COLORS.semantic.warning },
+    danger: { backgroundColor: COLORS.semantic.danger },
+    info: { backgroundColor: COLORS.primary[500] },
   };
 
-  const sizeStyles = {
-    sm: 'min-w-[18px] h-[18px] px-1.5',
-    md: 'min-w-[22px] h-[22px] px-2',
-    lg: 'min-w-[28px] h-[28px] px-2.5',
+  const sizeStyles: Record<string, ViewStyle> = {
+    sm: { minWidth: 18, height: 18, paddingHorizontal: 6 },
+    md: { minWidth: 22, height: 22, paddingHorizontal: 8 },
+    lg: { minWidth: 28, height: 28, paddingHorizontal: 10 },
   };
 
-  const textSizeStyles = {
-    sm: 'text-[10px]',
-    md: 'text-xs',
-    lg: 'text-sm',
+  const textSizeStyles: Record<string, TextStyle> = {
+    sm: { fontSize: 10 },
+    md: { fontSize: 12 },
+    lg: { fontSize: 14 },
   };
 
   return (
     <View
-      className={cn(
-        'rounded-full items-center justify-center',
+      style={[
+        styles.badge,
         variantStyles[variant],
         sizeStyles[size],
-        className
-      )}
+        style,
+      ]}
       accessible={true}
       accessibilityLabel={`${count} élément${count > 1 ? 's' : ''} nécessitant attention`}
       accessibilityRole="text"
     >
       <Text
-        className={cn(
-          'text-white font-bold',
-          textSizeStyles[size]
-        )}
+        style={[styles.text, textSizeStyles[size]]}
       >
         {count > 99 ? '99+' : count}
       </Text>
@@ -59,4 +56,14 @@ export default function IndicatorBadge({
   );
 }
 
-
+const styles = StyleSheet.create({
+  badge: {
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+  },
+});

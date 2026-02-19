@@ -12,13 +12,15 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS } from '../../utils/designSystem';
+import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING } from '../../utils/designSystem';
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
   const { resetPassword } = useAuth();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +28,7 @@ export default function ForgotPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      Alert.alert(t('common.error'), t('auth.emailRequired'));
       return;
     }
 
@@ -36,7 +38,7 @@ export default function ForgotPasswordScreen() {
     try {
       const { error } = await resetPassword(email);
       if (error) {
-        Alert.alert('Erreur', error.message);
+        Alert.alert(t('common.error'), error.message);
       } else {
         setEmailSent(true);
       }
@@ -52,16 +54,16 @@ export default function ForgotPasswordScreen() {
           <View style={styles.successIcon}>
             <Ionicons name="mail-outline" size={56} color={COLORS.primary[500]} />
           </View>
-          <Text style={styles.successTitle}>Email envoye !</Text>
+          <Text style={styles.successTitle}>{t('auth.emailSent')}</Text>
           <Text style={styles.successText}>
-            Verifiez votre boite mail et cliquez sur le lien pour reinitialiser votre mot de passe.
+            {t('auth.checkEmail')}
           </Text>
           <PressableScale
             onPress={() => navigation.goBack()}
             style={styles.backToLoginButton}
             hapticType="medium"
           >
-            <Text style={styles.backToLoginText}>Retour a la connexion</Text>
+            <Text style={styles.backToLoginText}>{t('auth.backToLogin')}</Text>
           </PressableScale>
         </View>
       </View>
@@ -82,18 +84,18 @@ export default function ForgotPasswordScreen() {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Mot de passe oublie ?</Text>
+        <Text style={styles.title}>{t('auth.forgotPasswordTitle')}</Text>
         <Text style={styles.subtitle}>
-          Entrez votre email et nous vous enverrons un lien pour reinitialiser votre mot de passe.
+          {t('auth.forgotPasswordDesc')}
         </Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('auth.email')}</Text>
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="votre@email.com"
+              placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={COLORS.text.muted}
               value={email}
               onChangeText={setEmail}
@@ -114,7 +116,7 @@ export default function ForgotPasswordScreen() {
           {isLoading ? (
             <ActivityIndicator color={COLORS.neutral.white} />
           ) : (
-            <Text style={styles.resetButtonText}>Envoyer le lien</Text>
+            <Text style={styles.resetButtonText}>{t('auth.sendLink')}</Text>
           )}
         </PressableScale>
       </View>
@@ -128,9 +130,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary.cream,
   },
   headerBar: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingTop: Platform.OS === 'ios' ? 60 : SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
   },
   backButton: {
     width: 44,
@@ -140,19 +142,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING['2xl'],
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: COLORS.primary[500],
     letterSpacing: -0.5,
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   subtitle: {
     ...TYPOGRAPHY.body,
     color: COLORS.text.secondary,
-    marginBottom: 32,
+    marginBottom: SPACING['3xl'],
     lineHeight: 22,
   },
   inputGroup: {
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.label,
     color: COLORS.primary[500],
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -170,17 +172,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     borderWidth: 1.5,
     borderColor: COLORS.primary[100],
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.lg,
     ...SHADOWS.sm,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   input: {
     flex: 1,
     ...TYPOGRAPHY.body,
     color: COLORS.text.primary,
-    paddingVertical: 16,
+    paddingVertical: SPACING.lg,
   },
   resetButton: {
     backgroundColor: COLORS.primary[500],
@@ -199,7 +201,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING['3xl'],
   },
   successIcon: {
     width: 120,
@@ -208,13 +210,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary.sage,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   successTitle: {
     fontSize: 26,
     fontWeight: '800',
     color: COLORS.primary[500],
-    marginBottom: 12,
+    marginBottom: SPACING.md,
     textAlign: 'center',
   },
   successText: {
@@ -222,13 +224,13 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: SPACING['3xl'],
   },
   backToLoginButton: {
     backgroundColor: COLORS.primary[500],
     borderRadius: RADIUS.xl,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING['3xl'],
     ...SHADOWS.colored(COLORS.primary[500], 0.3),
   },
   backToLoginText: {

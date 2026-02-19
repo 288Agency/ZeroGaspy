@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
-import { cn } from '../utils/cn';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface UnitSelectorProps {
   selectedUnit: string;
   onUnitSelect: (unit: string) => void;
-  className?: string;
+  style?: any;
 }
 
 const UNITS = [
@@ -22,7 +22,7 @@ const UNITS = [
 export default function UnitSelector({
   selectedUnit,
   onUnitSelect,
-  className,
+  style,
 }: UnitSelectorProps) {
   const [showModal, setShowModal] = useState(false);
 
@@ -35,20 +35,20 @@ export default function UnitSelector({
   const displayValue = selectedUnitData?.value || selectedUnit || 'g';
 
   return (
-    <View className={cn('', className)}>
+    <View style={style}>
       <PressableScale
         onPress={() => setShowModal(true)}
-        className="flex-row items-center justify-center bg-white rounded-2xl px-4 border-[1.5px] border-[#3C6E47]/20 min-h-[56px]"
+        style={styles.trigger}
       >
         <Ionicons
           name={(selectedUnitData?.icon as any) || 'scale-outline'}
           size={20}
-          color="#3C6E47"
+          color={COLORS.primary[500]}
         />
-        <Text className="text-[#3C6E47] font-semibold text-base ml-2 mr-1">
+        <Text style={styles.triggerText}>
           {displayValue}
         </Text>
-        <Ionicons name="chevron-down" size={16} color="#6A8A6E" />
+        <Ionicons name="chevron-down" size={16} color={COLORS.text.tertiary} />
       </PressableScale>
 
       <AnimatedModal
@@ -56,46 +56,48 @@ export default function UnitSelector({
         onClose={() => setShowModal(false)}
         position="center"
       >
-        <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl max-w-[320px]">
+        <View style={styles.modalContainer}>
           {/* Header */}
-          <View className="flex-row justify-between items-center px-4 py-3 border-b border-[#3C6E47]/20">
+          <View style={styles.modalHeader}>
             <PressableScale
               onPress={() => setShowModal(false)}
-              className="px-3 py-2 rounded-xl"
+              style={styles.headerButton}
             >
-              <Text className="text-[#3C6E47] font-medium text-base">Fermer</Text>
+              <Text style={styles.headerButtonText}>Fermer</Text>
             </PressableScale>
 
-            <Text className="text-[#3C6E47] font-bold text-lg">Unité</Text>
+            <Text style={styles.headerTitle}>Unité</Text>
 
-            <View className="w-16" />
+            <View style={styles.headerSpacer} />
           </View>
 
           {/* Content */}
-          <View className="p-4">
-            <View className="flex-row flex-wrap gap-2">
+          <View style={styles.content}>
+            <View style={styles.unitsGrid}>
               {UNITS.map((unit) => (
                 <PressableScale
                   key={unit.value}
                   onPress={() => handleUnitPress(unit.value)}
                   hapticType="selection"
-                  className={cn(
-                    'flex-row items-center px-3 py-2.5 rounded-xl border',
+                  style={[
+                    styles.unitItem,
                     selectedUnit === unit.value
-                      ? 'bg-[#3C6E47] border-[#3C6E47]'
-                      : 'bg-[#A3C9A8]/40 border-[#3C6E47]/20'
-                  )}
+                      ? styles.unitItemSelected
+                      : styles.unitItemUnselected,
+                  ]}
                 >
                   <Ionicons
                     name={unit.icon as any}
                     size={16}
-                    color={selectedUnit === unit.value ? 'white' : '#3C6E47'}
+                    color={selectedUnit === unit.value ? COLORS.neutral.white : COLORS.primary[500]}
                   />
                   <Text
-                    className={cn(
-                      'font-medium text-sm ml-1.5',
-                      selectedUnit === unit.value ? 'text-white' : 'text-[#3C6E47]'
-                    )}
+                    style={[
+                      styles.unitLabel,
+                      selectedUnit === unit.value
+                        ? styles.unitLabelSelected
+                        : styles.unitLabelUnselected,
+                    ]}
                   >
                     {unit.label}
                   </Text>
@@ -108,3 +110,92 @@ export default function UnitSelector({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  trigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING.lg,
+    borderWidth: 1.5,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    minHeight: 56,
+  },
+  triggerText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: SPACING.sm,
+    marginRight: SPACING.xs,
+  },
+  modalContainer: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+    maxWidth: 320,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
+  headerButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  headerTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  headerSpacer: {
+    width: 64,
+  },
+  content: {
+    padding: SPACING.lg,
+  },
+  unitsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  unitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+  },
+  unitItemSelected: {
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
+  },
+  unitItemUnselected: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  unitLabel: {
+    fontWeight: '500',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  unitLabelSelected: {
+    color: COLORS.neutral.white,
+  },
+  unitLabelUnselected: {
+    color: COLORS.primary[500],
+  },
+});

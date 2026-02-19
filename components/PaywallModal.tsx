@@ -9,6 +9,7 @@ import {
   Dimensions,
   StyleSheet,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +32,13 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
 import PressableScale from './PressableScale';
 import { PREMIUM_FEATURES, FALLBACK_PRICES } from '../constants/subscription';
+import * as Linking from 'expo-linking';
+import { useTranslation } from 'react-i18next';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+
+// URLs légales requises par Apple
+const PRIVACY_POLICY_URL = 'https://www.zerogaspy.fr/privacy/';
+const TERMS_OF_USE_URL = 'https://www.zerogaspy.fr/terms/';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -103,7 +111,7 @@ const AnimatedLeaf = ({ delay = 0, size = 40, style }: { delay?: number; size?: 
 };
 
 // Cercles décoratifs flottants
-const FloatingCircle = ({ delay = 0, size = 20, color = '#A3C9A8', style }: any) => {
+const FloatingCircle = ({ delay = 0, size = 20, color = COLORS.secondary.sage, style }: any) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0.3);
 
@@ -174,19 +182,21 @@ const FeatureIcon = ({ name, delay }: { name: string; delay: number }) => (
     style={styles.featureIconContainer}
   >
     <LinearGradient
-      colors={['#A3C9A8', '#7DB485']}
+      colors={[COLORS.secondary.sage, COLORS.primary[300]]}
       style={styles.featureIconGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <Ionicons name={name as any} size={22} color="#3C6E47" />
+      <Ionicons name={name as any} size={22} color={COLORS.primary[500]} />
     </LinearGradient>
   </Animated.View>
 );
 
 export default function PaywallModal({ visible, onClose, feature = 'general' }: PaywallModalProps) {
-  const { packages, purchasePackage, restorePurchases, isLoading } = useSubscription();
+  const { packages, purchasePackage, restorePurchases, isLoading, reloadOfferings } = useSubscription();
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const [isRetrying, setIsRetrying] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<'monthly' | 'yearly'>('yearly');
 
   // Animations
@@ -233,23 +243,33 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
   const getFeatureMessage = () => {
     switch (feature) {
       case 'lists':
-        return 'Débloquez des listes illimitées pour mieux organiser votre cuisine';
+        return t('paywall.features.lists');
       case 'scanner':
-        return 'Scannez vos tickets et ajoutez vos achats en un instant';
+        return t('paywall.features.scanner');
       case 'recipes':
-        return 'Accédez à des recettes personnalisées selon vos ingrédients disponibles';
+        return t('paywall.features.recipes');
       default:
-        return 'Passez au niveau supérieur dans votre lutte contre le gaspillage';
+        return t('paywall.features.general');
     }
   };
 
   const handlePurchase = async () => {
     const pkg = selectedPackage === 'monthly' ? monthlyPackage : yearlyPackage;
-    if (pkg) {
-      const success = await purchasePackage(pkg);
-      if (success) {
-        onClose();
+
+    // Si pas de packages chargés, tenter de recharger
+    if (!pkg) {
+      setIsRetrying(true);
+      try {
+        await reloadOfferings();
+      } finally {
+        setIsRetrying(false);
       }
+      return;
+    }
+
+    const success = await purchasePackage(pkg);
+    if (success) {
+      onClose();
     }
   };
 
@@ -261,10 +281,10 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
   };
 
   const features = [
-    { icon: 'infinite-outline', title: 'Listes illimitées', desc: 'Organisez sans limite' },
-    { icon: 'scan-outline', title: 'Scanner de tickets', desc: 'Import automatique' },
-    { icon: 'sparkles-outline', title: 'Sans publicité', desc: 'Expérience pure' },
-    { icon: 'trending-up-outline', title: 'Stats avancées', desc: 'Suivez vos progrès' },
+    { icon: 'infinite-outline', title: t('paywall.featureCards.unlimitedLists'), desc: t('paywall.featureCards.unlimitedListsDesc') },
+    { icon: 'scan-outline', title: t('paywall.featureCards.scanner'), desc: t('paywall.featureCards.scannerDesc') },
+    { icon: 'sparkles-outline', title: t('paywall.featureCards.noAds'), desc: t('paywall.featureCards.noAdsDesc') },
+    { icon: 'trending-up-outline', title: t('paywall.featureCards.advancedStats'), desc: t('paywall.featureCards.advancedStatsDesc') },
   ];
 
   return (
@@ -277,9 +297,9 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
       <View style={styles.container}>
         {/* Background décoratif */}
         <View style={styles.backgroundDecoration}>
-          <FloatingCircle delay={0} size={80} style={{ top: 60, left: -20 }} color="#A3C9A8" />
-          <FloatingCircle delay={500} size={50} style={{ top: 120, right: 20 }} color="#D4E7D6" />
-          <FloatingCircle delay={1000} size={35} style={{ top: 200, left: 50 }} color="#E8F3E9" />
+          <FloatingCircle delay={0} size={80} style={{ top: 60, left: -20 }} color={COLORS.secondary.sage} />
+          <FloatingCircle delay={500} size={50} style={{ top: 120, right: 20 }} color={COLORS.secondary.mint} />
+          <FloatingCircle delay={1000} size={35} style={{ top: 200, left: 50 }} color={COLORS.primary[50]} />
           <AnimatedLeaf delay={0} size={50} style={{ position: 'absolute', top: 80, right: -10, opacity: 0.6 }} />
           <AnimatedLeaf delay={300} size={35} style={{ position: 'absolute', top: 150, left: 10, opacity: 0.4 }} />
         </View>
@@ -288,11 +308,11 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <View style={styles.closeButtonInner}>
-              <Ionicons name="close" size={22} color="#3C6E47" />
+              <Ionicons name="close" size={22} color={COLORS.primary[500]} />
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleRestore} disabled={isLoading} style={styles.restoreButton}>
-            <Text style={styles.restoreText}>Restaurer</Text>
+            <Text style={styles.restoreText}>{t('paywall.restore')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -311,7 +331,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
                   resizeMode="contain"
                 />
                 <View style={styles.heroSparkle}>
-                  <Ionicons name="sparkles" size={16} color="#F7F5E6" />
+                  <Ionicons name="sparkles" size={16} color={COLORS.secondary.cream} />
                 </View>
               </View>
             </Animated.View>
@@ -320,8 +340,8 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
               entering={FadeInUp.delay(200).springify()}
               style={styles.heroTitle}
             >
-              ZeroGaspy{'\n'}
-              <Text style={styles.heroTitleAccent}>Pro</Text>
+              {t('paywall.title')}{'\n'}
+              <Text style={styles.heroTitleAccent}>{t('paywall.titleAccent')}</Text>
             </Animated.Text>
 
             <Animated.Text
@@ -352,7 +372,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
             entering={FadeInUp.delay(800).springify()}
             style={styles.pricingSection}
           >
-            <Text style={styles.pricingTitle}>Choisissez votre formule</Text>
+            <Text style={styles.pricingTitle}>{t('paywall.pricing.title')}</Text>
 
             {/* Yearly Plan - Recommended */}
             <PressableScale
@@ -365,7 +385,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
             >
               {selectedPackage === 'yearly' && (
                 <LinearGradient
-                  colors={['rgba(60, 110, 71, 0.08)', 'rgba(163, 201, 168, 0.12)']}
+                  colors={[hexToRgba(COLORS.primary[500], 0.08), hexToRgba(COLORS.secondary.sage, 0.12)]}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -384,19 +404,21 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
                   </View>
                   <View>
                     <View style={styles.pricingLabelRow}>
-                      <Text style={styles.pricingLabel}>Annuel</Text>
+                      <Text style={styles.pricingLabel}>{t('paywall.pricing.yearly')}</Text>
                       <View style={styles.recommendedBadge}>
-                        <Text style={styles.recommendedText}>Populaire</Text>
+                        <Text style={styles.recommendedText}>{t('paywall.pricing.popular')}</Text>
                       </View>
                     </View>
-                    <Text style={styles.pricingSubLabel}>{yearlyPrice}/an</Text>
+                    <Text style={styles.pricingCalculated}>
+                      {t('paywall.pricing.equivalent')} {(yearlyPriceNum / 12).toFixed(2).replace('.', ',')}€{t('paywall.pricing.perMonth')}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.pricingCardRight}>
                   <SavingsBadge percentage={yearlySavings} />
-                  <Text style={styles.pricingMonthly}>
-                    {(yearlyPriceNum / 12).toFixed(2).replace('.', ',')}€
-                    <Text style={styles.pricingMonthlyUnit}>/mois</Text>
+                  <Text style={styles.pricingBilled}>
+                    {yearlyPrice}
+                    <Text style={styles.pricingBilledUnit}>{t('paywall.pricing.perYear')}</Text>
                   </Text>
                 </View>
               </View>
@@ -413,7 +435,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
             >
               {selectedPackage === 'monthly' && (
                 <LinearGradient
-                  colors={['rgba(60, 110, 71, 0.08)', 'rgba(163, 201, 168, 0.12)']}
+                  colors={[hexToRgba(COLORS.primary[500], 0.08), hexToRgba(COLORS.secondary.sage, 0.12)]}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -431,14 +453,14 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
                     )}
                   </View>
                   <View>
-                    <Text style={styles.pricingLabel}>Mensuel</Text>
-                    <Text style={styles.pricingSubLabel}>Flexibilité maximale</Text>
+                    <Text style={styles.pricingLabel}>{t('paywall.pricing.monthly')}</Text>
+                    <Text style={styles.pricingCalculated}>{t('paywall.pricing.flexibility')}</Text>
                   </View>
                 </View>
                 <View style={styles.pricingCardRight}>
-                  <Text style={styles.pricingMonthly}>
+                  <Text style={styles.pricingBilled}>
                     {monthlyPrice}
-                    <Text style={styles.pricingMonthlyUnit}>/mois</Text>
+                    <Text style={styles.pricingBilledUnit}>{t('paywall.pricing.perMonth')}</Text>
                   </Text>
                 </View>
               </View>
@@ -452,10 +474,10 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
               style={styles.warningCard}
             >
               <View style={styles.warningIcon}>
-                <Ionicons name="person-add-outline" size={20} color="#E85D04" />
+                <Ionicons name="person-add-outline" size={20} color={COLORS.semantic.warningDark} />
               </View>
               <Text style={styles.warningText}>
-                Créez un compte gratuit pour vous abonner et synchroniser vos données
+                {t('paywall.accountWarning')}
               </Text>
             </Animated.View>
           )}
@@ -466,44 +488,84 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
             style={styles.trustSection}
           >
             <View style={styles.trustBadge}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#6A8A6E" />
-              <Text style={styles.trustText}>Annulation facile</Text>
+              <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.text.tertiary} />
+              <Text style={styles.trustText}>{t('paywall.trust.easyCancellation')}</Text>
             </View>
             <View style={styles.trustBadge}>
-              <Ionicons name="lock-closed-outline" size={16} color="#6A8A6E" />
-              <Text style={styles.trustText}>Paiement sécurisé</Text>
+              <Ionicons name="lock-closed-outline" size={16} color={COLORS.text.tertiary} />
+              <Text style={styles.trustText}>{t('paywall.trust.securePayment')}</Text>
             </View>
           </Animated.View>
 
+          {/* Subscription Info - Required by Apple */}
+          <View style={styles.subscriptionInfo}>
+            <Text style={styles.subscriptionInfoTitle}>{t('paywall.subscriptionInfo.title')}</Text>
+            <Text style={styles.subscriptionInfoText}>
+              • {t('paywall.subscriptionInfo.subscription')} {selectedPackage === 'yearly' ? t('paywall.subscriptionInfo.yearlyLabel') : t('paywall.subscriptionInfo.monthlyLabel')} {t('paywall.subscriptionInfo.toZeroGaspyPro')}{'\n'}
+              • {t('paywall.subscriptionInfo.duration')} : {selectedPackage === 'yearly' ? t('paywall.subscriptionInfo.oneYear') : t('paywall.subscriptionInfo.oneMonth')}{'\n'}
+              • {t('paywall.subscriptionInfo.price')} : {selectedPackage === 'yearly' ? yearlyPrice + t('paywall.pricing.perYear') : monthlyPrice + t('paywall.pricing.perMonth')}{'\n'}
+              • {t('paywall.subscriptionInfo.autoRenewal')}
+            </Text>
+          </View>
+
+          {/* Legal Links - Required by Apple */}
+          <View style={styles.legalLinks}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(TERMS_OF_USE_URL)}
+              style={styles.legalLink}
+            >
+              <Text style={styles.legalLinkText}>{t('paywall.legal.termsOfUse')}</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSeparator}>•</Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+              style={styles.legalLink}
+            >
+              <Text style={styles.legalLinkText}>{t('paywall.legal.privacyPolicy')}</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Terms */}
           <Text style={styles.terms}>
-            Renouvellement automatique. Annulez à tout moment dans les réglages de votre store.
+            {t('paywall.terms')}
           </Text>
         </ScrollView>
 
         {/* CTA Button */}
         <Animated.View style={[styles.ctaContainer, ctaAnimatedStyle]}>
+          {/* Message si packages non chargés */}
+          {packages.length === 0 && !isLoading && !isRetrying && (
+            <Text style={styles.packagesNotLoadedText}>
+              {t('paywall.errors.notLoaded')}
+            </Text>
+          )}
           <PressableScale
             onPress={handlePurchase}
-            disabled={isLoading || !user}
+            disabled={isLoading || isRetrying}
             style={styles.ctaButtonWrapper}
             hapticType="medium"
+            accessibilityLabel={packages.length === 0 ? t('paywall.cta.retry') : t('paywall.cta.unlock')}
+            accessibilityRole="button"
           >
             <LinearGradient
-              colors={isLoading || !user ? ['#A3C9A8', '#8FBB96'] : ['#3C6E47', '#2D5235']}
+              colors={isLoading || isRetrying ? [COLORS.secondary.sage, COLORS.primary[300]] : [COLORS.primary[500], COLORS.primary[600]]}
               style={styles.ctaButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
+              {isLoading || isRetrying ? (
+                <ActivityIndicator color={COLORS.neutral.white} size="small" />
               ) : (
                 <>
                   <Text style={styles.ctaText}>
-                    {user ? 'Débloquer Pro' : 'Créer un compte'}
+                    {packages.length === 0 ? t('paywall.cta.retry') : t('paywall.cta.unlock')}
                   </Text>
                   <View style={styles.ctaIconContainer}>
-                    <Ionicons name="arrow-forward" size={20} color="#3C6E47" />
+                    <Ionicons
+                      name={packages.length === 0 ? "refresh" : "arrow-forward"}
+                      size={20}
+                      color={COLORS.primary[500]}
+                    />
                   </View>
                 </>
               )}
@@ -518,7 +580,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F5E6',
+    backgroundColor: COLORS.secondary.cream,
   },
   backgroundDecoration: {
     position: 'absolute',
@@ -543,7 +605,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(60, 110, 71, 0.1)',
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -552,7 +614,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   restoreText: {
-    color: '#3C6E47',
+    color: COLORS.primary[500],
     fontSize: 14,
     fontWeight: '600',
   },
@@ -584,24 +646,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#F59E0B',
+    backgroundColor: COLORS.accent.gold,
     borderRadius: 12,
     padding: 4,
   },
   heroTitle: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#3C6E47',
+    color: COLORS.primary[500],
     textAlign: 'center',
     lineHeight: 42,
     letterSpacing: -1,
   },
   heroTitleAccent: {
-    color: '#5A9E64',
+    color: COLORS.primary[400],
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#6A8A6E',
+    color: COLORS.text.tertiary,
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 24,
@@ -615,12 +677,12 @@ const styles = StyleSheet.create({
   },
   featureCard: {
     width: (SCREEN_WIDTH - 48 - 24) / 2,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     padding: 16,
     margin: 6,
     alignItems: 'center',
-    shadowColor: '#3C6E47',
+    shadowColor: COLORS.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -639,13 +701,13 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#3C6E47',
+    color: COLORS.primary[500],
     textAlign: 'center',
     marginBottom: 4,
   },
   featureDesc: {
     fontSize: 12,
-    color: '#6A8A6E',
+    color: COLORS.text.tertiary,
     textAlign: 'center',
   },
   pricingSection: {
@@ -654,25 +716,25 @@ const styles = StyleSheet.create({
   pricingTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#3C6E47',
+    color: COLORS.primary[500],
     marginBottom: 16,
   },
   pricingCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     padding: 20,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: 'transparent',
     overflow: 'hidden',
-    shadowColor: '#3C6E47',
+    shadowColor: COLORS.primary[500],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
   pricingCardSelected: {
-    borderColor: '#3C6E47',
+    borderColor: COLORS.primary[500],
     shadowOpacity: 0.12,
     shadowRadius: 16,
   },
@@ -693,19 +755,19 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#A3C9A8',
+    borderColor: COLORS.secondary.sage,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   radioOuterSelected: {
-    borderColor: '#3C6E47',
+    borderColor: COLORS.primary[500],
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#3C6E47',
+    backgroundColor: COLORS.primary[500],
   },
   pricingLabelRow: {
     flexDirection: 'row',
@@ -714,17 +776,17 @@ const styles = StyleSheet.create({
   pricingLabel: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#3C6E47',
+    color: COLORS.primary[500],
   },
   recommendedBadge: {
-    backgroundColor: '#3C6E47',
+    backgroundColor: COLORS.primary[500],
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     marginLeft: 10,
   },
   recommendedText: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -732,8 +794,14 @@ const styles = StyleSheet.create({
   },
   pricingSubLabel: {
     fontSize: 13,
-    color: '#6A8A6E',
+    color: COLORS.text.tertiary,
     marginTop: 2,
+  },
+  pricingCalculated: {
+    fontSize: 12,
+    color: COLORS.text.tertiary,
+    marginTop: 2,
+    fontWeight: '400',
   },
   savingsBadge: {
     width: 70,
@@ -743,35 +811,35 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   savingsText: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 13,
     fontWeight: '800',
   },
-  pricingMonthly: {
-    fontSize: 22,
+  pricingBilled: {
+    fontSize: 24,
     fontWeight: '800',
-    color: '#3C6E47',
+    color: COLORS.primary[500],
   },
-  pricingMonthlyUnit: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6A8A6E',
+  pricingBilledUnit: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary[500],
   },
   warningCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8F0',
+    backgroundColor: COLORS.surface.warningBg,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(232, 93, 4, 0.2)',
+    borderColor: hexToRgba(COLORS.semantic.warningDark, 0.2),
   },
   warningIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(232, 93, 4, 0.1)',
+    backgroundColor: hexToRgba(COLORS.semantic.warningDark, 0.1),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -779,7 +847,7 @@ const styles = StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: '#B84A00',
+    color: COLORS.accent.amber,
     lineHeight: 18,
   },
   trustSection: {
@@ -794,12 +862,47 @@ const styles = StyleSheet.create({
   },
   trustText: {
     fontSize: 12,
-    color: '#6A8A6E',
+    color: COLORS.text.tertiary,
     marginLeft: 6,
+  },
+  subscriptionInfo: {
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.06),
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  subscriptionInfoTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: 8,
+  },
+  subscriptionInfoText: {
+    fontSize: 12,
+    color: COLORS.text.tertiary,
+    lineHeight: 20,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  legalLink: {
+    padding: 4,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    color: COLORS.primary[500],
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    color: COLORS.neutral.grayDisabled,
+    marginHorizontal: 8,
   },
   terms: {
     fontSize: 11,
-    color: '#9CAF9E',
+    color: COLORS.neutral.grayDisabled,
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -807,10 +910,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 34,
     paddingTop: 16,
-    backgroundColor: '#F7F5E6',
-    shadowColor: '#3C6E47',
+    backgroundColor: COLORS.secondary.cream,
+    shadowColor: COLORS.primary[500],
     shadowOffset: { width: 0, height: -4 },
     elevation: 8,
+  },
+  packagesNotLoadedText: {
+    fontSize: 12,
+    color: COLORS.semantic.warningDark,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   ctaButtonWrapper: {
     borderRadius: 20,
@@ -823,9 +932,10 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 32,
     borderRadius: 20,
+    minHeight: 56, // Minimum 44pt recommandé par Apple + padding
   },
   ctaText: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 18,
     fontWeight: '700',
     marginRight: 12,
@@ -834,7 +944,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F7F5E6',
+    backgroundColor: COLORS.secondary.cream,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import PressableScale from './PressableScale';
 import Button from './Button';
 import { COLORS, SHADOWS, RADIUS, hexToRgba } from '../utils/designSystem';
@@ -24,22 +25,23 @@ interface AddRecipeModalProps {
   onRecipeAdded: () => void;
 }
 
-const CATEGORIES: Array<{ key: Recipe['category']; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { key: 'petit-déjeuner', label: 'Petit-déj', icon: 'sunny' },
-  { key: 'plat', label: 'Plat', icon: 'restaurant' },
-  { key: 'entrée', label: 'Entrée', icon: 'leaf' },
-  { key: 'dessert', label: 'Dessert', icon: 'ice-cream' },
-  { key: 'snack', label: 'Snack', icon: 'cafe' },
-  { key: 'boisson', label: 'Boisson', icon: 'wine' },
+const CATEGORY_KEYS: Array<{ key: Recipe['category']; labelKey: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { key: 'petit-déjeuner', labelKey: 'addRecipe.breakfast', icon: 'sunny' },
+  { key: 'plat', labelKey: 'addRecipe.mainDish', icon: 'restaurant' },
+  { key: 'entrée', labelKey: 'addRecipe.starter', icon: 'leaf' },
+  { key: 'dessert', labelKey: 'addRecipe.dessert', icon: 'ice-cream' },
+  { key: 'snack', labelKey: 'addRecipe.snack', icon: 'cafe' },
+  { key: 'boisson', labelKey: 'addRecipe.drink', icon: 'wine' },
 ];
 
-const DIFFICULTIES: Array<{ key: Recipe['difficulty']; label: string }> = [
-  { key: 'facile', label: 'Facile' },
-  { key: 'moyen', label: 'Moyen' },
-  { key: 'difficile', label: 'Difficile' },
+const DIFFICULTY_KEYS: Array<{ key: Recipe['difficulty']; labelKey: string }> = [
+  { key: 'facile', labelKey: 'addRecipe.easy' },
+  { key: 'moyen', labelKey: 'addRecipe.medium' },
+  { key: 'difficile', labelKey: 'addRecipe.hard' },
 ];
 
 export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddRecipeModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('🍳');
@@ -104,26 +106,26 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
   const validateForm = (): boolean => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un nom pour la recette');
+      Alert.alert(t('common.error'), t('addRecipe.errorNameRequired'));
       return false;
     }
     if (!description.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer une description');
+      Alert.alert(t('common.error'), t('addRecipe.errorDescRequired'));
       return false;
     }
     const validIngredients = ingredients.filter(i => i.trim());
     if (validIngredients.length === 0) {
-      Alert.alert('Erreur', 'Veuillez ajouter au moins un ingrédient');
+      Alert.alert(t('common.error'), t('addRecipe.errorIngredientRequired'));
       return false;
     }
     const validInstructions = instructions.filter(i => i.trim());
     if (validInstructions.length === 0) {
-      Alert.alert('Erreur', 'Veuillez ajouter au moins une étape de préparation');
+      Alert.alert(t('common.error'), t('addRecipe.errorStepRequired'));
       return false;
     }
     const time = parseInt(preparationTime);
     if (isNaN(time) || time <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un temps de préparation valide');
+      Alert.alert(t('common.error'), t('addRecipe.errorPrepTimeRequired'));
       return false;
     }
     return true;
@@ -146,9 +148,9 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         tips: tips.trim() || undefined,
       });
 
-      Alert.alert('Succès', 'Votre recette a été ajoutée !', [
+      Alert.alert(t('common.success'), t('addRecipe.recipeAdded'), [
         {
-          text: 'OK',
+          text: t('common.ok'),
           onPress: () => {
             resetForm();
             onRecipeAdded();
@@ -157,7 +159,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         },
       ]);
     } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue lors de l\'enregistrement');
+      Alert.alert(t('common.error'), t('addRecipe.saveError'));
     } finally {
       setSaving(false);
     }
@@ -179,7 +181,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Ionicons name="close" size={scaleSize(24)} color={COLORS.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nouvelle recette</Text>
+          <Text style={styles.headerTitle}>{t('addRecipe.headerTitle')}</Text>
           <View style={{ width: scaleSize(40) }} />
         </View>
 
@@ -191,14 +193,14 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         >
           {/* Emoji Picker */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Illustration</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.illustration')}</Text>
             <PressableScale
               onPress={() => setShowEmojiPicker(!showEmojiPicker)}
               style={styles.emojiButton}
               hapticType="light"
             >
               <Text style={styles.selectedEmoji}>{selectedEmoji}</Text>
-              <Text style={styles.emojiButtonText}>Changer</Text>
+              <Text style={styles.emojiButtonText}>{t('addRecipe.change')}</Text>
             </PressableScale>
 
             {showEmojiPicker && (
@@ -224,24 +226,24 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           {/* Name */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nom de la recette *</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.recipeName')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Ex: Tarte aux pommes de mamie"
+              placeholder={t('addRecipe.recipeNamePlaceholder')}
               placeholderTextColor={COLORS.text.muted}
             />
           </View>
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description *</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.description')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Une courte description de votre recette..."
+              placeholder={t('addRecipe.descriptionPlaceholder')}
               placeholderTextColor={COLORS.text.muted}
               multiline
               numberOfLines={3}
@@ -250,9 +252,9 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           {/* Category */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Catégorie</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.category')}</Text>
             <View style={styles.chipRow}>
-              {CATEGORIES.map((cat) => (
+              {CATEGORY_KEYS.map((cat) => (
                 <TouchableOpacity
                   key={cat.key}
                   onPress={() => setCategory(cat.key)}
@@ -272,7 +274,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                       category === cat.key && styles.chipTextSelected,
                     ]}
                   >
-                    {cat.label}
+                    {t(cat.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -281,9 +283,9 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           {/* Difficulty */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Difficulté</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.difficulty')}</Text>
             <View style={styles.chipRow}>
-              {DIFFICULTIES.map((diff) => (
+              {DIFFICULTY_KEYS.map((diff) => (
                 <TouchableOpacity
                   key={diff.key}
                   onPress={() => setDifficulty(diff.key)}
@@ -298,7 +300,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                       difficulty === diff.key && styles.chipTextSelected,
                     ]}
                   >
-                    {diff.label}
+                    {t(diff.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -307,7 +309,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           {/* Preparation Time */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Temps de préparation (minutes) *</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.prepTime')}</Text>
             <TextInput
               style={[styles.input, styles.timeInput]}
               value={preparationTime}
@@ -321,7 +323,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           {/* Ingredients */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ingrédients *</Text>
+              <Text style={styles.sectionTitle}>{t('addRecipe.ingredients')}</Text>
               <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
                 <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
               </TouchableOpacity>
@@ -335,7 +337,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                   style={[styles.input, styles.listInput]}
                   value={ingredient}
                   onChangeText={(text) => updateIngredient(index, text)}
-                  placeholder={`Ingrédient ${index + 1}`}
+                  placeholder={t('addRecipe.ingredientPlaceholder', { index: index + 1 })}
                   placeholderTextColor={COLORS.text.muted}
                 />
                 {ingredients.length > 1 && (
@@ -353,7 +355,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           {/* Instructions */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Étapes de préparation *</Text>
+              <Text style={styles.sectionTitle}>{t('addRecipe.steps')}</Text>
               <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
                 <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
               </TouchableOpacity>
@@ -367,7 +369,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                   style={[styles.input, styles.listInput, styles.instructionInput]}
                   value={instruction}
                   onChangeText={(text) => updateInstruction(index, text)}
-                  placeholder={`Étape ${index + 1}`}
+                  placeholder={t('addRecipe.stepPlaceholder', { index: index + 1 })}
                   placeholderTextColor={COLORS.text.muted}
                   multiline
                 />
@@ -385,12 +387,12 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           {/* Tips */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Conseils (optionnel)</Text>
+            <Text style={styles.sectionTitle}>{t('addRecipe.tipsOptional')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={tips}
               onChangeText={setTips}
-              placeholder="Astuces pour réussir cette recette..."
+              placeholder={t('addRecipe.tipsPlaceholder')}
               placeholderTextColor={COLORS.text.muted}
               multiline
               numberOfLines={2}
@@ -401,7 +403,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           <View style={styles.submitSection}>
             <Button
               onPress={handleSave}
-              label="Enregistrer la recette"
+              label={t('addRecipe.saveRecipe')}
               icon="checkmark-circle"
               variant="gradient"
               loading={saving}

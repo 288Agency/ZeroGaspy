@@ -8,7 +8,7 @@ export const REVENUECAT_API_KEY_IOS = 'appl_PPJvqpqEsLOilhGTcuHFqyURZLB';
 export const REVENUECAT_API_KEY_ANDROID = 'YOUR_ANDROID_API_KEY';
 
 // ID de l'entitlement RevenueCat
-export const ENTITLEMENT_ID = 'zerogaspy pro';
+export const ENTITLEMENT_ID = 'Zerogaspy Pro';
 
 // IDs des produits (à configurer dans RevenueCat)
 export const PRODUCT_IDS = {

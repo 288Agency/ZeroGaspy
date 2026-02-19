@@ -6,9 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import PressableScale from './PressableScale';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
+
+const TERMS_URL = 'https://www.zerogaspy.fr/terms/';
+const PRIVACY_URL = 'https://www.zerogaspy.fr/privacy/';
 
 interface LegalModalProps {
   visible: boolean;
@@ -27,64 +33,81 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
   };
 
   const SectionTitle = ({ children }: { children: string }) => (
-    <Text className="text-lg font-bold text-[#3C6E47] mt-6 mb-3">{children}</Text>
+    <Text style={styles.sectionTitle}>{children}</Text>
   );
 
   const Paragraph = ({ children }: { children: string }) => (
-    <Text className="text-[#4A4A4A] text-sm leading-6 mb-3">{children}</Text>
+    <Text style={styles.paragraph}>{children}</Text>
   );
 
   const BulletPoint = ({ children }: { children: string }) => (
-    <View className="flex-row ml-2 mb-2">
-      <Text className="text-[#3C6E47] mr-2">•</Text>
-      <Text className="text-[#4A4A4A] text-sm leading-6 flex-1">{children}</Text>
+    <View style={styles.bulletPointRow}>
+      <Text style={styles.bulletDot}>•</Text>
+      <Text style={styles.bulletText}>{children}</Text>
     </View>
   );
 
   const renderMenu = () => (
     <View>
-      <Text className="text-xl font-bold text-[#3C6E47] mb-6 text-center">
+      <Text style={styles.menuTitle}>
         Informations legales
       </Text>
 
-      <View className="gap-3">
+      <View style={styles.menuGap}>
         <PressableScale
           onPress={() => setCurrentSection('cgu')}
-          className="bg-white border border-[#3C6E47]/20 rounded-xl p-4 flex-row items-center"
+          style={styles.menuCard}
           hapticType="light"
         >
-          <View className="w-10 h-10 rounded-full bg-[#A3C9A8]/30 items-center justify-center mr-3">
-            <Ionicons name="document-text-outline" size={20} color="#3C6E47" />
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="document-text-outline" size={20} color={COLORS.primary[500]} />
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">Conditions Generales d'Utilisation</Text>
-            <Text className="text-[#6A8A6E] text-sm">Regles d'utilisation de l'application</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.menuCardTitle}>Conditions Generales d'Utilisation</Text>
+            <Text style={styles.menuCardSubtitle}>Regles d'utilisation de l'application</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
           onPress={() => setCurrentSection('privacy')}
-          className="bg-white border border-[#3C6E47]/20 rounded-xl p-4 flex-row items-center"
+          style={styles.menuCard}
           hapticType="light"
         >
-          <View className="w-10 h-10 rounded-full bg-[#A3C9A8]/30 items-center justify-center mr-3">
-            <Ionicons name="shield-checkmark-outline" size={20} color="#3C6E47" />
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.primary[500]} />
           </View>
-          <View className="flex-1">
-            <Text className="text-[#3C6E47] font-semibold">Politique de Confidentialite</Text>
-            <Text className="text-[#6A8A6E] text-sm">Protection de vos donnees personnelles</Text>
+          <View style={styles.flex1}>
+            <Text style={styles.menuCardTitle}>Politique de Confidentialite</Text>
+            <Text style={styles.menuCardSubtitle}>Protection de vos donnees personnelles</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
       </View>
 
-      <View className="mt-8 p-4 bg-[#F7F5E6] rounded-xl">
-        <Text className="text-[#6A8A6E] text-xs text-center">
-          ZeroGaspy - Version 1.0.3
+      <View style={styles.menuGap}>
+        <PressableScale
+          onPress={() => Linking.openURL(TERMS_URL)}
+          style={styles.menuCard}
+          hapticType="light"
+        >
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="globe-outline" size={20} color={COLORS.primary[500]} />
+          </View>
+          <View style={styles.flex1}>
+            <Text style={styles.menuCardTitle}>Consulter sur le site</Text>
+            <Text style={styles.menuCardSubtitle}>Version complete sur zerogaspy.fr</Text>
+          </View>
+          <Ionicons name="open-outline" size={20} color={COLORS.text.tertiary} />
+        </PressableScale>
+      </View>
+
+      <View style={styles.versionBox}>
+        <Text style={styles.versionText}>
+          ZeroGaspy - Version 1.0.5
         </Text>
-        <Text className="text-[#6A8A6E] text-xs text-center mt-1">
-          Derniere mise a jour : Janvier 2025
+        <Text style={styles.versionTextMt}>
+          Derniere mise a jour : Fevrier 2026
         </Text>
       </View>
     </View>
@@ -94,17 +117,17 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('menu')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-[#3C6E47] mb-2">
+      <Text style={styles.pageTitle}>
         Conditions Generales d'Utilisation
       </Text>
-      <Text className="text-[#6A8A6E] text-sm mb-6">
-        Derniere mise a jour : Janvier 2025
+      <Text style={styles.pageSubtitle}>
+        Derniere mise a jour : Fevrier 2026
       </Text>
 
       <SectionTitle>1. Objet</SectionTitle>
@@ -119,13 +142,25 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
 
       <SectionTitle>3. Description du service</SectionTitle>
       <Paragraph>
-        ZeroGaspy est une application mobile gratuite permettant de :
+        ZeroGaspy est une application mobile permettant de :
       </Paragraph>
       <BulletPoint>Gerer l'inventaire de vos produits alimentaires</BulletPoint>
       <BulletPoint>Suivre les dates de peremption</BulletPoint>
       <BulletPoint>Recevoir des notifications avant expiration</BulletPoint>
       <BulletPoint>Consulter des recettes adaptees a vos ingredients</BulletPoint>
       <BulletPoint>Visualiser des statistiques sur votre consommation</BulletPoint>
+
+      <SectionTitle>3bis. Abonnements et achats integres</SectionTitle>
+      <Paragraph>
+        ZeroGaspy propose un abonnement premium "ZeroGaspy Pro" disponible en formule mensuelle ou annuelle.
+      </Paragraph>
+      <BulletPoint>Le paiement est preleve sur votre compte Apple ID ou Google Play lors de la confirmation de l'achat.</BulletPoint>
+      <BulletPoint>L'abonnement se renouvelle automatiquement sauf si le renouvellement automatique est desactive au moins 24 heures avant la fin de la periode en cours.</BulletPoint>
+      <BulletPoint>Vous pouvez gerer et annuler vos abonnements dans les reglages de votre compte App Store ou Google Play Store.</BulletPoint>
+      <BulletPoint>Toute partie non utilisee d'une periode d'essai gratuite sera perdue lors de l'achat d'un abonnement.</BulletPoint>
+      <Paragraph>
+        Pour plus de details, consultez nos conditions completes sur zerogaspy.fr/terms/.
+      </Paragraph>
 
       <SectionTitle>4. Inscription et compte utilisateur</SectionTitle>
       <Paragraph>
@@ -183,17 +218,17 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
     <View>
       <TouchableOpacity
         onPress={() => setCurrentSection('menu')}
-        className="flex-row items-center mb-4"
+        style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color="#3C6E47" />
-        <Text className="text-[#3C6E47] font-semibold ml-2">Retour</Text>
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
 
-      <Text className="text-xl font-bold text-[#3C6E47] mb-2">
+      <Text style={styles.pageTitle}>
         Politique de Confidentialite
       </Text>
-      <Text className="text-[#6A8A6E] text-sm mb-6">
-        Derniere mise a jour : Janvier 2025
+      <Text style={styles.pageSubtitle}>
+        Derniere mise a jour : Fevrier 2026
       </Text>
 
       <Paragraph>
@@ -310,18 +345,18 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View className="flex-1 bg-white">
+      <View style={styles.modalContainer}>
         {/* Header */}
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-2 border-b border-[#3C6E47]/10">
-          <View className="w-10" />
-          <View className="w-10 h-1 bg-[#3C6E47]/20 rounded-full" />
-          <TouchableOpacity onPress={handleClose} className="w-10 items-end">
-            <Ionicons name="close" size={24} color="#3C6E47" />
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <View style={styles.headerHandle} />
+          <TouchableOpacity onPress={handleClose} style={styles.headerCloseButton}>
+            <Ionicons name="close" size={24} color={COLORS.primary[500]} />
           </TouchableOpacity>
         </View>
 
         <ScrollView
-          className="flex-1"
+          style={styles.flex1}
           contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
@@ -331,3 +366,138 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.white,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  headerHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.full,
+  },
+  headerCloseButton: {
+    width: 40,
+    alignItems: 'flex-end',
+  },
+  flex1: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.md,
+  },
+  paragraph: {
+    color: COLORS.text.primary,
+    fontSize: 14,
+    lineHeight: 24,
+    marginBottom: SPACING.md,
+  },
+  bulletPointRow: {
+    flexDirection: 'row',
+    marginLeft: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  bulletDot: {
+    color: COLORS.primary[500],
+    marginRight: SPACING.sm,
+  },
+  bulletText: {
+    color: COLORS.text.primary,
+    fontSize: 14,
+    lineHeight: 24,
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: SPACING['2xl'],
+    textAlign: 'center',
+  },
+  menuGap: {
+    gap: SPACING.md,
+  },
+  menuCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  menuCardTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+  },
+  menuCardSubtitle: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+  versionBox: {
+    marginTop: SPACING['3xl'],
+    padding: SPACING.lg,
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS.lg,
+  },
+  versionText: {
+    color: COLORS.text.tertiary,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  versionTextMt: {
+    color: COLORS.text.tertiary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  backText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: SPACING.sm,
+  },
+  pageSubtitle: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+    marginBottom: SPACING['2xl'],
+  },
+});

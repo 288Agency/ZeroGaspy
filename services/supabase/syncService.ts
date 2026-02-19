@@ -170,14 +170,32 @@ async function pushPendingChanges(userId: string): Promise<void> {
   const queue: SyncQueueItem[] = JSON.parse(queueJson);
   const failedItems: SyncQueueItem[] = [];
 
+  // Pré-charger tous les mappings list_id local → cloud UUID en une seule requête
+  const localListIds = [...new Set(
+    queue
+      .filter(item => item.tableName === 'food_items' && item.payload?.list_id)
+      .map(item => item.payload.list_id)
+  )];
+  const listIdCache = new Map<string, string>();
+  if (localListIds.length > 0) {
+    const { data: listMappings } = await supabase
+      .from('lists')
+      .select('id, local_id')
+      .or(localListIds.map(id => `local_id.eq.${id},id.eq.${id}`).join(','));
+    for (const mapping of listMappings || []) {
+      if (mapping.local_id) listIdCache.set(mapping.local_id, mapping.id);
+      listIdCache.set(mapping.id, mapping.id);
+    }
+  }
+
   for (const item of queue) {
     try {
       switch (item.operation) {
         case 'INSERT':
-          // Pour les food_items, convertir list_id local en UUID cloud
+          // Pour les food_items, convertir list_id local en UUID cloud via le cache
           let payload = { ...item.payload, user_id: userId };
           if (item.tableName === 'food_items' && payload.list_id) {
-            const cloudListId = await getCloudListId(payload.list_id);
+            const cloudListId = listIdCache.get(payload.list_id);
             if (!cloudListId) {
               // La liste n'existe plus, supprimer cet item de la queue (ne pas réessayer)
               logger.debug(`[SYNC] Liste introuvable, item orphelin supprimé: ${payload.list_id}`);

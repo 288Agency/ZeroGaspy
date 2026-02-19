@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { LIST_ICONS } from '../types';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../utils/designSystem';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface IconPickerProps {
   selectedIcon: string;
@@ -15,13 +16,15 @@ export default function IconPicker({
   selectedIcon,
   onIconSelect,
   selectedColor = COLORS.primary[500],
-  label = 'Icône de la liste',
+  label,
 }: IconPickerProps) {
+  const { t } = useTranslation();
+  const displayLabel = label ?? t('iconPicker.label');
   return (
-    <View className="mb-4">
-      {label && (
-        <Text className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          {label}
+    <View style={styles.container}>
+      {displayLabel && (
+        <Text style={styles.label}>
+          {displayLabel}
         </Text>
       )}
 
@@ -30,7 +33,7 @@ export default function IconPicker({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 4 }}
       >
-        <View className="flex-row gap-3">
+        <View style={styles.row}>
           {LIST_ICONS.map((icon) => {
             const isSelected = selectedIcon === icon.value;
             return (
@@ -38,22 +41,22 @@ export default function IconPicker({
                 key={icon.value}
                 onPress={() => onIconSelect(icon.value)}
                 activeOpacity={0.7}
-                className="items-center"
+                style={styles.itemContainer}
                 accessibilityLabel={`Icône ${icon.name}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
               >
                 <View
                   style={{
-                    backgroundColor: isSelected ? selectedColor : '#E5E7EB',
+                    backgroundColor: isSelected ? selectedColor : COLORS.neutral.gray150,
                     width: 48,
                     height: 48,
                     borderRadius: 14,
                     justifyContent: 'center',
                     alignItems: 'center',
                     borderWidth: isSelected ? 0 : 1,
-                    borderColor: '#D1D5DB',
-                    shadowColor: '#000',
+                    borderColor: COLORS.neutral.gray300,
+                    shadowColor: COLORS.neutral.black,
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: isSelected ? 0.25 : 0.1,
                     shadowRadius: 4,
@@ -63,16 +66,14 @@ export default function IconPicker({
                   <Ionicons
                     name={icon.value as any}
                     size={24}
-                    color={isSelected ? '#ffffff' : '#6B7280'}
+                    color={isSelected ? COLORS.neutral.white : COLORS.neutral.grayMuted}
                   />
                 </View>
                 <Text
-                  className={`text-xs mt-1.5 ${
-                    isSelected
-                      ? 'text-gray-900 font-semibold'
-                      : 'text-gray-500'
-                  }`}
-                  style={{ maxWidth: 56, textAlign: 'center' }}
+                  style={[
+                    styles.iconName,
+                    isSelected && styles.iconNameSelected,
+                  ]}
                   numberOfLines={1}
                 >
                   {icon.name}
@@ -85,3 +86,33 @@ export default function IconPicker({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: SPACING.lg,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.neutral.gray700,
+    marginBottom: SPACING.md,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  itemContainer: {
+    alignItems: 'center',
+  },
+  iconName: {
+    fontSize: 12,
+    marginTop: 6,
+    color: COLORS.neutral.gray500,
+    maxWidth: 56,
+    textAlign: 'center',
+  },
+  iconNameSelected: {
+    color: COLORS.neutral.gray900,
+    fontWeight: '600',
+  },
+});

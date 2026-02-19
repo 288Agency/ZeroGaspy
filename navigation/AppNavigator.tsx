@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
 import CreateListScreen from '../screens/CreateListScreen';
@@ -12,12 +13,14 @@ import RecipesScreen from '../screens/RecipesScreen';
 import StatsScreen from '../screens/StatsScreen';
 import GlassTabBar from '../components/GlassTabBar';
 import { RootStackParamList } from '../types/navigation';
+import { COLORS } from '../utils/designSystem';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
 // Tab Navigator for main screens with Glass effect
 function MainTabs() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       tabBar={(props) => <GlassTabBar {...props} />}
@@ -28,34 +31,35 @@ function MainTabs() {
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
-        options={{ tabBarLabel: 'Accueil' }}
+        options={{ tabBarLabel: t('tabs.home') }}
       />
       <Tab.Screen
         name="RecipesTab"
         component={RecipesScreen}
-        options={{ tabBarLabel: 'Recettes' }}
+        options={{ tabBarLabel: t('tabs.recipes') }}
       />
       <Tab.Screen
         name="StatsTab"
         component={StatsScreen}
-        options={{ tabBarLabel: 'Impact' }}
+        options={{ tabBarLabel: t('tabs.stats') }}
       />
       <Tab.Screen
         name="AccountTab"
         component={AccountScreen}
-        options={{ tabBarLabel: 'Compte' }}
+        options={{ tabBarLabel: t('tabs.account') }}
       />
     </Tab.Navigator>
   );
 }
 
 export default function AppNavigator() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
-        headerBackTitle: 'Retour',
+        headerBackTitle: t('common.back'),
       }}
     >
       <Stack.Screen
@@ -68,13 +72,13 @@ export default function AppNavigator() {
         options={{
           headerShown: true,
           headerStyle: {
-            backgroundColor: '#3C6E47',
+            backgroundColor: COLORS.primary[500],
           },
-          headerTintColor: '#fff',
+          headerTintColor: COLORS.neutral.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          title: 'Mes Listes',
+          title: t('lists.title'),
         }}
       />
       <Stack.Screen
@@ -97,9 +101,9 @@ export default function AppNavigator() {
         options={({ route }) => ({
           headerShown: true,
           headerStyle: {
-            backgroundColor: route.params.listColor || '#3C6E47',
+            backgroundColor: route.params.listColor || COLORS.primary[500],
           },
-          headerTintColor: '#fff',
+          headerTintColor: COLORS.neutral.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },

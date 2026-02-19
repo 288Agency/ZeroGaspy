@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, ImageBackground, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import PressableScale from './PressableScale';
@@ -52,8 +53,8 @@ function StatCard({ count, label, illustration, gradientColors, accentColor, onP
       {!hasBgOrMascot && (
         <View style={styles.decorationContainer}>
           <Svg width={120} height={120} viewBox="0 0 120 120" style={styles.decoration}>
-            <Circle cx="100" cy="20" r="60" fill={hexToRgba('#FFFFFF', 0.1)} />
-            <Circle cx="-10" cy="100" r="40" fill={hexToRgba('#FFFFFF', 0.08)} />
+            <Circle cx="100" cy="20" r="60" fill={hexToRgba(COLORS.neutral.white, 0.1)} />
+            <Circle cx="-10" cy="100" r="40" fill={hexToRgba(COLORS.neutral.white, 0.08)} />
           </Svg>
         </View>
       )}
@@ -140,11 +141,12 @@ export default function StatsCardsRow({
   onExpiringSoonPress,
   onThrownPress,
 }: StatsCardsRowProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <StatCard
         count={expiringSoonCount}
-        label="Bientôt périmés"
+        label={t('home.expiringSoonTitle')}
         backgroundImage={require('../assets/Fond vert card.png')}
         mascotImage={require('../assets/perime.png')}
         gradientColors={[COLORS.primary[500], COLORS.primary[600]]}
@@ -153,10 +155,10 @@ export default function StatsCardsRow({
       />
       <StatCard
         count={thrownCount}
-        label="Aliments jetés"
+        label={t('stats.thrown')}
         backgroundImage={require('../assets/FOND ROUGE CARD.png')}
         mascotImage={require('../assets/Ben.png')}
-        gradientColors={[COLORS.accent.carrot, '#D35400']}
+        gradientColors={[COLORS.accent.carrot, COLORS.semantic.warningDark]}
         accentColor={COLORS.accent.carrot}
         onPress={onThrownPress}
       />

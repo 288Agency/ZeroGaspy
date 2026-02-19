@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
-import { migrateLocalDataToCloud } from '../services/supabase/syncService';
+import { migrateLocalDataToCloud, syncWithCloud } from '../services/supabase/syncService';
 import {
   validateEmail,
   validatePassword,
@@ -55,17 +55,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         logger.debug('Auth state changed:', event);
-        setSession(session);
-        setUser(session?.user ?? null);
 
-        // Migrer les donnees locales lors de la premiere connexion
+        // Pour SIGNED_IN : migrer et synchroniser depuis le cloud AVANT de mettre à jour la session
+        // Cela garantit que les données sont dans AsyncStorage quand les écrans se montent
         if (event === 'SIGNED_IN' && session?.user) {
           try {
             await migrateLocalDataToCloud(session.user.id);
+            await syncWithCloud(session.user.id);
           } catch (error) {
-            logger.error('Erreur migration:', error);
+            logger.error('Erreur sync au login:', error);
           }
         }
+
+        setSession(session);
+        setUser(session?.user ?? null);
       }
     );
 
@@ -129,7 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const sanitizedEmail = sanitizeEmail(email);
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: sanitizedEmail,
         password,
         options: {
@@ -142,6 +145,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (error) {
         return { error: new Error(translateError(error.message)) };
+      }
+
+      // Supabase retourne 200 sans erreur même si le compte existe déjà
+      // mais dans ce cas identities est vide
+      if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+        return { error: new Error('USER_ALREADY_EXISTS') };
       }
 
       // Reset rate limit on success

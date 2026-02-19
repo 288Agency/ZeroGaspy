@@ -7,6 +7,8 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  StyleSheet,
+  Linking,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +20,7 @@ import LegalModal from '../components/LegalModal';
 import AchievementsModal from '../components/AchievementsModal';
 import PaywallModal from '../components/PaywallModal';
 import PressableScale from '../components/PressableScale';
+import LanguageSelector, { LanguageButton } from '../components/LanguageSelector';
 import { useGamification } from '../contexts/GamificationContext';
 import { getLevelTitle } from '../services/gamificationService';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,7 +30,6 @@ import { useIsOnline } from '../hooks/useOnlineStatus';
 import {
   loadNotificationSettings,
   saveNotificationSettings,
-  sendTestNotification,
   requestNotificationPermissions,
   NotificationSettings,
 } from '../services/notificationService';
@@ -38,11 +40,14 @@ import {
   cleanupOldExports,
 } from '../services/exportService';
 import * as StoreReview from 'expo-store-review';
+import { useTranslation } from 'react-i18next';
 import logger from '../utils/logger';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut, isLocalMode } = useAuth();
   const { isPremium, currentPlan, expirationDate, restorePurchases, isLoading: subscriptionLoading } = useSubscription();
@@ -52,6 +57,7 @@ export default function AccountScreen() {
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [achievementsVisible, setAchievementsVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const { gamificationData } = useGamification();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
@@ -89,12 +95,12 @@ export default function AccountScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Deconnexion',
-      'Etes-vous sur de vouloir vous deconnecter ?',
+      t('account.logout'),
+      t('account.logoutConfirm'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Deconnecter',
+          text: t('account.logoutAction'),
           style: 'destructive',
           onPress: async () => {
             await signOut();
@@ -112,9 +118,9 @@ export default function AccountScreen() {
       await syncWithCloud(user.id);
       const pending = await getPendingChangesCount(user.id);
       setPendingChanges(pending);
-      Alert.alert('Synchronisation', 'Vos donnees ont ete synchronisees avec succes !');
+      Alert.alert(t('common.syncTitle'), t('account.syncSuccess'));
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de synchroniser. Verifiez votre connexion.');
+      Alert.alert(t('common.error'), t('account.syncError'));
     } finally {
       setIsSyncing(false);
     }
@@ -131,13 +137,13 @@ export default function AccountScreen() {
       const hasPermission = await requestNotificationPermissions();
       if (!hasPermission) {
         Alert.alert(
-          'Permission requise',
-          'Veuillez autoriser les notifications dans les paramètres de votre téléphone.'
+          t('account.permissionRequired'),
+          t('account.permissionText')
         );
         return;
       }
     }
-    
+
     const newSettings = { ...notificationSettings, enabled: value };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
@@ -147,15 +153,6 @@ export default function AccountScreen() {
     const newSettings = { ...notificationSettings, dailyReminder: value };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
-  };
-
-  const handleTestNotification = async () => {
-    try {
-      await sendTestNotification();
-      Alert.alert('Notification envoyée', 'Vous devriez recevoir une notification dans quelques secondes.');
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'envoyer la notification de test.');
-    }
   };
 
   const handleChangeDaysBeforeExpiration = async (days: number) => {
@@ -170,11 +167,11 @@ export default function AccountScreen() {
     setIsExporting(true);
     try {
       await exportAndShareJSON();
-      Alert.alert('Export réussi', 'Vos données ont été exportées au format JSON.');
+      Alert.alert(t('export.success'), t('export.jsonSuccess'));
       // Nettoyer les anciens exports
       await cleanupOldExports();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'exporter vos données. Veuillez réessayer.');
+      Alert.alert(t('common.error'), t('export.exportError'));
     } finally {
       setIsExporting(false);
     }
@@ -186,11 +183,11 @@ export default function AccountScreen() {
     setIsExporting(true);
     try {
       await exportAndShareCSV();
-      Alert.alert('Export réussi', 'Vos données ont été exportées au format CSV (compatible Excel).');
+      Alert.alert(t('export.success'), t('export.csvSuccess'));
       // Nettoyer les anciens exports
       await cleanupOldExports();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'exporter vos données. Veuillez réessayer.');
+      Alert.alert(t('common.error'), t('export.exportError'));
     } finally {
       setIsExporting(false);
     }
@@ -207,14 +204,14 @@ export default function AccountScreen() {
     subtitle?: string;
     rightElement: React.ReactNode;
   }) => (
-    <View className="flex-row items-center py-4 border-b border-[#3C6E47]/10">
-      <View className="w-10 h-10 rounded-xl bg-[#A3C9A8]/50 items-center justify-center mr-4">
-        <Ionicons name={icon as any} size={20} color="#3C6E47" />
+    <View style={styles.settingRow}>
+      <View style={styles.settingIconContainer}>
+        <Ionicons name={icon as any} size={20} color={COLORS.primary[500]} />
       </View>
-      <View className="flex-1">
-        <Text className="text-[#3C6E47] font-semibold text-base">{title}</Text>
+      <View style={styles.settingTextContainer}>
+        <Text style={styles.settingTitle}>{title}</Text>
         {subtitle && (
-          <Text className="text-[#6A8A6E] text-sm mt-0.5">{subtitle}</Text>
+          <Text style={styles.settingSubtitle}>{subtitle}</Text>
         )}
       </View>
       {rightElement}
@@ -222,76 +219,76 @@ export default function AccountScreen() {
   );
 
   return (
-    <View className="flex-1 bg-[#F7F5E6]">
+    <View style={styles.container}>
       {/* Header */}
-      <View className="flex-row items-center justify-center px-5 pt-16 pb-6">
-        <Text className="text-2xl font-semibold text-[#3C6E47]">
-          Mon Compte
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          {t('account.title')}
         </Text>
       </View>
 
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        style={styles.scrollView}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Section Compte Utilisateur */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            👤 Compte
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionAccount')}
           </Text>
 
-          <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
+          <View style={styles.sectionCard}>
             {user ? (
               <>
                 {/* Utilisateur connecte */}
-                <View className="flex-row items-center mb-4">
-                  <View className="w-14 h-14 rounded-full bg-[#3C6E47] items-center justify-center mr-4">
-                    <Text className="text-white text-xl font-bold">
+                <View style={styles.userRow}>
+                  <View style={styles.userAvatar}>
+                    <Text style={styles.userAvatarText}>
                       {user.email?.charAt(0).toUpperCase() || 'U'}
                     </Text>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-[#3C6E47] font-bold text-lg">
-                      {user.user_metadata?.full_name || 'Utilisateur'}
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {user.user_metadata?.full_name || t('account.user')}
                     </Text>
-                    <Text className="text-[#6A8A6E] text-sm">
+                    <Text style={styles.userEmail}>
                       {user.email}
                     </Text>
                   </View>
-                  <View className={`px-2 py-1 rounded-full ${isOnline ? 'bg-[#A3C9A8]' : 'bg-yellow-100'}`}>
-                    <Text className={`text-xs font-medium ${isOnline ? 'text-[#3C6E47]' : 'text-yellow-700'}`}>
-                      {isOnline ? 'En ligne' : 'Hors ligne'}
+                  <View style={[styles.statusBadge, isOnline ? styles.statusOnline : styles.statusOffline]}>
+                    <Text style={[styles.statusText, isOnline ? styles.statusTextOnline : styles.statusTextOffline]}>
+                      {isOnline ? t('account.online') : t('account.offline')}
                     </Text>
                   </View>
                 </View>
 
                 {/* Statut de synchronisation */}
-                <View className="bg-[#F7F5E6] rounded-xl p-3 mb-4">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center">
+                <View style={styles.syncStatusContainer}>
+                  <View style={styles.syncStatusRow}>
+                    <View style={styles.syncStatusLeft}>
                       <Ionicons
                         name={pendingChanges > 0 ? "cloud-upload-outline" : "cloud-done-outline"}
                         size={20}
-                        color="#3C6E47"
+                        color={COLORS.primary[500]}
                       />
-                      <Text className="text-[#3C6E47] ml-2 font-medium">
+                      <Text style={styles.syncStatusText}>
                         {pendingChanges > 0
-                          ? `${pendingChanges} modification(s) en attente`
-                          : 'Tout est synchronise'}
+                          ? t('account.pendingChanges', { count: pendingChanges })
+                          : t('account.synced')}
                       </Text>
                     </View>
                     {pendingChanges > 0 && isOnline && (
                       <PressableScale
                         onPress={handleManualSync}
-                        className="bg-[#3C6E47] px-3 py-1.5 rounded-lg"
+                        style={styles.syncButton}
                         hapticType="light"
                         disabled={isSyncing}
                       >
                         {isSyncing ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
                         ) : (
-                          <Text className="text-white text-sm font-medium">Sync</Text>
+                          <Text style={styles.syncButtonText}>{t('account.sync')}</Text>
                         )}
                       </PressableScale>
                     )}
@@ -301,62 +298,62 @@ export default function AccountScreen() {
                 {/* Bouton parametres du compte */}
                 <PressableScale
                   onPress={() => setAccountSettingsVisible(true)}
-                  className="bg-[#F7F5E6] rounded-xl p-4 flex-row items-center justify-between mb-3"
+                  style={styles.accountSettingsButton}
                   hapticType="light"
                 >
-                  <View className="flex-row items-center">
-                    <Ionicons name="settings-outline" size={20} color="#3C6E47" />
-                    <Text className="text-[#3C6E47] font-semibold ml-2">
-                      Parametres du compte
+                  <View style={styles.accountSettingsLeft}>
+                    <Ionicons name="settings-outline" size={20} color={COLORS.primary[500]} />
+                    <Text style={styles.accountSettingsText}>
+                      {t('account.accountSettings')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
                 </PressableScale>
 
                 {/* Bouton deconnexion */}
                 <PressableScale
                   onPress={handleLogout}
-                  className="bg-red-50 rounded-xl p-4 flex-row items-center justify-center"
+                  style={styles.logoutButton}
                   hapticType="medium"
                 >
-                  <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                  <Text className="text-red-500 font-semibold ml-2">
-                    Se deconnecter
+                  <Ionicons name="log-out-outline" size={20} color={COLORS.semantic.danger} />
+                  <Text style={styles.logoutText}>
+                    {t('account.logoutAction')}
                   </Text>
                 </PressableScale>
               </>
             ) : isLocalMode ? (
               <>
                 {/* Mode local */}
-                <View className="flex-row items-center mb-4">
-                  <View className="w-14 h-14 rounded-full bg-[#A3C9A8] items-center justify-center mr-4">
-                    <Ionicons name="phone-portrait-outline" size={24} color="#3C6E47" />
+                <View style={styles.userRow}>
+                  <View style={styles.localAvatar}>
+                    <Ionicons name="phone-portrait-outline" size={24} color={COLORS.primary[500]} />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-[#3C6E47] font-bold text-lg">
-                      Mode local
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {t('account.localMode')}
                     </Text>
-                    <Text className="text-[#6A8A6E] text-sm">
-                      Donnees stockees sur cet appareil
+                    <Text style={styles.userEmail}>
+                      {t('account.localModeDesc')}
                     </Text>
                   </View>
                 </View>
 
-                <View className="bg-[#FFF3E0] rounded-xl p-3 mb-4 flex-row items-start">
-                  <Ionicons name="warning-outline" size={20} color="#E85D04" />
-                  <Text className="text-[#E85D04] text-sm ml-2 flex-1">
-                    Creez un compte pour sauvegarder vos donnees dans le cloud et y acceder depuis n'importe quel appareil.
+                <View style={styles.warningBanner}>
+                  <Ionicons name="warning-outline" size={20} color={COLORS.semantic.warningDark} />
+                  <Text style={styles.warningBannerText}>
+                    {t('account.createAccountWarning')}
                   </Text>
                 </View>
 
                 <PressableScale
                   onPress={() => signOut()}
-                  className="bg-[#3C6E47] rounded-xl p-4 flex-row items-center justify-center"
+                  style={styles.createAccountButton}
                   hapticType="medium"
                 >
-                  <Ionicons name="person-add-outline" size={20} color="#fff" />
-                  <Text className="text-white font-semibold ml-2">
-                    Creer un compte
+                  <Ionicons name="person-add-outline" size={20} color={COLORS.neutral.white} />
+                  <Text style={styles.createAccountText}>
+                    {t('account.createAccount')}
                   </Text>
                 </PressableScale>
               </>
@@ -365,56 +362,58 @@ export default function AccountScreen() {
         </View>
 
         {/* Section Mes Succes */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            🏆 Mes Succes
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionAchievements')}
           </Text>
 
           <PressableScale
             onPress={() => setAchievementsVisible(true)}
-            className="bg-gradient-to-r from-[#3C6E47] to-[#4A8A5C] bg-[#3C6E47] rounded-2xl p-4 border border-[#3C6E47]"
+            style={styles.achievementsCard}
             hapticType="light"
           >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center mr-4">
-                  <Text className="text-white text-xl font-bold">
+            <View style={styles.achievementsRow}>
+              <View style={styles.achievementsLeft}>
+                <View style={styles.levelCircle}>
+                  <Text style={styles.levelText}>
                     {gamificationData?.level || 1}
                   </Text>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white/80 text-sm">
+                <View style={styles.achievementsInfo}>
+                  <Text style={styles.levelTitle}>
                     {getLevelTitle(gamificationData?.level || 1)}
                   </Text>
-                  <Text className="text-white font-bold text-lg">
+                  <Text style={styles.xpText}>
                     {gamificationData?.totalXp || 0} XP
                   </Text>
-                  <View className="flex-row items-center mt-1">
-                    <Text className="text-white/70 text-xs mr-2">
-                      🔥 {gamificationData?.streaks.currentDaily || 0}j
+                  <View style={styles.streaksRow}>
+                    <Text style={styles.streakText}>
+                      🔥 {gamificationData?.streaks.currentDaily || 0}{t('common.dayShort')}
                     </Text>
-                    <Text className="text-white/70 text-xs">
-                      🌱 {gamificationData?.streaks.currentNoWaste || 0}j
+                    <Text style={styles.streakText}>
+                      🌱 {gamificationData?.streaks.currentNoWaste || 0}{t('common.dayShort')}
                     </Text>
                   </View>
                 </View>
               </View>
-              <View className="items-end">
+              <View style={styles.achievementsRight}>
                 <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
               </View>
             </View>
 
             {/* Barre XP */}
-            <View className="mt-3">
-              <View className="h-2 bg-white/20 rounded-full overflow-hidden">
+            <View style={styles.xpBarContainer}>
+              <View style={styles.xpBarBackground}>
                 <View
-                  className="h-full bg-[#A3C9A8] rounded-full"
-                  style={{
-                    width: `${gamificationData ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100 : 0}%`
-                  }}
+                  style={[
+                    styles.xpBarFill,
+                    {
+                      width: `${gamificationData ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100 : 0}%`,
+                    },
+                  ]}
                 />
               </View>
-              <Text className="text-white/60 text-xs text-right mt-1">
+              <Text style={styles.xpBarLabel}>
                 {gamificationData?.xp || 0} / {gamificationData?.xpToNextLevel || 100} XP
               </Text>
             </View>
@@ -422,78 +421,78 @@ export default function AccountScreen() {
         </View>
 
         {/* Section Abonnement */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            ⭐ Mon Abonnement
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionSubscription')}
           </Text>
 
-          <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
+          <View style={styles.sectionCard}>
             {isPremium ? (
               <>
                 {/* Utilisateur Premium */}
-                <View className="flex-row items-center mb-4">
-                  <View className="w-14 h-14 rounded-full bg-[#F59E0B] items-center justify-center mr-4">
-                    <Ionicons name="star" size={28} color="#fff" />
+                <View style={styles.userRow}>
+                  <View style={styles.premiumAvatar}>
+                    <Ionicons name="star" size={28} color={COLORS.neutral.white} />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-[#3C6E47] font-bold text-lg">
-                      Premium {currentPlan === 'yearly' ? 'Annuel' : 'Mensuel'}
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {t('account.premium.title')} {currentPlan === 'yearly' ? t('account.premium.yearly') : t('account.premium.monthly')}
                     </Text>
                     {expirationDate && (
-                      <Text className="text-[#6A8A6E] text-sm">
-                        Valide jusqu'au {expirationDate.toLocaleDateString('fr-FR')}
+                      <Text style={styles.userEmail}>
+                        {t('account.premium.validUntil')} {expirationDate.toLocaleDateString()}
                       </Text>
                     )}
                   </View>
-                  <View className="bg-[#F59E0B]/20 px-3 py-1 rounded-full">
-                    <Text className="text-[#B45309] text-xs font-semibold">Actif</Text>
+                  <View style={styles.premiumBadge}>
+                    <Text style={styles.premiumBadgeText}>{t('account.premium.active')}</Text>
                   </View>
                 </View>
 
-                <View className="bg-[#F7F5E6] rounded-xl p-3">
-                  <Text className="text-[#6A8A6E] text-sm">
-                    Vous profitez de toutes les fonctionnalites Premium : listes illimitees, scanner de tickets et aucune publicite.
+                <View style={styles.premiumInfoBox}>
+                  <Text style={styles.premiumInfoText}>
+                    {t('account.premiumInfo')}
                   </Text>
                 </View>
               </>
             ) : (
               <>
                 {/* Utilisateur Gratuit */}
-                <View className="flex-row items-center mb-4">
-                  <View className="w-14 h-14 rounded-full bg-[#A3C9A8]/50 items-center justify-center mr-4">
-                    <Ionicons name="person-outline" size={28} color="#3C6E47" />
+                <View style={styles.userRow}>
+                  <View style={styles.freeAvatar}>
+                    <Ionicons name="person-outline" size={28} color={COLORS.primary[500]} />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-[#3C6E47] font-bold text-lg">
-                      Version Gratuite
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>
+                      {t('account.freeVersion')}
                     </Text>
-                    <Text className="text-[#6A8A6E] text-sm">
-                      3 listes maximum
+                    <Text style={styles.userEmail}>
+                      {t('account.maxLists')}
                     </Text>
                   </View>
                 </View>
 
                 <PressableScale
                   onPress={() => setPaywallVisible(true)}
-                  className="bg-[#F59E0B] rounded-xl p-4 flex-row items-center justify-center mb-3"
+                  style={styles.upgradePremiumButton}
                   hapticType="medium"
                 >
-                  <Ionicons name="star" size={20} color="#fff" />
-                  <Text className="text-white font-bold ml-2">
-                    Passer Premium
+                  <Ionicons name="star" size={20} color={COLORS.neutral.white} />
+                  <Text style={styles.upgradePremiumText}>
+                    {t('account.premium.upgrade')}
                   </Text>
                 </PressableScale>
 
                 <TouchableOpacity
                   onPress={restorePurchases}
                   disabled={subscriptionLoading}
-                  className="flex-row items-center justify-center py-2"
+                  style={styles.restorePurchasesButton}
                 >
                   {subscriptionLoading ? (
-                    <ActivityIndicator size="small" color="#3C6E47" />
+                    <ActivityIndicator size="small" color={COLORS.primary[500]} />
                   ) : (
-                    <Text className="text-[#3C6E47] font-medium">
-                      Restaurer mes achats
+                    <Text style={styles.restorePurchasesText}>
+                      {t('account.premium.restore')}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -503,22 +502,22 @@ export default function AccountScreen() {
         </View>
 
         {/* Section Notifications */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            🔔 Notifications
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionNotifications')}
           </Text>
 
-          <View className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20">
+          <View style={styles.sectionCard}>
             <SettingRow
               icon="notifications-outline"
-              title="Activer les notifications"
-              subtitle="Recevoir des alertes d'expiration"
+              title={t('notifications.enable')}
+              subtitle={t('notifications.enableDesc')}
               rightElement={
                 <Switch
                   value={notificationSettings.enabled}
                   onValueChange={handleToggleNotifications}
-                  trackColor={{ false: '#D1D5DB', true: '#A3C9A8' }}
-                  thumbColor={notificationSettings.enabled ? '#3C6E47' : '#9CA3AF'}
+                  trackColor={{ false: COLORS.neutral.grayBorder, true: COLORS.secondary.sage }}
+                  thumbColor={notificationSettings.enabled ? COLORS.primary[500] : COLORS.neutral.grayDisabled}
                 />
               }
             />
@@ -527,166 +526,166 @@ export default function AccountScreen() {
               <>
                 <SettingRow
                   icon="time-outline"
-                  title="Rappel quotidien"
-                  subtitle="Notification chaque matin à 9h"
+                  title={t('notifications.dailyReminder')}
+                  subtitle={t('notifications.dailyReminderDesc')}
                   rightElement={
                     <Switch
                       value={notificationSettings.dailyReminder}
                       onValueChange={handleToggleDailyReminder}
-                      trackColor={{ false: '#D1D5DB', true: '#A3C9A8' }}
-                      thumbColor={notificationSettings.dailyReminder ? '#3C6E47' : '#9CA3AF'}
+                      trackColor={{ false: COLORS.neutral.grayBorder, true: COLORS.secondary.sage }}
+                      thumbColor={notificationSettings.dailyReminder ? COLORS.primary[500] : COLORS.neutral.grayDisabled}
                     />
                   }
                 />
 
-                <View className="py-4 border-b border-[#3C6E47]/10">
-                  <View className="flex-row items-center mb-3">
-                    <View className="w-10 h-10 rounded-xl bg-[#A3C9A8]/50 items-center justify-center mr-4">
-                      <Ionicons name="calendar-outline" size={20} color="#3C6E47" />
+                <View style={styles.expirationAlertContainer}>
+                  <View style={styles.expirationAlertHeader}>
+                    <View style={styles.settingIconContainer}>
+                      <Ionicons name="calendar-outline" size={20} color={COLORS.primary[500]} />
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-[#3C6E47] font-semibold text-base">
-                        Alerter avant expiration
+                    <View style={styles.settingTextContainer}>
+                      <Text style={styles.settingTitle}>
+                        {t('notifications.daysBeforeExpiration')}
                       </Text>
-                      <Text className="text-[#6A8A6E] text-sm mt-0.5">
-                        Nombre de jours avant
+                      <Text style={styles.settingSubtitle}>
+                        {t('notifications.daysBeforeExpirationDesc')}
                       </Text>
                     </View>
                   </View>
-                  <View className="flex-row justify-center gap-2 mt-2">
+                  <View style={styles.daysButtonRow}>
                     {[1, 2, 3, 5, 7].map((days) => (
                       <PressableScale
                         key={days}
                         onPress={() => handleChangeDaysBeforeExpiration(days)}
-                        className={`px-4 py-2 rounded-xl ${
+                        style={[
+                          styles.dayButton,
                           notificationSettings.daysBeforeExpiration === days
-                            ? 'bg-[#3C6E47]'
-                            : 'bg-[#A3C9A8]/30'
-                        }`}
+                            ? styles.dayButtonActive
+                            : styles.dayButtonInactive,
+                        ]}
                         hapticType="light"
                       >
                         <Text
-                          className={`font-semibold ${
+                          style={[
+                            styles.dayButtonText,
                             notificationSettings.daysBeforeExpiration === days
-                              ? 'text-white'
-                              : 'text-[#3C6E47]'
-                          }`}
+                              ? styles.dayButtonTextActive
+                              : styles.dayButtonTextInactive,
+                          ]}
                         >
-                          {days}j
+                          {days}{t('common.dayShort')}
                         </Text>
                       </PressableScale>
                     ))}
                   </View>
                 </View>
 
-                <PressableScale
-                  onPress={handleTestNotification}
-                  className="flex-row items-center justify-center py-4 mt-2"
-                  hapticType="light"
-                >
-                  <Ionicons name="paper-plane-outline" size={18} color="#3C6E47" />
-                  <Text className="text-[#3C6E47] font-medium ml-2">
-                    Tester les notifications
-                  </Text>
-                </PressableScale>
               </>
             )}
           </View>
         </View>
 
         {/* Section Export des données */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            💾 Export des données
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionExport')}
           </Text>
 
           {exportStats && (
-            <View className="bg-white rounded-2xl p-4 mb-3 border border-[#3C6E47]/20">
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-[#6A8A6E] text-sm">Listes</Text>
-                <Text className="text-[#3C6E47] font-semibold">{exportStats.totalLists}</Text>
+            <View style={[styles.sectionCard, { marginBottom: SPACING.md }]}>
+              <View style={styles.exportStatRow}>
+                <Text style={styles.exportStatLabel}>{t('export.lists')}</Text>
+                <Text style={styles.exportStatValue}>{exportStats.totalLists}</Text>
               </View>
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-[#6A8A6E] text-sm">Aliments</Text>
-                <Text className="text-[#3C6E47] font-semibold">{exportStats.totalItems}</Text>
+              <View style={styles.exportStatRow}>
+                <Text style={styles.exportStatLabel}>{t('export.items')}</Text>
+                <Text style={styles.exportStatValue}>{exportStats.totalItems}</Text>
               </View>
-              <View className="flex-row justify-between">
-                <Text className="text-[#6A8A6E] text-sm">Taille estimée</Text>
-                <Text className="text-[#3C6E47] font-semibold">{exportStats.estimatedSize}</Text>
+              <View style={styles.exportStatRowLast}>
+                <Text style={styles.exportStatLabel}>{t('export.estimatedSize')}</Text>
+                <Text style={styles.exportStatValue}>{exportStats.estimatedSize}</Text>
               </View>
             </View>
           )}
 
-          <View className="flex-row gap-3 mb-3">
+          <View style={styles.exportButtonsRow}>
             <PressableScale
               onPress={handleExportJSON}
-              className="flex-1 bg-[#3C6E47] rounded-2xl p-4 border border-[#3C6E47]"
+              style={styles.exportJsonButton}
               hapticType="medium"
               disabled={isExporting}
             >
-              <View className="items-center">
+              <View style={styles.exportButtonContent}>
                 <Ionicons
                   name="code-download-outline"
                   size={28}
-                  color={isExporting ? "#A3C9A8" : "#FFFFFF"}
+                  color={isExporting ? COLORS.secondary.sage : COLORS.neutral.white}
                 />
-                <Text className={`font-semibold text-base mt-2 ${isExporting ? 'text-[#A3C9A8]' : 'text-white'}`}>
-                  Export JSON
+                <Text style={[styles.exportButtonTitle, isExporting ? styles.exportButtonTitleDisabled : styles.exportButtonTitleWhite]}>
+                  {t('export.json')}
                 </Text>
-                <Text className={`text-xs mt-1 ${isExporting ? 'text-[#A3C9A8]' : 'text-white'} opacity-80`}>
-                  Format technique
+                <Text style={[styles.exportButtonSubtitle, isExporting ? styles.exportButtonSubtitleDisabled : styles.exportButtonSubtitleWhite]}>
+                  {t('export.jsonDesc')}
                 </Text>
               </View>
             </PressableScale>
 
             <PressableScale
               onPress={handleExportCSV}
-              className="flex-1 bg-white rounded-2xl p-4 border border-[#3C6E47]"
+              style={styles.exportCsvButton}
               hapticType="medium"
               disabled={isExporting}
             >
-              <View className="items-center">
+              <View style={styles.exportButtonContent}>
                 <Ionicons
                   name="document-text-outline"
                   size={28}
-                  color={isExporting ? "#A3C9A8" : "#3C6E47"}
+                  color={isExporting ? COLORS.secondary.sage : COLORS.primary[500]}
                 />
-                <Text className={`font-semibold text-base mt-2 ${isExporting ? 'text-[#A3C9A8]' : 'text-[#3C6E47]'}`}>
-                  Export CSV
+                <Text style={[styles.exportButtonTitle, isExporting ? styles.exportButtonTitleDisabled : styles.exportButtonTitleGreen]}>
+                  {t('export.csv')}
                 </Text>
-                <Text className="text-[#6A8A6E] text-xs mt-1">
-                  Excel compatible
+                <Text style={styles.exportCsvSubtitle}>
+                  {t('export.csvDesc')}
                 </Text>
               </View>
             </PressableScale>
           </View>
 
-          <View className="bg-[#FFF3E0] rounded-xl p-3 flex-row items-start">
-            <Ionicons name="information-circle-outline" size={20} color="#E85D04" />
-            <Text className="text-[#E85D04] text-xs ml-2 flex-1">
-              Vos données restent privées. L'export crée un fichier sur votre appareil que vous pouvez sauvegarder.
+          <View style={styles.exportInfoBanner}>
+            <Ionicons name="information-circle-outline" size={20} color={COLORS.semantic.warningDark} />
+            <Text style={styles.exportInfoText}>
+              {t('export.privacyInfo')}
             </Text>
           </View>
         </View>
 
+        {/* Section Langue */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionLanguage')}
+          </Text>
+          <LanguageButton onPress={() => setLanguageModalVisible(true)} />
+        </View>
+
         {/* Section Aide & Support */}
-        <View className="mb-6">
-          <Text className="text-xl font-semibold text-[#3C6E47] mb-4">
-            💬 Aide & Support
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionSupport')}
           </Text>
 
           <TouchableOpacity
             onPress={() => setFeedbackModalVisible(true)}
-            className="bg-[#A3C9A8] rounded-2xl p-4 border border-[#3C6E47] flex-row items-center justify-between mb-3"
+            style={styles.feedbackButton}
             activeOpacity={0.7}
           >
-            <View className="flex-row items-center flex-1">
-              <Ionicons name="mail-outline" size={24} color="#3C6E47" />
-              <Text className="text-[#3C6E47] font-semibold text-base ml-3">
-                Envoyer un feedback
+            <View style={styles.supportButtonLeft}>
+              <Ionicons name="mail-outline" size={24} color={COLORS.primary[500]} />
+              <Text style={styles.supportButtonText}>
+                {t('support.feedback')}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#3C6E47" />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.primary[500]} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -695,31 +694,58 @@ export default function AccountScreen() {
                 await StoreReview.requestReview();
               }
             }}
-            className="bg-[#FFF8E1] rounded-2xl p-4 border border-[#F59E0B]/30 flex-row items-center justify-between mb-3"
+            style={styles.rateButton}
             activeOpacity={0.7}
           >
-            <View className="flex-row items-center flex-1">
-              <Ionicons name="star-outline" size={24} color="#F59E0B" />
-              <Text className="text-[#B45309] font-semibold text-base ml-3">
-                Noter l'application
+            <View style={styles.supportButtonLeft}>
+              <Ionicons name="star-outline" size={24} color={COLORS.accent.gold} />
+              <Text style={styles.rateButtonText}>
+                {t('support.rateApp')}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.accent.gold} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setLegalModalVisible(true)}
-            className="bg-white rounded-2xl p-4 border border-[#3C6E47]/20 flex-row items-center justify-between"
+            style={styles.legalButton}
             activeOpacity={0.7}
           >
-            <View className="flex-row items-center flex-1">
-              <Ionicons name="document-text-outline" size={24} color="#3C6E47" />
-              <Text className="text-[#3C6E47] font-semibold text-base ml-3">
-                CGU & Confidentialite
+            <View style={styles.supportButtonLeft}>
+              <Ionicons name="document-text-outline" size={24} color={COLORS.primary[500]} />
+              <Text style={styles.legalButtonText}>
+                {t('support.legal')}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6A8A6E" />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Section Réseaux Sociaux */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t('account.sectionSocial')}
+          </Text>
+
+          <View style={styles.socialRow}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://www.instagram.com/zerogaspyapp/')}
+              style={styles.socialButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="logo-instagram" size={28} color="#E1306C" />
+              <Text style={styles.socialButtonText}>Instagram</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://x.com/zerogaspy')}
+              style={styles.socialButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="logo-twitter" size={28} color={COLORS.primary[500]} />
+              <Text style={styles.socialButtonText}>X (Twitter)</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -753,6 +779,601 @@ export default function AccountScreen() {
         onClose={() => setPaywallVisible(false)}
         feature="general"
       />
+
+      {/* Language Selector Modal */}
+      <LanguageSelector
+        visible={languageModalVisible}
+        onClose={() => setLanguageModalVisible(false)}
+      />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.secondary.cream,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 64,
+    paddingBottom: SPACING['2xl'],
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: COLORS.primary[500],
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: SPACING['2xl'],
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.primary[500],
+    marginBottom: SPACING.lg,
+  },
+  sectionCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+
+  // User row (shared across sections)
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  userAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  userAvatarText: {
+    color: COLORS.neutral.white,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  userEmail: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+
+  // Online/Offline status
+  statusBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  statusOnline: {
+    backgroundColor: COLORS.secondary.sage,
+  },
+  statusOffline: {
+    backgroundColor: COLORS.surface.warningLightBg,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statusTextOnline: {
+    color: COLORS.primary[500],
+  },
+  statusTextOffline: {
+    color: COLORS.text.warningDark,
+  },
+
+  // Sync status
+  syncStatusContainer: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  syncStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  syncStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncStatusText: {
+    color: COLORS.primary[500],
+    marginLeft: SPACING.sm,
+    fontWeight: '500',
+  },
+  syncButton: {
+    backgroundColor: COLORS.primary[500],
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.lg,
+  },
+  syncButtonText: {
+    color: COLORS.neutral.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Account settings button
+  accountSettingsButton: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  accountSettingsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  accountSettingsText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+
+  // Logout button
+  logoutButton: {
+    backgroundColor: COLORS.surface.dangerBgLight,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    color: COLORS.semantic.danger,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+
+  // Local mode
+  localAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.secondary.sage,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+
+  // Warning banner
+  warningBanner: {
+    backgroundColor: COLORS.surface.warningBg,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  warningBannerText: {
+    color: COLORS.semantic.warningDark,
+    fontSize: 14,
+    marginLeft: SPACING.sm,
+    flex: 1,
+  },
+
+  // Create account button
+  createAccountButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createAccountText: {
+    color: COLORS.neutral.white,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+
+  // Achievements card
+  achievementsCard: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[500],
+  },
+  achievementsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  achievementsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  levelCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  levelText: {
+    color: COLORS.neutral.white,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  achievementsInfo: {
+    flex: 1,
+  },
+  levelTitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+  },
+  xpText: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  streaksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  streakText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginRight: SPACING.sm,
+  },
+  achievementsRight: {
+    alignItems: 'flex-end',
+  },
+
+  // XP bar
+  xpBarContainer: {
+    marginTop: SPACING.md,
+  },
+  xpBarBackground: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+  },
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.secondary.sage,
+    borderRadius: RADIUS.full,
+  },
+  xpBarLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: SPACING.xs,
+  },
+
+  // Premium section
+  premiumAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  premiumBadge: {
+    backgroundColor: hexToRgba(COLORS.accent.gold, 0.2),
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  premiumBadgeText: {
+    color: COLORS.accent.amber,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  premiumInfoBox: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+  },
+  premiumInfoText: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+
+  // Free user
+  freeAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.5),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  upgradePremiumButton: {
+    backgroundColor: COLORS.accent.gold,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
+  upgradePremiumText: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+    marginLeft: SPACING.sm,
+  },
+  restorePurchasesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+  },
+  restorePurchasesText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+  },
+
+  // Notification settings
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
+  },
+  settingIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.xl,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.5),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  settingSubtitle: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+    marginTop: 2,
+  },
+
+  // Expiration alert
+  expirationAlertContainer: {
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
+  },
+  expirationAlertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  daysButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  dayButton: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.xl,
+  },
+  dayButtonActive: {
+    backgroundColor: COLORS.primary[500],
+  },
+  dayButtonInactive: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
+  },
+  dayButtonText: {
+    fontWeight: '600',
+  },
+  dayButtonTextActive: {
+    color: COLORS.neutral.white,
+  },
+  dayButtonTextInactive: {
+    color: COLORS.primary[500],
+  },
+
+
+  // Export section
+  exportStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  exportStatRowLast: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  exportStatLabel: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+  exportStatValue: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+  },
+  exportButtonsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  exportJsonButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[500],
+  },
+  exportCsvButton: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[500],
+  },
+  exportButtonContent: {
+    alignItems: 'center',
+  },
+  exportButtonTitle: {
+    fontWeight: '600',
+    fontSize: 16,
+    marginTop: SPACING.sm,
+  },
+  exportButtonTitleWhite: {
+    color: COLORS.neutral.white,
+  },
+  exportButtonTitleGreen: {
+    color: COLORS.primary[500],
+  },
+  exportButtonTitleDisabled: {
+    color: COLORS.secondary.sage,
+  },
+  exportButtonSubtitle: {
+    fontSize: 12,
+    marginTop: SPACING.xs,
+  },
+  exportButtonSubtitleWhite: {
+    color: COLORS.neutral.white,
+    opacity: 0.8,
+  },
+  exportButtonSubtitleDisabled: {
+    color: COLORS.secondary.sage,
+    opacity: 0.8,
+  },
+  exportCsvSubtitle: {
+    color: COLORS.text.tertiary,
+    fontSize: 12,
+    marginTop: SPACING.xs,
+  },
+
+  // Export info banner
+  exportInfoBanner: {
+    backgroundColor: COLORS.surface.warningBg,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  exportInfoText: {
+    color: COLORS.semantic.warningDark,
+    fontSize: 12,
+    marginLeft: SPACING.sm,
+    flex: 1,
+  },
+
+  // Support section
+  feedbackButton: {
+    backgroundColor: COLORS.secondary.sage,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[500],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  rateButton: {
+    backgroundColor: COLORS.surface.infoBg,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.accent.gold, 0.3),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  legalButton: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  supportButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  supportButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: SPACING.md,
+  },
+  rateButtonText: {
+    color: COLORS.accent.amber,
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: SPACING.md,
+  },
+  legalButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: SPACING.md,
+  },
+
+  // Social media section
+  socialRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  socialButton: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  socialButtonText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 14,
+  },
+});

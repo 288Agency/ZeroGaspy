@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { cn } from '../utils/cn';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface ExpirationBadgeProps {
   expirationDate: string;
-  className?: string;
+  style?: ViewStyle;
 }
 
 export default function ExpirationBadge({
   expirationDate,
-  className,
+  style,
 }: ExpirationBadgeProps) {
+  const { t } = useTranslation();
   const getDaysUntilExpiration = (dateString: string): number | null => {
     try {
       const [day, month, year] = dateString.split('/').map(Number);
@@ -18,10 +20,10 @@ export default function ExpirationBadge({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       expiration.setHours(0, 0, 0, 0);
-      
+
       const diffTime = expiration.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       return diffDays;
     } catch {
       return null;
@@ -30,64 +32,54 @@ export default function ExpirationBadge({
 
   const days = getDaysUntilExpiration(expirationDate);
 
-  const getBadgeStyle = () => {
+  const getBadgeStyle = (): ViewStyle => {
     if (days === null) {
-      return 'bg-gray-200';
+      return { backgroundColor: COLORS.neutral.gray200 };
     }
     if (days < 0) {
-      return 'bg-accent-500';
+      return { backgroundColor: COLORS.semantic.danger };
     }
     if (days <= 3) {
-      return 'bg-accent-400';
+      return { backgroundColor: COLORS.semantic.warningDark };
     }
     if (days <= 7) {
-      return 'bg-warning-400';
+      return { backgroundColor: COLORS.semantic.warning };
     }
-    return 'bg-success-400';
+    return { backgroundColor: COLORS.semantic.success };
   };
 
-  const getTextStyle = () => {
+  const getTextColor = (): string => {
     if (days === null) {
-      return 'text-gray-700';
+      return COLORS.neutral.gray700;
     }
-    if (days <= 7) {
-      return 'text-white';
-    }
-    return 'text-white';
+    return COLORS.neutral.white;
   };
 
   const getLabel = () => {
     if (days === null) {
-      return 'Date invalide';
+      return t('inventory.invalidDate');
     }
     if (days < 0) {
-      return `Expiré (${Math.abs(days)}j)`;
+      return t('inventory.expiredDays', { count: Math.abs(days) });
     }
     if (days === 0) {
-      return 'Expire aujourd\'hui';
+      return t('inventory.expiresToday');
     }
     if (days === 1) {
-      return 'Expire demain';
+      return t('inventory.expiresTomorrow');
     }
     if (days <= 7) {
-      return `${days} jours`;
+      return t('common.day', { count: days });
     }
     return expirationDate;
   };
 
   return (
     <View
-      className={cn(
-        'px-3 py-1 rounded-full',
-        getBadgeStyle(),
-        className
-      )}
+      style={[styles.badge, getBadgeStyle(), style]}
     >
       <Text
-        className={cn(
-          'text-xs font-semibold',
-          getTextStyle()
-        )}
+        style={[styles.text, { color: getTextColor() }]}
       >
         {getLabel()}
       </Text>
@@ -95,4 +87,14 @@ export default function ExpirationBadge({
   );
 }
 
-
+const styles = StyleSheet.create({
+  badge: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});

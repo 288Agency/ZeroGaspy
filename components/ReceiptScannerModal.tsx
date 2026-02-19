@@ -14,6 +14,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { scanReceipt, ReceiptScanResult } from '../services/receiptScannerService';
 import { COLORS, SHADOWS, RADIUS } from '../utils/designSystem';
@@ -35,10 +36,11 @@ export default function ReceiptScannerModal({
   onClose,
   onScanComplete,
 }: ReceiptScannerModalProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('camera');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [processingMessage, setProcessingMessage] = useState('Analyse en cours...');
+  const [processingMessage, setProcessingMessage] = useState('');
   const cameraRef = useRef<CameraView>(null);
 
   // Récupérer la clé API depuis les variables d'environnement
@@ -48,7 +50,7 @@ export default function ReceiptScannerModal({
   const resetState = () => {
     setScanState('camera');
     setCapturedImage(null);
-    setProcessingMessage('Analyse en cours...');
+    setProcessingMessage(t('receiptScanner.processing'));
   };
 
   const handleClose = () => {
@@ -74,7 +76,7 @@ export default function ReceiptScannerModal({
     } catch (error) {
       logger.error('Erreur prise de photo:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erreur', 'Impossible de prendre la photo');
+      Alert.alert(t('common.error'), t('receiptScanner.photoError'));
     }
   };
 
@@ -84,8 +86,8 @@ export default function ReceiptScannerModal({
 
       if (status !== 'granted') {
         Alert.alert(
-          'Permission requise',
-          'Nous avons besoin de votre permission pour acceder a vos photos.'
+          t('common.permissionRequired'),
+          t('feedback.permissionText')
         );
         return;
       }
@@ -101,7 +103,7 @@ export default function ReceiptScannerModal({
       }
     } catch (error) {
       logger.error('Erreur selection image:', error);
-      Alert.alert('Erreur', 'Impossible de selectionner l\'image');
+      Alert.alert(t('common.error'), t('receiptScanner.imageSelectError'));
     }
   };
 
@@ -121,9 +123,9 @@ export default function ReceiptScannerModal({
 
         if (!isImage) {
           Alert.alert(
-            'Format non supporte',
-            'Seules les images (JPG, PNG) sont supportees.\n\nPour un PDF, prenez une capture d\'ecran du ticket.',
-            [{ text: 'OK' }]
+            t('receiptScanner.formatNotSupported'),
+            t('receiptScanner.pdfNotSupported'),
+            [{ text: t('common.ok') }]
           );
           return;
         }
@@ -134,7 +136,7 @@ export default function ReceiptScannerModal({
       }
     } catch (error) {
       logger.error('Erreur selection fichier:', error);
-      Alert.alert('Erreur', 'Impossible de selectionner le fichier');
+      Alert.alert(t('common.error'), t('receiptScanner.fileSelectError'));
     }
   };
 
@@ -143,8 +145,8 @@ export default function ReceiptScannerModal({
 
     if (!apiKey) {
       Alert.alert(
-        'Configuration requise',
-        'La clé API Google Cloud Vision n\'est pas configurée. Ajoutez EXPO_PUBLIC_GOOGLE_VISION_API_KEY dans votre fichier .env'
+        t('receiptScanner.configRequired'),
+        t('receiptScanner.configMessage')
       );
       return;
     }
@@ -153,10 +155,10 @@ export default function ReceiptScannerModal({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      setProcessingMessage('Lecture du ticket...');
+      setProcessingMessage(t('receiptScanner.reading'));
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      setProcessingMessage('Extraction du texte...');
+      setProcessingMessage(t('receiptScanner.extractingText'));
       const result = await scanReceipt(capturedImage, apiKey);
 
       if (result.success) {
@@ -164,11 +166,11 @@ export default function ReceiptScannerModal({
 
         if (result.items.length === 0) {
           Alert.alert(
-            'Aucun produit détecté',
-            result.error || 'Le ticket n\'a pas pu être lu correctement. Essayez avec une meilleure qualité d\'image.',
+            t('receiptScanner.noProductDetected'),
+            result.error || t('receiptScanner.readError'),
             [
-              { text: 'Réessayer', onPress: () => setScanState('camera') },
-              { text: 'Annuler', onPress: handleClose },
+              { text: t('common.retry'), onPress: () => setScanState('camera') },
+              { text: t('common.cancel'), onPress: handleClose },
             ]
           );
         } else {
@@ -178,22 +180,22 @@ export default function ReceiptScannerModal({
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert(
-          'Erreur de scan',
-          result.error || 'Impossible d\'analyser le ticket',
+          t('receiptScanner.scanError'),
+          result.error || t('receiptScanner.analyzeError'),
           [
-            { text: 'Réessayer', onPress: () => setScanState('camera') },
-            { text: 'Annuler', onPress: handleClose },
+            { text: t('common.retry'), onPress: () => setScanState('camera') },
+            { text: t('common.cancel'), onPress: handleClose },
           ]
         );
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
-        'Erreur',
-        error.message || 'Une erreur est survenue',
+        t('common.error'),
+        error.message || t('errors.generic'),
         [
-          { text: 'Réessayer', onPress: () => setScanState('camera') },
-          { text: 'Annuler', onPress: handleClose },
+          { text: t('common.retry'), onPress: () => setScanState('camera') },
+          { text: t('common.cancel'), onPress: handleClose },
         ]
       );
     }
@@ -210,7 +212,7 @@ export default function ReceiptScannerModal({
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.secondary.sage} />
-          <Text style={styles.loadingText}>Chargement...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       );
     }
@@ -219,12 +221,12 @@ export default function ReceiptScannerModal({
       return (
         <View style={styles.permissionContainer}>
           <Ionicons name="camera-outline" size={64} color={COLORS.primary[500]} />
-          <Text style={styles.permissionTitle}>Accès à la caméra requis</Text>
+          <Text style={styles.permissionTitle}>{t('receiptScanner.cameraRequired')}</Text>
           <Text style={styles.permissionText}>
-            Pour scanner les tickets de caisse, nous avons besoin d'accéder à votre caméra.
+            {t('receiptScanner.cameraDescription')}
           </Text>
           <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
-            <Text style={styles.permissionButtonText}>Autoriser l'accès</Text>
+            <Text style={styles.permissionButtonText}>{t('receiptScanner.allowAccess')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -243,10 +245,10 @@ export default function ReceiptScannerModal({
           {/* Zone du haut */}
           <View style={styles.overlayTop}>
             <Text style={styles.instructionText}>
-              Cadrez le ticket de caisse
+              {t('receiptScanner.frameReceipt')}
             </Text>
             <Text style={styles.instructionSubtext}>
-              Assurez-vous que le texte soit bien lisible
+              {t('receiptScanner.textReadable')}
             </Text>
           </View>
 
@@ -266,17 +268,17 @@ export default function ReceiptScannerModal({
             <TouchableOpacity
               onPress={pickFromGallery}
               style={styles.sideButton}
-              accessibilityLabel="Choisir depuis la galerie"
+              accessibilityLabel={t('receiptScanner.galleryLabel')}
               accessibilityRole="button"
             >
               <Ionicons name="images-outline" size={26} color="white" />
-              <Text style={styles.sideButtonText}>Galerie</Text>
+              <Text style={styles.sideButtonText}>{t('receiptScanner.gallery')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={takePicture}
               style={styles.captureButton}
-              accessibilityLabel="Prendre une photo du ticket"
+              accessibilityLabel={t('receiptScanner.photoLabel')}
               accessibilityRole="button"
             >
               <View style={styles.captureButtonInner}>
@@ -287,11 +289,11 @@ export default function ReceiptScannerModal({
             <TouchableOpacity
               onPress={pickFromFiles}
               style={styles.sideButton}
-              accessibilityLabel="Choisir depuis les fichiers"
+              accessibilityLabel={t('receiptScanner.filesLabel')}
               accessibilityRole="button"
             >
               <Ionicons name="document-outline" size={26} color="white" />
-              <Text style={styles.sideButtonText}>Fichiers</Text>
+              <Text style={styles.sideButtonText}>{t('receiptScanner.files')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -300,7 +302,7 @@ export default function ReceiptScannerModal({
         <TouchableOpacity
           onPress={handleClose}
           style={styles.closeButton}
-          accessibilityLabel="Fermer le scanner"
+          accessibilityLabel={t('receiptScanner.closeScanner')}
           accessibilityRole="button"
         >
           <Ionicons name="close" size={28} color="white" />
@@ -315,14 +317,14 @@ export default function ReceiptScannerModal({
         source={{ uri: capturedImage! }}
         style={styles.previewImage}
         resizeMode="contain"
-        accessibilityLabel="Photo du ticket de caisse capturé"
+        accessibilityLabel={t('receiptScanner.capturedPhoto')}
         accessibilityRole="image"
       />
 
       <View style={styles.previewOverlay}>
-        <Text style={styles.previewTitle}>Aperçu du ticket</Text>
+        <Text style={styles.previewTitle}>{t('receiptScanner.previewTitle')}</Text>
         <Text style={styles.previewSubtext}>
-          Vérifiez que le ticket est bien lisible
+          {t('receiptScanner.previewCheck')}
         </Text>
       </View>
 
@@ -330,28 +332,28 @@ export default function ReceiptScannerModal({
         <TouchableOpacity
           onPress={retakePicture}
           style={styles.retakeButton}
-          accessibilityLabel="Reprendre la photo"
+          accessibilityLabel={t('receiptScanner.retakePhoto')}
           accessibilityRole="button"
         >
           <Ionicons name="refresh-outline" size={24} color={COLORS.primary[500]} />
-          <Text style={styles.retakeButtonText}>Reprendre</Text>
+          <Text style={styles.retakeButtonText}>{t('receiptScanner.retake')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={processReceipt}
           style={styles.analyzeButton}
-          accessibilityLabel="Analyser le ticket"
+          accessibilityLabel={t('receiptScanner.analyzeReceipt')}
           accessibilityRole="button"
         >
           <Ionicons name="checkmark-circle" size={24} color="white" />
-          <Text style={styles.analyzeButtonText}>Analyser</Text>
+          <Text style={styles.analyzeButtonText}>{t('receiptScanner.analyze')}</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity
         onPress={handleClose}
         style={styles.closeButton}
-        accessibilityLabel="Fermer l'aperçu"
+        accessibilityLabel={t('receiptScanner.closePreview')}
         accessibilityRole="button"
       >
         <Ionicons name="close" size={28} color="white" />
@@ -365,7 +367,7 @@ export default function ReceiptScannerModal({
         <ActivityIndicator size="large" color={COLORS.primary[500]} />
         <Text style={styles.processingTitle}>{processingMessage}</Text>
         <Text style={styles.processingSubtext}>
-          Veuillez patienter, cela peut prendre quelques secondes...
+          {t('receiptScanner.pleaseWait')}
         </Text>
       </View>
     </View>
@@ -399,13 +401,13 @@ export default function ReceiptScannerModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.neutral.black,
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
+    backgroundColor: COLORS.neutral.black,
   },
   loadingText: {
     color: 'white',
@@ -572,7 +574,7 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.neutral.black,
   },
   previewImage: {
     flex: 1,

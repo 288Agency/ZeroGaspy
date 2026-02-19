@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
@@ -17,7 +18,7 @@ interface HeaderProps {
 }
 
 export default function Header({
-  title = 'Accueil',
+  title,
   showBackButton = true,
   showIcon = false,
   rightIcon = 'ellipsis-vertical',
@@ -25,7 +26,9 @@ export default function Header({
   transparent = false,
   subtitle,
 }: HeaderProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation();
+  const displayTitle = title ?? t('header.defaultTitle');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
 
@@ -53,7 +56,7 @@ export default function Header({
           onPress={() => navigation.goBack()}
           style={styles.backButton}
           hapticType="light"
-          accessibilityLabel="Retour"
+          accessibilityLabel={t('header.back')}
           accessibilityRole="button"
         >
           <View style={styles.backButtonInner}>
@@ -75,7 +78,7 @@ export default function Header({
         ]}
       >
         <Text style={styles.title} numberOfLines={1}>
-          {title}
+          {displayTitle}
         </Text>
         {subtitle && (
           <Text style={styles.subtitle} numberOfLines={1}>
@@ -90,7 +93,7 @@ export default function Header({
           onPress={onRightPress}
           style={styles.rightButton}
           hapticType="light"
-          accessibilityLabel="Options"
+          accessibilityLabel={t('header.options')}
           accessibilityRole="button"
         >
           <View style={styles.rightButtonInner}>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -19,74 +20,10 @@ import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, SPACING } from '../util
 import PressableScale from './PressableScale';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import logger from '../utils/logger';
+import { FlameIcon, LeafIcon, EarthIcon, ProgressRing } from './icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_PADDING = 20;
-
-// Animated Circle Component for Progress Ring
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-interface ProgressRingProps {
-  progress: number;
-  size: number;
-  strokeWidth: number;
-  color: string;
-  backgroundColor?: string;
-}
-
-function ProgressRing({ progress, size, strokeWidth, color, backgroundColor = hexToRgba(COLORS.neutral.gray300, 0.3) }: ProgressRingProps) {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  useEffect(() => {
-    Animated.timing(animatedValue, {
-      toValue: progress,
-      duration: 1500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
-
-  const strokeDashoffset = animatedValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: [circumference, 0],
-  });
-
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor={color} />
-          <Stop offset="100%" stopColor={hexToRgba(color, 0.7)} />
-        </LinearGradient>
-      </Defs>
-      {/* Background circle */}
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={backgroundColor}
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-      {/* Progress circle */}
-      <AnimatedCircle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke="url(#ringGradient)"
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={strokeDashoffset}
-        rotation="-90"
-        origin={`${size / 2}, ${size / 2}`}
-      />
-    </Svg>
-  );
-}
 
 // Animated Counter Component
 function AnimatedCounter({ value, suffix = '', prefix = '', duration = 1500 }: { value: number; suffix?: string; prefix?: string; duration?: number }) {
@@ -115,52 +52,6 @@ function AnimatedCounter({ value, suffix = '', prefix = '', duration = 1500 }: {
     <Text style={styles.heroValue}>
       {prefix}{formattedValue}{suffix}
     </Text>
-  );
-}
-
-// Flame Icon SVG
-function FlameIcon({ size = 24, color = COLORS.accent.carrot }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-      <Path d="M12 23c-3.866 0-7-3.134-7-7 0-2.5 1.5-4.5 3-6 .5-.5 1-1 1.5-2 1.5 1.5 2 3.5 2 5.5 0 .5.5 1 1 1s1-.5 1-1c0-2.5.5-4 2-6 2 2 3.5 4.5 3.5 7.5 0 3.866-3.134 7-7 7z" />
-    </Svg>
-  );
-}
-
-// Leaf Icon SVG for Environmental Impact
-function LeafIcon({ size = 32 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Defs>
-        <LinearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor={COLORS.accent.avocado} />
-          <Stop offset="100%" stopColor={COLORS.primary[500]} />
-        </LinearGradient>
-      </Defs>
-      <Path
-        d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 008 20c4 0 8.5-4.5 9-8.5-.17 1.67-1 4-3 5.5 0-2.5-1-4-3-5.5.67 1.17 1 2.5 1 4-2-1.5-3.5-4-4-6.5 4-.5 9 1 12 4.5V8h-3z"
-        fill="url(#leafGrad)"
-      />
-    </Svg>
-  );
-}
-
-// Earth Icon SVG
-function EarthIcon({ size = 32 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Defs>
-        <LinearGradient id="earthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#60A5FA" />
-          <Stop offset="100%" stopColor="#3B82F6" />
-        </LinearGradient>
-      </Defs>
-      <Circle cx="12" cy="12" r="10" fill="url(#earthGrad)" />
-      <Path
-        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-        fill={hexToRgba(COLORS.neutral.white, 0.4)}
-      />
-    </Svg>
   );
 }
 
@@ -245,6 +136,7 @@ function ImpactCard({ icon, value, label, subtitle, color, delay = 0 }: {
 
 // Monthly Goal Progress Bar
 function GoalProgressBar({ current, goal, label }: { current: number; goal: number; label: string }) {
+  const { t } = useTranslation();
   const progress = Math.min((current / goal) * 100, 100);
   const widthAnim = useRef(new Animated.Value(0)).current;
 
@@ -277,7 +169,7 @@ function GoalProgressBar({ current, goal, label }: { current: number; goal: numb
       {progress >= 100 && (
         <View style={styles.goalAchieved}>
           <Ionicons name="checkmark-circle" size={16} color={COLORS.semantic.success} />
-          <Text style={styles.goalAchievedText}>Objectif atteint !</Text>
+          <Text style={styles.goalAchievedText}>{t('stats.goalAchieved')}</Text>
         </View>
       )}
     </View>
@@ -326,6 +218,7 @@ function StatMiniCard({ icon, value, label, color, delay = 0 }: {
 
 // Donut Chart for Consumed vs Thrown
 function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown: number }) {
+  const { t } = useTranslation();
   const total = consumed + thrown;
   const consumedPercent = total > 0 ? (consumed / total) * 100 : 100;
   const thrownPercent = total > 0 ? (thrown / total) * 100 : 0;
@@ -450,7 +343,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
         {/* Center content */}
         <View style={styles.donutCenter}>
           <Text style={styles.donutTotal}>{total}</Text>
-          <Text style={styles.donutTotalLabel}>aliments</Text>
+          <Text style={styles.donutTotalLabel}>{t('common.foodItem_plural')}</Text>
         </View>
       </View>
 
@@ -460,7 +353,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
           <View style={[styles.donutLegendDot, { backgroundColor: COLORS.semantic.success }]} />
           <View style={styles.donutLegendTextContainer}>
             <Text style={styles.donutLegendValue}>{displayConsumed}</Text>
-            <Text style={styles.donutLegendLabel}>Consommes</Text>
+            <Text style={styles.donutLegendLabel}>{t('stats.consumed')}</Text>
           </View>
         </View>
         <View style={styles.donutLegendDivider} />
@@ -468,7 +361,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
           <View style={[styles.donutLegendDot, { backgroundColor: COLORS.accent.tomato }]} />
           <View style={styles.donutLegendTextContainer}>
             <Text style={styles.donutLegendValue}>{displayThrown}</Text>
-            <Text style={styles.donutLegendLabel}>Jetes</Text>
+            <Text style={styles.donutLegendLabel}>{t('stats.thrown')}</Text>
           </View>
         </View>
       </View>
@@ -485,7 +378,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
             styles.donutPercentageText,
             { color: consumedPercent >= 80 ? COLORS.semantic.success : consumedPercent >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato }
           ]}>
-            {consumedPercent.toFixed(0)}% consommes
+            {t('stats.consumedPercent', { percent: consumedPercent.toFixed(0) })}
           </Text>
         </View>
       )}
@@ -495,6 +388,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
 
 // Premium Teaser Card
 function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
+  const { t } = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -522,9 +416,9 @@ function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
           <Ionicons name="lock-closed" size={24} color={COLORS.primary[500]} />
         </View>
         <View style={styles.premiumTeaserContent}>
-          <Text style={styles.premiumTeaserTitle}>Statistiques avancées</Text>
+          <Text style={styles.premiumTeaserTitle}>{t('stats.advancedStats')}</Text>
           <Text style={styles.premiumTeaserText}>
-            Économies, impact environnemental, objectifs... Passez à Pro pour tout débloquer !
+            {t('stats.premiumTeaser')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color={COLORS.primary[500]} />
@@ -538,6 +432,7 @@ interface StatsDashboardProps {
 }
 
 export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
+  const { t } = useTranslation();
   const { isPremium } = useSubscription();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -600,7 +495,7 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
       <View style={styles.loadingContainer}>
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color={COLORS.primary[500]} />
-          <Text style={styles.loadingText}>Calcul de vos statistiques...</Text>
+          <Text style={styles.loadingText}>{t('stats.loading')}</Text>
         </View>
       </View>
     );
@@ -618,10 +513,10 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
 
   // Determine streak badges
   const streakBadges = [
-    { icon: '🌱', label: '3 jours', threshold: 3, color: COLORS.accent.avocado },
-    { icon: '🔥', label: '7 jours', threshold: 7, color: COLORS.accent.carrot },
-    { icon: '⭐', label: '14 jours', threshold: 14, color: COLORS.accent.lemon },
-    { icon: '🏆', label: '30 jours', threshold: 30, color: COLORS.primary[500] },
+    { icon: '🌱', label: t('stats.streakDays', { count: 3 }), threshold: 3, color: COLORS.accent.avocado },
+    { icon: '🔥', label: t('stats.streakDays', { count: 7 }), threshold: 7, color: COLORS.accent.carrot },
+    { icon: '⭐', label: t('stats.streakDays', { count: 14 }), threshold: 14, color: COLORS.accent.lemon },
+    { icon: '🏆', label: t('stats.streakDays', { count: 30 }), threshold: 30, color: COLORS.primary[500] },
   ];
 
   return (
@@ -635,7 +530,7 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
     >
       {/* Activity Stats - Visible pour tous */}
       <Animated.View style={[styles.section, { opacity: fadeAnim, marginTop: 8 }]}>
-        <Text style={styles.sectionTitle}>Activité</Text>
+        <Text style={styles.sectionTitle}>{t('stats.activity')}</Text>
 
         {/* Card En cours - séparée */}
         <View style={styles.activeItemsCard}>
@@ -644,20 +539,20 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
           </View>
           <View style={styles.activeItemsContent}>
             <Text style={[styles.activeItemsValue, { color: COLORS.accent.blueberry }]}>{stats.itemsActive}</Text>
-            <Text style={styles.activeItemsLabel}>aliments en cours</Text>
+            <Text style={styles.activeItemsLabel}>{t('stats.activeItemsLabel')}</Text>
           </View>
         </View>
 
         {/* Donut Chart - Consommés vs Jetés */}
         <View style={styles.donutCard}>
-          <Text style={styles.donutTitle}>Bilan de consommation</Text>
+          <Text style={styles.donutTitle}>{t('stats.consumptionSummary')}</Text>
           <ConsumptionDonutChart consumed={stats.itemsConsumed} thrown={stats.itemsThrown} />
         </View>
       </Animated.View>
 
       {/* Achievement Badges - Visible pour tous */}
       <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <Text style={styles.sectionTitle}>Badges de série</Text>
+        <Text style={styles.sectionTitle}>{t('stats.streakBadges')}</Text>
         <View style={styles.badgesRow}>
           {streakBadges.map((badge, index) => (
             <AchievementBadge
@@ -699,7 +594,7 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
                   <View style={styles.heroIconContainer}>
                     <Ionicons name="wallet" size={24} color={COLORS.neutral.white} />
                   </View>
-                  <Text style={styles.heroLabel}>Economies totales</Text>
+                  <Text style={styles.heroLabel}>{t('stats.totalSavings')}</Text>
                 </View>
 
                 <AnimatedCounter value={stats.netSavings} suffix="€" duration={2000} />
@@ -707,12 +602,12 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
                 <View style={styles.heroSubStats}>
                   <View style={styles.heroSubStat}>
                     <Ionicons name="trending-up" size={16} color={COLORS.semantic.success} />
-                    <Text style={styles.heroSubStatText}>+{stats.totalSaved.toFixed(2)}€ sauvés</Text>
+                    <Text style={styles.heroSubStatText}>{t('stats.savedAmount', { amount: stats.totalSaved.toFixed(2) })}</Text>
                   </View>
                   <View style={styles.heroSubStatDivider} />
                   <View style={styles.heroSubStat}>
                     <Ionicons name="trending-down" size={16} color={COLORS.accent.tomato} />
-                    <Text style={styles.heroSubStatText}>-{stats.totalWasted.toFixed(2)}€ perdus</Text>
+                    <Text style={styles.heroSubStatText}>{t('stats.lostAmount', { amount: stats.totalWasted.toFixed(2) })}</Text>
                   </View>
                 </View>
               </View>
@@ -726,12 +621,12 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
 
           {/* Monthly Goal Progress */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <GoalProgressBar current={stats.netSavings} goal={monthlyGoal} label="Objectif mensuel" />
+            <GoalProgressBar current={stats.netSavings} goal={monthlyGoal} label={t('stats.monthlyGoal')} />
           </Animated.View>
 
           {/* Success Rate & Streak Section */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>Performance</Text>
+            <Text style={styles.sectionTitle}>{t('stats.performance')}</Text>
 
             <View style={styles.performanceRow}>
               {/* Success Rate Ring */}
@@ -745,11 +640,11 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
                   />
                   <View style={styles.ringCenter}>
                     <Text style={styles.ringValue}>{successRate}%</Text>
-                    <Text style={styles.ringLabel}>réussite</Text>
+                    <Text style={styles.ringLabel}>{t('stats.successRateLabel')}</Text>
                   </View>
                 </View>
                 <Text style={styles.successRateSubtext}>
-                  {stats.itemsConsumed} consommés sur {stats.itemsConsumed + stats.itemsThrown}
+                  {t('stats.consumedOutOf', { consumed: stats.itemsConsumed, total: stats.itemsConsumed + stats.itemsThrown })}
                 </Text>
               </View>
 
@@ -759,10 +654,10 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
                   <FlameIcon size={28} color={stats.currentStreak >= 7 ? COLORS.accent.carrot : COLORS.neutral.gray400} />
                   <Text style={styles.streakValue}>{stats.currentStreak}</Text>
                 </View>
-                <Text style={styles.streakLabel}>jours sans gaspillage</Text>
+                <Text style={styles.streakLabel}>{t('stats.noWasteDays')}</Text>
                 <View style={styles.streakRecord}>
                   <Ionicons name="trophy" size={14} color={COLORS.accent.lemon} />
-                  <Text style={styles.streakRecordText}>Record: {stats.longestStreak} jours</Text>
+                  <Text style={styles.streakRecordText}>{t('stats.record', { count: stats.longestStreak })}</Text>
                 </View>
               </View>
             </View>
@@ -770,20 +665,20 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
 
           {/* Environmental Impact */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>Impact environnemental</Text>
+            <Text style={styles.sectionTitle}>{t('stats.environmentalImpact')}</Text>
             <View style={styles.impactRow}>
               <ImpactCard
                 icon={<LeafIcon size={28} />}
                 value={`${stats.foodSavedKg.toFixed(1)} kg`}
-                label="Nourriture sauvée"
+                label={t('stats.foodSaved')}
                 color={COLORS.accent.avocado}
                 delay={0}
               />
               <ImpactCard
                 icon={<EarthIcon size={28} />}
                 value={`${stats.co2AvoidedKg.toFixed(1)} kg`}
-                label="CO2 évité"
-                subtitle={`≈ ${Math.round(stats.co2AvoidedKg / 0.12)} km en voiture`}
+                label={t('stats.co2Saved')}
+                subtitle={t('stats.carEquivalent', { km: Math.round(stats.co2AvoidedKg / 0.12) })}
                 color="#3B82F6"
                 delay={100}
               />
@@ -800,14 +695,14 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
                 </Text>
                 <View style={styles.motivationContent}>
                   <Text style={styles.motivationTitle}>
-                    {stats.currentStreak >= 14 ? 'Incroyable !' : stats.netSavings >= 50 ? 'Excellent !' : 'Bravo !'}
+                    {stats.currentStreak >= 14 ? t('stats.motivationIncredible') : stats.netSavings >= 50 ? t('stats.motivationExcellent') : t('stats.motivationBravo')}
                   </Text>
                   <Text style={styles.motivationText}>
                     {stats.currentStreak >= 14
-                      ? `${stats.currentStreak} jours de suite sans gaspillage, tu es un champion !`
+                      ? t('stats.motivationStreak', { count: stats.currentStreak })
                       : stats.netSavings >= 50
-                      ? `Tu as économisé ${stats.netSavings.toFixed(0)}€ en évitant le gaspillage !`
-                      : `Continue comme ça, chaque geste compte pour la planète !`}
+                      ? t('stats.motivationSavings', { amount: stats.netSavings.toFixed(0) })
+                      : t('stats.motivationGeneral')}
                   </Text>
                 </View>
               </PressableScale>

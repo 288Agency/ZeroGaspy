@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
 import Calendar from './Calendar';
-import { cn } from '../utils/cn';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 
 interface DatePickerFieldProps {
   label: string;
   value: string;
   onDateChange: (date: string) => void;
-  className?: string;
   minimumDate?: Date;
 }
 
@@ -18,7 +17,6 @@ export default function DatePickerField({
   label,
   value,
   onDateChange,
-  className,
   minimumDate,
 }: DatePickerFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
@@ -52,24 +50,24 @@ export default function DatePickerField({
   const displayValue = value || 'JJ/MM/AAAA';
 
   return (
-    <View className={cn('mb-6', className)}>
+    <View style={styles.container}>
       <PressableScale
         onPress={() => setShowPicker(true)}
-        className="flex-row items-center bg-[#A3C9A8] rounded-2xl px-5 py-4 border border-[#3C6E47]/30 min-h-[60px]"
+        style={styles.field}
       >
-        <Text className="text-[#3C6E47] font-medium text-base mr-4 flex-1">
+        <Text style={styles.label}>
           {label}
         </Text>
-        <View className="flex-row items-center">
+        <View style={styles.valueRow}>
           <Text
-            className={cn(
-              'text-base font-medium mr-2',
-              value ? 'text-[#3C6E47]' : 'text-[#6A8A6E]'
-            )}
+            style={[
+              styles.valueText,
+              { color: value ? COLORS.primary[500] : COLORS.text.tertiary },
+            ]}
           >
             {displayValue}
           </Text>
-          <Ionicons name="calendar-outline" size={18} color="#3C6E47" />
+          <Ionicons name="calendar-outline" size={18} color={COLORS.primary[500]} />
         </View>
       </PressableScale>
 
@@ -78,17 +76,17 @@ export default function DatePickerField({
         onClose={() => setShowPicker(false)}
         position="center"
       >
-        <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl">
+        <View style={styles.modalContainer}>
           {/* Header */}
-          <View className="flex-row justify-between items-center px-4 py-3 border-b border-[#3C6E47]/20">
+          <View style={styles.modalHeader}>
             <PressableScale
               onPress={() => setShowPicker(false)}
-              className="px-3 py-2 rounded-xl"
+              style={styles.headerButton}
             >
-              <Text className="text-[#3C6E47] font-medium text-base">Annuler</Text>
+              <Text style={styles.cancelText}>Annuler</Text>
             </PressableScale>
 
-            <Text className="text-[#3C6E47] font-bold text-lg">{label}</Text>
+            <Text style={styles.headerTitle}>{label}</Text>
 
             <PressableScale
               onPress={() => {
@@ -98,14 +96,14 @@ export default function DatePickerField({
                 }
               }}
               hapticType="medium"
-              className="px-3 py-2 rounded-xl"
+              style={styles.headerButton}
             >
-              <Text className="text-[#3C6E47] font-semibold text-base">OK</Text>
+              <Text style={styles.okText}>OK</Text>
             </PressableScale>
           </View>
 
           {/* Calendar */}
-          <View className="p-3">
+          <View style={styles.calendarContainer}>
             <Calendar
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
@@ -117,3 +115,74 @@ export default function DatePickerField({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: SPACING['2xl'],
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.secondary.sage,
+    borderRadius: RADIUS['2xl'],
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+    minHeight: 60,
+  },
+  label: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+    marginRight: SPACING.lg,
+    flex: 1,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  valueText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: SPACING.sm,
+  },
+  modalContainer: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+    ...SHADOWS.xl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.xl,
+  },
+  cancelText: {
+    color: COLORS.primary[500],
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  headerTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  okText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  calendarContainer: {
+    padding: SPACING.md,
+  },
+});

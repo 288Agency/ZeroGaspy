@@ -15,9 +15,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS } from '../../utils/designSystem';
+import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING } from '../../utils/designSystem';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -30,6 +31,7 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { signIn, skipAuth } = useAuth();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,11 +40,11 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      Alert.alert(t('common.error'), t('auth.emailRequired'));
       return;
     }
     if (!password.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre mot de passe');
+      Alert.alert(t('common.error'), t('auth.passwordRequired'));
       return;
     }
 
@@ -52,7 +54,7 @@ export default function LoginScreen() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        Alert.alert('Erreur de connexion', error.message);
+        Alert.alert(t('auth.loginError'), error.message);
       }
     } finally {
       setIsLoading(false);
@@ -62,11 +64,11 @@ export default function LoginScreen() {
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
-      'Mode local',
-      'Vos donnees seront stockees uniquement sur cet appareil. Vous pourrez creer un compte plus tard pour sauvegarder dans le cloud.',
+      t('auth.localModeTitle'),
+      t('auth.localModeDesc'),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Continuer', onPress: skipAuth },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.continue'), onPress: skipAuth },
       ]
     );
   };
@@ -87,18 +89,18 @@ export default function LoginScreen() {
             <Ionicons name="leaf" size={48} color={COLORS.secondary.cream} />
           </View>
           <Text style={styles.title}>ZeroGaspy</Text>
-          <Text style={styles.subtitle}>Connectez-vous a votre compte</Text>
+          <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
         </View>
 
         {/* Formulaire */}
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="votre@email.com"
+                placeholder={t('auth.emailPlaceholder')}
                 placeholderTextColor={COLORS.text.muted}
                 value={email}
                 onChangeText={setEmail}
@@ -111,12 +113,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mot de passe</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Votre mot de passe"
+                placeholder={t('auth.passwordPlaceholder')}
                 placeholderTextColor={COLORS.text.muted}
                 value={password}
                 onChangeText={setPassword}
@@ -140,7 +142,7 @@ export default function LoginScreen() {
             onPress={() => navigation.navigate('ForgotPassword')}
             style={styles.forgotPassword}
           >
-            <Text style={styles.forgotPasswordText}>Mot de passe oublie ?</Text>
+            <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
 
           {/* Bouton connexion */}
@@ -153,21 +155,21 @@ export default function LoginScreen() {
             {isLoading ? (
               <ActivityIndicator color={COLORS.neutral.white} />
             ) : (
-              <Text style={styles.loginButtonText}>Se connecter</Text>
+              <Text style={styles.loginButtonText}>{t('auth.signIn')}</Text>
             )}
           </PressableScale>
 
           {/* Lien inscription */}
           <View style={styles.registerLink}>
-            <Text style={styles.registerLinkText}>Pas encore de compte ? </Text>
+            <Text style={styles.registerLinkText}>{t('auth.noAccount')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLinkBold}>S'inscrire</Text>
+              <Text style={styles.registerLinkBold}>{t('auth.signUp')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Mode local */}
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-            <Text style={styles.skipButtonText}>Continuer sans compte</Text>
+            <Text style={styles.skipButtonText}>{t('auth.continueWithoutAccount')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -182,13 +184,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING['2xl'],
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: SPACING['4xl'],
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: SPACING['4xl'],
   },
   logoContainer: {
     width: 90,
@@ -197,30 +199,29 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
     ...SHADOWS.lg,
   },
   title: {
-    fontSize: 32,
+    ...TYPOGRAPHY.h1,
     fontWeight: '800',
     color: COLORS.primary[500],
-    letterSpacing: -1,
   },
   subtitle: {
     ...TYPOGRAPHY.body,
     color: COLORS.text.secondary,
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   form: {
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   label: {
     ...TYPOGRAPHY.label,
     color: COLORS.primary[500],
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -229,21 +230,21 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     borderWidth: 1.5,
     borderColor: COLORS.primary[100],
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.lg,
     ...SHADOWS.sm,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   input: {
     flex: 1,
     ...TYPOGRAPHY.body,
     color: COLORS.text.primary,
-    paddingVertical: 16,
+    paddingVertical: SPACING.lg,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   forgotPasswordText: {
     ...TYPOGRAPHY.bodySm,
@@ -265,8 +266,8 @@ const styles = StyleSheet.create({
   registerLink: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 20,
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.xl,
   },
   registerLinkText: {
     ...TYPOGRAPHY.body,
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   skipButton: {
-    paddingVertical: 12,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
   },
   skipButtonText: {

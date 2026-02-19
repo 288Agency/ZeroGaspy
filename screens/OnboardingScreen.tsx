@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Circle, Ellipse, G, Rect, Defs, LinearGradient, Stop, RadialGradient } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import {
   DEVICE,
   scaleFontSize,
@@ -24,6 +25,7 @@ import {
   isSmallScreen,
 } from '../utils/responsive';
 import logger from '../utils/logger';
+import { COLORS } from '../utils/designSystem';
 
 const { width, height } = Dimensions.get('window');
 
@@ -177,7 +179,7 @@ const NotificationIllustration = React.memo(function NotificationIllustration({ 
 });
 
 // Decorative Leaf Pattern
-const LeafPattern = React.memo(function LeafPattern({ color = '#3C6E47', opacity = 0.1 }: { color?: string; opacity?: number }) {
+const LeafPattern = React.memo(function LeafPattern({ color = COLORS.primary[500], opacity = 0.1 }: { color?: string; opacity?: number }) {
   return (
     <Svg width={width} height={300} viewBox={`0 0 ${width} 300`} style={{ position: 'absolute', top: 0 }}>
       <G opacity={opacity}>
@@ -287,41 +289,6 @@ interface OnboardingSlide {
   bgPattern: string;
 }
 
-const slides: OnboardingSlide[] = [
-  {
-    id: '1',
-    title: 'Bienvenue sur\nZeroGaspy',
-    subtitle: 'Votre allié pour réduire le gaspillage alimentaire et économiser au quotidien',
-    illustration: 'welcome',
-    accentColor: '#3C6E47',
-    bgPattern: '#E8F5E9',
-  },
-  {
-    id: '2',
-    title: 'Suivez vos\naliments',
-    subtitle: 'Ajoutez vos produits en un clic et gardez un œil sur leurs dates de péremption',
-    illustration: 'track',
-    accentColor: '#E85D04',
-    bgPattern: '#FFF3E0',
-  },
-  {
-    id: '3',
-    title: 'Organisez vos\nespaces',
-    subtitle: 'Frigo, congélateur, placard... Créez vos espaces et retrouvez tout facilement',
-    illustration: 'organize',
-    accentColor: '#3C6E47',
-    bgPattern: '#E8F5E9',
-  },
-  {
-    id: '4',
-    title: 'Soyez alerté\nà temps',
-    subtitle: 'Recevez des rappels intelligents avant que vos aliments ne périment',
-    illustration: 'notify',
-    accentColor: '#F4A261',
-    bgPattern: '#FFF8E1',
-  },
-];
-
 // ============================================
 // SLIDE COMPONENT
 // ============================================
@@ -335,6 +302,7 @@ function OnboardingSlideItem({
   index: number;
   scrollX: Animated.Value;
 }) {
+  const { t } = useTranslation();
   const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
 
   const opacity = scrollX.interpolate({
@@ -395,16 +363,16 @@ function OnboardingSlideItem({
                 position: 'absolute',
                 bottom: scaleSize(-15),
                 right: scaleSize(-50),
-                backgroundColor: '#fff',
+                backgroundColor: COLORS.neutral.white,
                 borderRadius: scaleSize(16),
                 padding: scaleSpacing(12),
-                shadowColor: '#000',
+                shadowColor: COLORS.neutral.black,
                 shadowOffset: { width: 0, height: 8 },
                 shadowOpacity: 0.15,
                 shadowRadius: 20,
                 elevation: 10,
               }}>
-                <Ionicons name="calendar" size={scaleSize(28)} color="#E85D04" />
+                <Ionicons name="calendar" size={scaleSize(28)} color={COLORS.semantic.warningDark} />
               </View>
             </FloatingElement>
           </View>
@@ -414,10 +382,10 @@ function OnboardingSlideItem({
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: cardGap }}>
             <FloatingElement delay={0} duration={2800} range={isSmallScreen ? 8 : 14}>
               <View style={{
-                backgroundColor: '#fff',
+                backgroundColor: COLORS.neutral.white,
                 borderRadius: cardRadius,
                 padding: cardPadding,
-                shadowColor: '#3C6E47',
+                shadowColor: COLORS.primary[500],
                 shadowOffset: { width: 0, height: 10 },
                 shadowOpacity: 0.2,
                 shadowRadius: 25,
@@ -427,19 +395,19 @@ function OnboardingSlideItem({
                 <Ionicons name="snow-outline" size={iconSize} color="#64B5F6" />
                 <Text style={{
                   fontSize: scaleFontSize(isSmallScreen ? 10 : 12),
-                  color: '#666',
+                  color: COLORS.neutral.gray600,
                   marginTop: scaleSpacing(6),
                   fontWeight: '600'
-                }}>Frigo</Text>
+                }}>{t('onboarding.fridge')}</Text>
               </View>
             </FloatingElement>
             <FloatingElement delay={200} duration={3000} range={isSmallScreen ? 10 : 16}>
               <View style={{
-                backgroundColor: '#fff',
+                backgroundColor: COLORS.neutral.white,
                 borderRadius: cardRadius,
                 padding: cardPadding,
                 marginTop: scaleSize(-20),
-                shadowColor: '#3C6E47',
+                shadowColor: COLORS.primary[500],
                 shadowOffset: { width: 0, height: 10 },
                 shadowOpacity: 0.2,
                 shadowRadius: 25,
@@ -449,18 +417,18 @@ function OnboardingSlideItem({
                 <Ionicons name="cube-outline" size={iconSize} color="#A1887F" />
                 <Text style={{
                   fontSize: scaleFontSize(isSmallScreen ? 10 : 12),
-                  color: '#666',
+                  color: COLORS.neutral.gray600,
                   marginTop: scaleSpacing(6),
                   fontWeight: '600'
-                }}>Placard</Text>
+                }}>{t('onboarding.cupboard')}</Text>
               </View>
             </FloatingElement>
             <FloatingElement delay={400} duration={2600} range={isSmallScreen ? 8 : 12}>
               <View style={{
-                backgroundColor: '#fff',
+                backgroundColor: COLORS.neutral.white,
                 borderRadius: cardRadius,
                 padding: cardPadding,
-                shadowColor: '#3C6E47',
+                shadowColor: COLORS.primary[500],
                 shadowOffset: { width: 0, height: 10 },
                 shadowOpacity: 0.2,
                 shadowRadius: 25,
@@ -470,10 +438,10 @@ function OnboardingSlideItem({
                 <Ionicons name="thermometer-outline" size={iconSize} color="#81C784" />
                 <Text style={{
                   fontSize: scaleFontSize(isSmallScreen ? 10 : 12),
-                  color: '#666',
+                  color: COLORS.neutral.gray600,
                   marginTop: scaleSpacing(6),
                   fontWeight: '600'
-                }}>Congélo</Text>
+                }}>{t('onboarding.freezer')}</Text>
               </View>
             </FloatingElement>
           </View>
@@ -541,7 +509,7 @@ function OnboardingSlideItem({
             style={{
               fontSize: scaleFontSize(isSmallScreen ? 28 : 34),
               fontWeight: '800',
-              color: '#2D3436',
+              color: COLORS.text.primary,
               textAlign: 'center',
               lineHeight: scaleFontSize(isSmallScreen ? 34 : 42),
               letterSpacing: -1,
@@ -554,7 +522,7 @@ function OnboardingSlideItem({
           <Text
             style={{
               fontSize: scaleFontSize(isSmallScreen ? 14 : 16),
-              color: '#636E72',
+              color: COLORS.text.secondary,
               textAlign: 'center',
               lineHeight: scaleFontSize(isSmallScreen ? 20 : 24),
               maxWidth: scaleSize(280),
@@ -576,9 +544,11 @@ function OnboardingSlideItem({
 function Pagination({
   scrollX,
   currentIndex,
+  slides,
 }: {
   scrollX: Animated.Value;
   currentIndex: number;
+  slides: OnboardingSlide[];
 }) {
   const dotHeight = scaleSize(isSmallScreen ? 8 : 10);
   const dotWidthInactive = scaleSize(isSmallScreen ? 8 : 10);
@@ -631,10 +601,46 @@ interface OnboardingScreenProps {
 }
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
   const buttonScale = useRef(new Animated.Value(1)).current;
+
+  const slides: OnboardingSlide[] = useMemo(() => [
+    {
+      id: '1',
+      title: t('onboarding.slide1Title'),
+      subtitle: t('onboarding.slide1Subtitle'),
+      illustration: 'welcome',
+      accentColor: COLORS.primary[500],
+      bgPattern: COLORS.primary[50],
+    },
+    {
+      id: '2',
+      title: t('onboarding.slide2Title'),
+      subtitle: t('onboarding.slide2Subtitle'),
+      illustration: 'track',
+      accentColor: COLORS.semantic.warningDark,
+      bgPattern: COLORS.surface.warningBg,
+    },
+    {
+      id: '3',
+      title: t('onboarding.slide3Title'),
+      subtitle: t('onboarding.slide3Subtitle'),
+      illustration: 'organize',
+      accentColor: COLORS.primary[500],
+      bgPattern: COLORS.primary[50],
+    },
+    {
+      id: '4',
+      title: t('onboarding.slide4Title'),
+      subtitle: t('onboarding.slide4Subtitle'),
+      illustration: 'notify',
+      accentColor: '#F4A261',
+      bgPattern: COLORS.surface.premiumBg,
+    },
+  ], [t]);
 
   const viewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -690,13 +696,13 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const currentSlide = slides[currentIndex];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F7F5E6' }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.surface.background }}>
       {/* Skip button */}
       {!isLastSlide && (
         <TouchableOpacity
           onPress={handleSkip}
           activeOpacity={0.7}
-          accessibilityLabel="Passer l'introduction"
+          accessibilityLabel={t('onboarding.skip')}
           accessibilityRole="button"
           style={{
             position: 'absolute',
@@ -710,11 +716,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           <Text
             style={{
               fontSize: scaleFontSize(isSmallScreen ? 14 : 16),
-              color: '#636E72',
+              color: COLORS.text.secondary,
               fontWeight: '600',
             }}
           >
-            Passer
+            {t('onboarding.skip')}
           </Text>
         </TouchableOpacity>
       )}
@@ -754,7 +760,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       >
         {/* Pagination */}
         <View style={{ marginBottom: scaleSpacing(isSmallScreen ? 20 : 28) }}>
-          <Pagination scrollX={scrollX} currentIndex={currentIndex} />
+          <Pagination scrollX={scrollX} currentIndex={currentIndex} slides={slides} />
         </View>
 
         {/* Action button */}
@@ -762,7 +768,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           <TouchableOpacity
             onPress={handleNext}
             activeOpacity={0.9}
-            accessibilityLabel={isLastSlide ? "Commencer à utiliser l'application" : "Passer à la page suivante"}
+            accessibilityLabel={isLastSlide ? t('onboarding.letsGo') : t('onboarding.continue')}
             accessibilityRole="button"
             style={{
               backgroundColor: currentSlide.accentColor,
@@ -780,13 +786,13 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           >
             <Text
               style={{
-                color: '#FFFFFF',
+                color: COLORS.neutral.white,
                 fontSize: scaleFontSize(isSmallScreen ? 15 : 17),
                 fontWeight: '700',
                 letterSpacing: 0.5,
               }}
             >
-              {isLastSlide ? "C'est parti !" : 'Continuer'}
+              {isLastSlide ? t('onboarding.letsGo') : t('onboarding.continue')}
             </Text>
             <View
               style={{
@@ -799,7 +805,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
               <Ionicons
                 name={isLastSlide ? 'rocket' : 'arrow-forward'}
                 size={scaleSize(isSmallScreen ? 16 : 18)}
-                color="#FFFFFF"
+                color={COLORS.neutral.white}
               />
             </View>
           </TouchableOpacity>
@@ -811,11 +817,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             textAlign: 'center',
             marginTop: scaleSpacing(14),
             fontSize: scaleFontSize(isSmallScreen ? 11 : 13),
-            color: '#A0A0A0',
+            color: COLORS.text.muted,
             fontWeight: '500',
           }}
         >
-          {currentIndex + 1} sur {slides.length}
+          {currentIndex + 1} {t('onboarding.of')} {slides.length}
         </Text>
       </View>
     </View>

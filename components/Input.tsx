@@ -8,7 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
+import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -155,8 +155,8 @@ export default function Input({
               fontSize: currentSize.fontSize,
               paddingVertical: currentSize.paddingVertical,
             },
-            leftIcon && { paddingLeft: 8 },
-            rightIcon && { paddingRight: 8 },
+            leftIcon && { paddingLeft: SPACING.sm },
+            rightIcon && { paddingRight: SPACING.sm },
           ]}
           placeholderTextColor={COLORS.text.muted}
           onFocus={handleFocus}
@@ -194,7 +194,7 @@ export default function Input({
                 name="alert-circle"
                 size={14}
                 color={COLORS.semantic.danger}
-                style={{ marginRight: 4 }}
+                style={{ marginRight: SPACING.xs }}
               />
               <Text style={styles.errorText}>{error}</Text>
             </View>
@@ -209,10 +209,10 @@ export default function Input({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   labelContainer: {
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -242,14 +242,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   iconLeft: {
-    marginRight: 4,
+    marginRight: SPACING.xs,
   },
   iconRight: {
-    marginLeft: 4,
+    marginLeft: SPACING.xs,
   },
   helperContainer: {
     marginTop: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xs,
   },
   errorRow: {
     flexDirection: 'row',

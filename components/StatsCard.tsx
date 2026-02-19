@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface StatsCardProps {
   icon: string;
@@ -20,7 +21,7 @@ export default function StatsCard({
   value,
   label,
   subtitle,
-  colors = ['#3C6E47', '#5A9A6F'],
+  colors = [COLORS.primary[500], COLORS.primary[400]],
   size = 'medium',
 }: StatsCardProps) {
   const sizeStyles = {
@@ -56,10 +57,10 @@ export default function StatsCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
     justifyContent: 'space-between',
-    shadowColor: '#000',
+    shadowColor: COLORS.neutral.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -77,15 +78,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   icon: {
     fontSize: 32,
   },
   value: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   valueSmall: {
     fontSize: 24,
@@ -97,15 +98,15 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   label: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 14,
     fontWeight: '600',
     opacity: 0.95,
   },
   subtitle: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: SPACING.xs,
     opacity: 0.8,
   },
 });

@@ -64,7 +64,21 @@
       "mcp__plugin_supabase_supabase__get_edge_function",
       "mcp__plugin_supabase_supabase__deploy_edge_function",
       "Bash(cmd /c \"if exist C:\\\\Users\\\\Quentin\\\\.claude \\(dir /b C:\\\\Users\\\\Quentin\\\\.claude\\) else \\(echo Folder not found\\)\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git stash:*)",
+      "mcp__plugin_Notion_notion__notion-search",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "mcp__plugin_Notion_notion__notion-update-page",
+      "mcp__plugin_figma_figma__generate_diagram",
+      "mcp__plugin_Notion_notion__notion-create-pages",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "mcp__claude_ai_Notion__notion-search",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__plugin_supabase_supabase__get_logs",
+      "mcp__plugin_supabase_supabase__get_project"
     ]
   }
 }

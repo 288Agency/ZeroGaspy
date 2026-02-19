@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
-  version: '1.0.4',
+  version: '1.0.5',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
@@ -45,7 +45,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     androidCollapsedTitle: 'ZeroGaspy',
   },
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     bundleIdentifier: 'com.zerogaspy.app',
     appleTeamId: 'M32LP7D76G',
     infoPlist: {
@@ -57,6 +57,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       GADApplicationIdentifier: ADMOB_IOS_APP_ID,
       NSUserTrackingUsageDescription:
         'Cette application utilise des publicites personnalisees pour rester gratuite. Vos donnees ne sont pas partagees avec des tiers.',
+      CFBundleDevelopmentRegion: 'fr',
+      CFBundleLocalizations: ['fr', 'en'],
     },
     entitlements: {
       'com.apple.security.application-groups': ['group.com.zerogaspy.app'],
@@ -145,6 +147,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     '@react-native-community/datetimepicker',
+    'expo-av',
     'expo-web-browser',
     'expo-secure-store',
     'expo-font',

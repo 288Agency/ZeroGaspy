@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -63,7 +64,7 @@ const ChefIllustration = React.memo(function ChefIllustration() {
       <Svg width={illustrationSize} height={illustrationSize} viewBox="0 0 120 120">
         <Defs>
           <LinearGradient id="hatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#FFFFFF" />
+            <Stop offset="0%" stopColor={COLORS.neutral.white} />
             <Stop offset="100%" stopColor="#F0F0F0" />
           </LinearGradient>
         </Defs>
@@ -93,13 +94,14 @@ const ChefIllustration = React.memo(function ChefIllustration() {
 
 // Category badge component
 const CategoryBadge = React.memo(function CategoryBadge({ category }: { category: Recipe['category'] }) {
-  const categoryConfig: Record<Recipe['category'], { color: string; icon: keyof typeof Ionicons.glyphMap }> = {
-    'entrée': { color: COLORS.accent.avocado, icon: 'leaf' },
-    'plat': { color: COLORS.accent.carrot, icon: 'restaurant' },
-    'dessert': { color: COLORS.accent.tomato, icon: 'ice-cream' },
-    'snack': { color: COLORS.accent.lemon, icon: 'cafe' },
-    'boisson': { color: COLORS.accent.blueberry, icon: 'wine' },
-    'petit-déjeuner': { color: '#F59E0B', icon: 'sunny' },
+  const { t } = useTranslation();
+  const categoryConfig: Record<Recipe['category'], { color: string; icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
+    'entrée': { color: COLORS.accent.avocado, icon: 'leaf', labelKey: 'recipes.starters' },
+    'plat': { color: COLORS.accent.carrot, icon: 'restaurant', labelKey: 'recipes.mainDishes' },
+    'dessert': { color: COLORS.accent.tomato, icon: 'ice-cream', labelKey: 'recipes.desserts' },
+    'snack': { color: COLORS.accent.lemon, icon: 'cafe', labelKey: 'recipes.snacks' },
+    'boisson': { color: COLORS.accent.blueberry, icon: 'wine', labelKey: 'recipes.drinks' },
+    'petit-déjeuner': { color: COLORS.accent.gold, icon: 'sunny', labelKey: 'recipes.breakfast' },
   };
 
   const config = categoryConfig[category];
@@ -108,7 +110,7 @@ const CategoryBadge = React.memo(function CategoryBadge({ category }: { category
     <View style={[styles.categoryBadge, { backgroundColor: hexToRgba(config.color, 0.15) }]}>
       <Ionicons name={config.icon} size={scaleSize(12)} color={config.color} />
       <Text style={[styles.categoryBadgeText, { color: config.color }]}>
-        {category.charAt(0).toUpperCase() + category.slice(1)}
+        {t(config.labelKey)}
       </Text>
     </View>
   );
@@ -141,6 +143,7 @@ const DifficultyBadge = React.memo(function DifficultyBadge({ difficulty }: { di
 
 // Recipe card component
 const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch; onPress: () => void; onLongPress?: () => void; index: number }) {
+  const { t } = useTranslation();
   const { recipe, matchPercentage, matchingIngredients, missingIngredients } = match;
 
   return (
@@ -157,7 +160,7 @@ const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress,
         {recipe.isUserRecipe && (
           <View style={styles.userBadge}>
             <Ionicons name="person" size={scaleSize(10)} color={COLORS.neutral.white} />
-            <Text style={styles.userBadgeText}>Ma recette</Text>
+            <Text style={styles.userBadgeText}>{t('recipes.myRecipe')}</Text>
           </View>
         )}
 
@@ -193,12 +196,11 @@ const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress,
           {/* Ingredients preview */}
           <View style={styles.ingredientsPreview}>
             <Text style={styles.ingredientsLabel}>
-              <Text style={styles.matchCount}>{matchingIngredients.length}</Text>
-              /{recipe.ingredients.length} ingrédients
+              {t('recipes.ingredientsOf', { matched: matchingIngredients.length, total: recipe.ingredients.length })}
             </Text>
             {missingIngredients.length > 0 && missingIngredients.length <= 3 && (
               <Text style={styles.missingText} numberOfLines={1}>
-                Manque : {missingIngredients.join(', ')}
+                {t('recipes.missing')} {missingIngredients.join(', ')}
               </Text>
             )}
           </View>
@@ -225,6 +227,7 @@ function RecipeDetailModal({
   match: RecipeMatch | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   if (!recipe || !match) return null;
 
   return (
@@ -267,13 +270,13 @@ function RecipeDetailModal({
               <View style={[styles.matchBarFill, { width: `${match.matchPercentage}%` }]} />
             </View>
             <Text style={styles.matchInfoText}>
-              {match.matchingIngredients.length} ingrédients disponibles sur {recipe.ingredients.length}
+              {t('recipes.ingredientsAvailable', { count: match.matchingIngredients.length, total: recipe.ingredients.length })}
             </Text>
           </View>
 
           {/* Ingredients */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingrédients</Text>
+            <Text style={styles.sectionTitle}>{t('recipes.ingredients')}</Text>
             {recipe.ingredients.map((ingredient, index) => {
               const isAvailable = match.matchingIngredients.includes(ingredient);
               return (
@@ -291,7 +294,7 @@ function RecipeDetailModal({
                   </Text>
                   {!isAvailable && (
                     <View style={styles.missingBadge}>
-                      <Text style={styles.missingBadgeText}>À acheter</Text>
+                      <Text style={styles.missingBadgeText}>{t('recipes.toBuy')}</Text>
                     </View>
                   )}
                 </View>
@@ -301,7 +304,7 @@ function RecipeDetailModal({
 
           {/* Instructions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Préparation</Text>
+            <Text style={styles.sectionTitle}>{t('recipes.preparation')}</Text>
             {recipe.instructions.map((instruction, index) => (
               <View key={index} style={styles.instructionRow}>
                 <View style={styles.stepNumber}>
@@ -335,6 +338,7 @@ const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
   suggestedCount: number;
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <PressableScale
       onPress={onPress}
@@ -350,10 +354,10 @@ const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
           <Text style={styles.premiumBadgeText}>PREMIUM</Text>
         </View>
         <Text style={styles.premiumTeaserTitle}>
-          {suggestedCount} recette{suggestedCount !== 1 ? 's' : ''} suggérée{suggestedCount !== 1 ? 's' : ''} pour vous
+          {t('recipes.suggestedCount', { count: suggestedCount })}
         </Text>
         <Text style={styles.premiumTeaserSubtitle}>
-          Débloquez les suggestions personnalisées basées sur vos ingrédients
+          {t('recipes.unlockSuggestions')}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={scaleSize(24)} color={COLORS.primary[400]} />
@@ -362,6 +366,7 @@ const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
 });
 
 export default function RecipesScreen() {
+  const { t } = useTranslation();
   const { trackRecipeViewed } = useGamification();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
@@ -396,9 +401,9 @@ export default function RecipesScreen() {
     } catch (error) {
       logger.error('Erreur lors du chargement:', error);
       Alert.alert(
-        'Erreur',
-        'Impossible de charger les recettes. Veuillez réessayer.',
-        [{ text: 'OK' }]
+        t('common.error'),
+        t('recipes.loadError'),
+        [{ text: t('common.ok') }]
       );
     }
   };
@@ -426,11 +431,11 @@ export default function RecipesScreen() {
     if (match.recipe.isUserRecipe) {
       Alert.alert(
         match.recipe.name,
-        'Que voulez-vous faire ?',
+        t('recipes.whatToDo'),
         [
-          { text: 'Annuler', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Supprimer',
+            text: t('common.delete'),
             style: 'destructive',
             onPress: async () => {
               const success = await deleteUserRecipe(match.recipe.id);
@@ -465,19 +470,19 @@ export default function RecipesScreen() {
   }, 0);
 
   const filters: Array<{ key: 'all' | 'user' | Recipe['category']; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-    { key: 'all', label: 'Tout', icon: 'apps' },
-    { key: 'user', label: 'Mes recettes', icon: 'person' },
-    { key: 'petit-déjeuner', label: 'Petit-déj', icon: 'sunny' },
-    { key: 'plat', label: 'Plats', icon: 'restaurant' },
-    { key: 'entrée', label: 'Entrées', icon: 'leaf' },
-    { key: 'dessert', label: 'Desserts', icon: 'ice-cream' },
-    { key: 'snack', label: 'Snacks', icon: 'cafe' },
-    { key: 'boisson', label: 'Boissons', icon: 'wine' },
+    { key: 'all', label: t('recipes.all'), icon: 'apps' },
+    { key: 'user', label: t('recipes.myRecipes'), icon: 'person' },
+    { key: 'petit-déjeuner', label: t('recipes.breakfast'), icon: 'sunny' },
+    { key: 'plat', label: t('recipes.mainDishes'), icon: 'restaurant' },
+    { key: 'entrée', label: t('recipes.starters'), icon: 'leaf' },
+    { key: 'dessert', label: t('recipes.desserts'), icon: 'ice-cream' },
+    { key: 'snack', label: t('recipes.snacks'), icon: 'cafe' },
+    { key: 'boisson', label: t('recipes.drinks'), icon: 'wine' },
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
-      <Header title="Idées recettes" showBackButton={false} />
+      <Header title={t('recipes.ideasTitle')} showBackButton={false} />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Stats banner */}
@@ -487,14 +492,13 @@ export default function RecipesScreen() {
           </View>
           <View style={styles.statsText}>
             <Text style={styles.statsTitle}>
-              {totalIngredients} aliment{totalIngredients !== 1 ? 's' : ''} disponible{totalIngredients !== 1 ? 's' : ''}
+              {t('recipes.availableCount', { count: totalIngredients })}
             </Text>
             <Text style={styles.statsSubtitle}>
-              {isPremium ? (
-                `${recipeMatches.length} recette${recipeMatches.length !== 1 ? 's' : ''} possible${recipeMatches.length !== 1 ? 's' : ''}`
-              ) : (
-                `${userRecipes.length} recette${userRecipes.length !== 1 ? 's' : ''} personnelle${userRecipes.length !== 1 ? 's' : ''}`
-              )}
+              {isPremium
+                ? t('recipes.possibleRecipes', { count: recipeMatches.length })
+                : t('recipes.personalRecipes', { count: userRecipes.length })
+              }
             </Text>
           </View>
         </View>
@@ -567,17 +571,17 @@ export default function RecipesScreen() {
               <ChefIllustration />
               <Text style={styles.emptyTitle}>
                 {totalIngredients === 0
-                  ? 'Aucun aliment disponible'
+                  ? t('recipes.noFood')
                   : isPremium
-                  ? 'Aucune recette trouvée'
-                  : 'Aucune recette personnelle'}
+                  ? t('recipes.noRecipes')
+                  : t('recipes.noPersonalRecipes')}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {totalIngredients === 0
-                  ? 'Ajoutez des aliments à vos espaces pour découvrir des recettes'
+                  ? t('recipes.addFoodHint')
                   : isPremium
-                  ? 'Essayez d\'ajouter plus d\'aliments ou changez de filtre'
-                  : 'Ajoutez vos propres recettes avec le bouton + ci-dessous'}
+                  ? t('recipes.changeFilterHint')
+                  : t('recipes.addRecipeHint')}
               </Text>
             </View>
           )}
@@ -589,7 +593,7 @@ export default function RecipesScreen() {
         onPress={() => setAddModalVisible(true)}
         style={styles.fab}
         hapticType="medium"
-        accessibilityLabel="Ajouter une recette"
+        accessibilityLabel={t('recipes.addRecipe')}
         accessibilityRole="button"
       >
         <Ionicons name="add" size={scaleSize(28)} color={COLORS.neutral.white} />

@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import i18n from '../i18n';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 import logger from '../utils/logger';
 
 interface Props {
@@ -49,12 +51,12 @@ class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.content}>
             <Text style={styles.emoji}>😕</Text>
-            <Text style={styles.title}>Oups !</Text>
+            <Text style={styles.title}>{i18n.t('errorBoundary.title')}</Text>
             <Text style={styles.message}>
-              Une erreur inattendue s'est produite.
+              {i18n.t('errorBoundary.message')}
             </Text>
             <Text style={styles.subtitle}>
-              L'équipe a été notifiée et nous travaillons à résoudre le problème.
+              {i18n.t('errorBoundary.subtitle')}
             </Text>
 
             {__DEV__ && this.state.error && (
@@ -70,7 +72,7 @@ class ErrorBoundary extends Component<Props, State> {
               onPress={this.handleReset}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Réessayer</Text>
+              <Text style={styles.buttonText}>{i18n.t('errorBoundary.retry')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -84,10 +86,10 @@ class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F5E6',
+    backgroundColor: COLORS.secondary.cream,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
   },
   content: {
     alignItems: 'center',
@@ -95,53 +97,53 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 64,
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#3C6E47',
-    marginBottom: 12,
+    color: COLORS.primary[500],
+    marginBottom: SPACING.md,
   },
   message: {
     fontSize: 18,
-    color: '#333',
+    color: COLORS.neutral.gray800,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6A8A6E',
+    color: COLORS.text.tertiary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   errorDetails: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 24,
+    backgroundColor: COLORS.neutral.white,
+    padding: SPACING.md,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING['2xl'],
     width: '100%',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.neutral.gray300,
   },
   errorText: {
     fontSize: 12,
-    color: '#d32f2f',
+    color: COLORS.semantic.danger,
     fontFamily: 'monospace',
   },
   button: {
-    backgroundColor: '#3C6E47',
-    paddingHorizontal: 32,
+    backgroundColor: COLORS.primary[500],
+    paddingHorizontal: SPACING['3xl'],
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: COLORS.neutral.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.neutral.white,
     fontSize: 16,
     fontWeight: '600',
   },

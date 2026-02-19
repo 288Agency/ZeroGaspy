@@ -7,7 +7,6 @@ interface AnimatedListItemProps {
   staggerDelay?: number;
   animationType?: 'fade' | 'slide' | 'scale' | 'slideUp';
   style?: ViewStyle;
-  className?: string;
 }
 
 export default function AnimatedListItem({
@@ -16,7 +15,6 @@ export default function AnimatedListItem({
   staggerDelay = 50,
   animationType = 'slideUp',
   style,
-  className,
 }: AnimatedListItemProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(
@@ -77,7 +75,6 @@ export default function AnimatedListItem({
         },
         style,
       ]}
-      className={className}
     >
       {children}
     </Animated.View>

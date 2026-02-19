@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions } from 'react-native';
+import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Badge, getTierBackgroundColor, getTierColor } from '../services/gamificationService';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../utils/designSystem';
 
 interface AchievementToastProps {
   badge: Badge | null;
@@ -21,6 +23,7 @@ export default function AchievementToast({
   visible,
   onHide,
 }: AchievementToastProps) {
+  const { t } = useTranslation();
   const translateY = useRef(new Animated.Value(-150)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.8)).current;
@@ -89,54 +92,53 @@ export default function AchievementToast({
       }}
     >
       <View
-        className="rounded-2xl p-4 shadow-lg"
-        style={{
-          backgroundColor: badge ? getTierBackgroundColor(badge.tier) : '#ECFDF5',
-          borderWidth: 2,
-          borderColor: badge ? getTierColor(badge.tier) : '#10B981',
-        }}
+        style={[
+          styles.toastContainer,
+          {
+            backgroundColor: badge ? getTierBackgroundColor(badge.tier) : COLORS.surface.successBg,
+            borderWidth: 2,
+            borderColor: badge ? getTierColor(badge.tier) : COLORS.semantic.successLight,
+          },
+        ]}
       >
         {levelUp && newLevel ? (
           // Level Up Toast
-          <View className="flex-row items-center">
-            <View className="w-14 h-14 rounded-full bg-[#3C6E47] items-center justify-center mr-4">
-              <Text className="text-white text-xl font-bold">{newLevel}</Text>
+          <View style={styles.row}>
+            <View style={styles.levelCircle}>
+              <Text style={styles.levelText}>{newLevel}</Text>
             </View>
-            <View className="flex-1">
-              <Text className="text-[#3C6E47] font-bold text-lg">
-                Niveau superieur !
+            <View style={styles.contentFlex}>
+              <Text style={styles.titleText}>
+                {t('achievementToast.levelUp')}
               </Text>
-              <Text className="text-[#6A8A6E]">
-                Vous etes maintenant niveau {newLevel}
+              <Text style={styles.subtitleText}>
+                {t('achievementToast.nowLevel', { level: newLevel })}
               </Text>
             </View>
-            <Text className="text-3xl">🎉</Text>
+            <Text style={styles.emojiText}>🎉</Text>
           </View>
         ) : badge ? (
           // Badge Toast
-          <View className="flex-row items-center">
-            <View
-              className="w-14 h-14 rounded-xl items-center justify-center mr-4"
-              style={{ backgroundColor: 'white' }}
-            >
-              <Text className="text-3xl">{badge.icon}</Text>
+          <View style={styles.row}>
+            <View style={styles.badgeIconContainer}>
+              <Text style={styles.emojiText}>{badge.icon}</Text>
             </View>
-            <View className="flex-1">
-              <Text className="text-[#3C6E47] text-xs font-medium uppercase">
-                Nouveau badge !
+            <View style={styles.contentFlex}>
+              <Text style={styles.badgeLabelText}>
+                {t('achievementToast.newBadge')}
               </Text>
-              <Text className="text-[#3C6E47] font-bold text-lg">
+              <Text style={styles.titleText}>
                 {badge.name}
               </Text>
-              <Text className="text-[#6A8A6E] text-sm">
+              <Text style={styles.xpText}>
                 +{badge.xpReward} XP
               </Text>
             </View>
           </View>
         ) : xpGained > 0 ? (
           // XP Toast
-          <View className="flex-row items-center justify-center">
-            <Text className="text-[#3C6E47] font-bold text-lg">
+          <View style={styles.xpRow}>
+            <Text style={styles.xpGainedText}>
               +{xpGained} XP
             </Text>
           </View>
@@ -145,3 +147,72 @@ export default function AchievementToast({
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  toastContainer: {
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+    ...SHADOWS.lg,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  levelCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+  },
+  levelText: {
+    color: COLORS.neutral.white,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  contentFlex: {
+    flex: 1,
+  },
+  titleText: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  subtitleText: {
+    color: COLORS.text.tertiary,
+  },
+  emojiText: {
+    fontSize: 30,
+  },
+  badgeIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+    backgroundColor: COLORS.neutral.white,
+  },
+  badgeLabelText: {
+    color: COLORS.primary[500],
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+  },
+  xpText: {
+    color: COLORS.text.tertiary,
+    fontSize: 14,
+  },
+  xpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  xpGainedText: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+});

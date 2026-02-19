@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { LIST_COLORS } from '../types';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface ColorPickerProps {
   selectedColor: string;
@@ -12,22 +14,24 @@ interface ColorPickerProps {
 export default function ColorPicker({
   selectedColor,
   onColorSelect,
-  label = 'Couleur de la liste',
+  label,
 }: ColorPickerProps) {
+  const { t } = useTranslation();
+  const displayLabel = label ?? t('colorPicker.label');
   return (
-    <View className="mb-4">
-      {label && (
-        <Text className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          {label}
+    <View style={styles.container}>
+      {displayLabel && (
+        <Text style={styles.label}>
+          {displayLabel}
         </Text>
       )}
-      
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 4 }}
       >
-        <View className="flex-row gap-3">
+        <View style={styles.row}>
           {LIST_COLORS.map((color) => {
             const isSelected = selectedColor === color.value;
             return (
@@ -35,7 +39,7 @@ export default function ColorPicker({
                 key={color.value}
                 onPress={() => onColorSelect(color.value)}
                 activeOpacity={0.7}
-                className="items-center"
+                style={styles.itemContainer}
                 accessibilityLabel={`Couleur ${color.name}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
@@ -49,8 +53,8 @@ export default function ColorPicker({
                     justifyContent: 'center',
                     alignItems: 'center',
                     borderWidth: isSelected ? 3 : 0,
-                    borderColor: '#ffffff',
-                    shadowColor: '#000',
+                    borderColor: COLORS.neutral.white,
+                    shadowColor: COLORS.neutral.black,
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: isSelected ? 0.3 : 0.1,
                     shadowRadius: 4,
@@ -58,15 +62,14 @@ export default function ColorPicker({
                   }}
                 >
                   {isSelected && (
-                    <Ionicons name="checkmark" size={24} color="#ffffff" />
+                    <Ionicons name="checkmark" size={24} color={COLORS.neutral.white} />
                   )}
                 </View>
-                <Text 
-                  className={`text-xs mt-1 ${
-                    isSelected 
-                      ? 'text-gray-900 font-semibold' 
-                      : 'text-gray-500'
-                  }`}
+                <Text
+                  style={[
+                    styles.colorName,
+                    isSelected && styles.colorNameSelected,
+                  ]}
                 >
                   {color.name}
                 </Text>
@@ -78,3 +81,31 @@ export default function ColorPicker({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: SPACING.lg,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.neutral.gray700,
+    marginBottom: SPACING.md,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  itemContainer: {
+    alignItems: 'center',
+  },
+  colorName: {
+    fontSize: 12,
+    marginTop: 4,
+    color: COLORS.neutral.gray500,
+  },
+  colorNameSelected: {
+    color: COLORS.neutral.gray900,
+    fontWeight: '600',
+  },
+});

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { cn } from '../utils/cn';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface CalendarProps {
   selectedDate: Date | null;
@@ -79,7 +79,7 @@ export default function Calendar({
     return days.map((day, index) => {
       if (day === null) {
         return (
-          <View key={index} className="w-[14.28%] aspect-square p-1" />
+          <View key={index} style={styles.dayCell} />
         );
       }
 
@@ -93,31 +93,22 @@ export default function Calendar({
           key={index}
           onPress={() => handleDatePress(day)}
           disabled={isDisabled}
-          className={cn(
-            'w-[14.28%] aspect-square p-1',
-            isDisabled && 'opacity-30'
-          )}
+          style={[styles.dayCell, isDisabled && styles.dayCellDisabled]}
           activeOpacity={0.7}
         >
           <View
-            className={cn(
-              'flex-1 rounded-xl items-center justify-center',
-              isSelected
-                ? 'bg-[#3C6E47]'
-                : isToday
-                ? 'bg-[#A3C9A8] border-2 border-[#3C6E47]'
-                : 'bg-transparent'
-            )}
+            style={[
+              styles.dayInner,
+              isSelected && styles.dayInnerSelected,
+              isToday && !isSelected && styles.dayInnerToday,
+            ]}
           >
             <Text
-              className={cn(
-                'text-base font-medium',
-                isSelected
-                  ? 'text-white'
-                  : isToday
-                  ? 'text-[#3C6E47]'
-                  : 'text-[#3C6E47]'
-              )}
+              style={[
+                styles.dayText,
+                isSelected && styles.dayTextSelected,
+                (isToday && !isSelected) && styles.dayTextToday,
+              ]}
             >
               {day}
             </Text>
@@ -128,35 +119,35 @@ export default function Calendar({
   };
 
   return (
-    <View className="bg-[#F7F5E6] rounded-2xl p-4">
+    <View style={styles.container}>
       {/* En-tête avec navigation */}
-      <View className="flex-row items-center justify-between mb-4">
+      <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={goToPreviousMonth}
-          className="w-10 h-10 items-center justify-center rounded-full bg-[#A3C9A8]"
+          style={styles.navButton}
           activeOpacity={0.7}
         >
-          <Text className="text-[#3C6E47] text-xl font-bold">‹</Text>
+          <Text style={styles.navButtonText}>‹</Text>
         </TouchableOpacity>
 
-        <Text className="text-[#3C6E47] text-xl font-semibold">
+        <Text style={styles.monthTitle}>
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </Text>
 
         <TouchableOpacity
           onPress={goToNextMonth}
-          className="w-10 h-10 items-center justify-center rounded-full bg-[#A3C9A8]"
+          style={styles.navButton}
           activeOpacity={0.7}
         >
-          <Text className="text-[#3C6E47] text-xl font-bold">›</Text>
+          <Text style={styles.navButtonText}>›</Text>
         </TouchableOpacity>
       </View>
 
       {/* Jours de la semaine */}
-      <View className="flex-row mb-2">
+      <View style={styles.weekRow}>
         {dayNames.map((day, index) => (
-          <View key={index} className="w-[14.28%] items-center">
-            <Text className="text-[#3C6E47] text-sm font-semibold">
+          <View key={index} style={styles.weekDayCell}>
+            <Text style={styles.weekDayText}>
               {day}
             </Text>
           </View>
@@ -164,10 +155,91 @@ export default function Calendar({
       </View>
 
       {/* Grille du calendrier */}
-      <View className="flex-row flex-wrap">
+      <View style={styles.calendarGrid}>
         {renderCalendar()}
       </View>
     </View>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['2xl'],
+    padding: SPACING.lg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.secondary.sage,
+  },
+  navButtonText: {
+    color: COLORS.primary[500],
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  monthTitle: {
+    color: COLORS.primary[500],
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.sm,
+  },
+  weekDayCell: {
+    width: '14.28%' as any,
+    alignItems: 'center',
+  },
+  weekDayText: {
+    color: COLORS.primary[500],
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%' as any,
+    aspectRatio: 1,
+    padding: SPACING.xs,
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayInner: {
+    flex: 1,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayInnerSelected: {
+    backgroundColor: COLORS.primary[500],
+  },
+  dayInnerToday: {
+    backgroundColor: COLORS.secondary.sage,
+    borderWidth: 2,
+    borderColor: COLORS.primary[500],
+  },
+  dayText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.primary[500],
+  },
+  dayTextSelected: {
+    color: COLORS.neutral.white,
+  },
+  dayTextToday: {
+    color: COLORS.primary[500],
+  },
+});

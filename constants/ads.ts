@@ -45,10 +45,10 @@ export const AD_UNIT_IDS = {
 
 // Configuration des pubs
 export const AD_CONFIG = {
-  // Delai minimum entre deux interstitiels (en ms) - 5 minutes
-  interstitialCooldown: 5 * 60 * 1000,
+  // Delai minimum entre deux interstitiels (en ms) - 3 minutes
+  interstitialCooldown: 3 * 60 * 1000,
   // Nombre d'actions avant d'afficher un interstitiel
-  actionsBeforeInterstitial: 5,
+  actionsBeforeInterstitial: 3,
   // Afficher les pubs uniquement pour les non-Premium
   showOnlyForFreeUsers: true,
 };

@@ -1,4 +1,4 @@
-import './global.css';
+import './i18n'; // Initialize i18n
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Alert } from 'react-native';
@@ -13,7 +13,7 @@ import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ConsentProvider } from './contexts/ConsentContext';
 import { AdProvider } from './contexts/AdContext';
@@ -68,7 +68,6 @@ function extractAuthParams(url: string): { accessToken?: string; refreshToken?: 
 // Composant interne qui gère la navigation basée sur l'auth
 function RootNavigator() {
   const { user, isLoading: authLoading, isLocalMode } = useAuth();
-  const { isDark } = useTheme();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
@@ -169,8 +168,7 @@ function RootNavigator() {
     setShowOnboarding(false);
   };
 
-  // Style de la StatusBar basé sur le thème
-  const statusBarStyle = isDark ? 'light' : 'dark';
+  const statusBarStyle = 'dark' as const;
 
   // Afficher le splash pendant le chargement initial
   if (isCheckingOnboarding || authLoading || showOnboarding === null) {

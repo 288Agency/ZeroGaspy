@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Alert, ActionSheetIOS, Platform, StyleSheet, Animated } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path, Circle, G } from 'react-native-svg';
 import { List } from '../types';
 import { RootStackParamList } from '../types/navigation';
 import { deleteList } from '../utils/localStorage';
@@ -11,6 +11,7 @@ import PressableScale from './PressableScale';
 import AnimatedListItem from './AnimatedListItem';
 import EditListModal from './EditListModal';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, getContrastText } from '../utils/designSystem';
+import { FridgeIllustration } from './icons';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 
 interface SpacesGridProps {
@@ -52,34 +53,13 @@ function EmptyStateIllustration() {
 
   return (
     <Animated.View style={{ transform: [{ translateY }] }}>
-      <Svg width={emptyIllustrationSize} height={emptyIllustrationSize} viewBox="0 0 100 100">
-        <G>
-          {/* Fridge illustration */}
-          <Path
-            d="M25 15 L75 15 C78 15 80 17 80 20 L80 85 C80 88 78 90 75 90 L25 90 C22 90 20 88 20 85 L20 20 C20 17 22 15 25 15"
-            fill={COLORS.primary[100]}
-            stroke={COLORS.primary[500]}
-            strokeWidth="2"
-          />
-          {/* Fridge door line */}
-          <Path d="M20 45 L80 45" stroke={COLORS.primary[500]} strokeWidth="2" />
-          {/* Handle */}
-          <Path d="M70 30 L70 40" stroke={COLORS.primary[500]} strokeWidth="3" strokeLinecap="round" />
-          <Path d="M70 55 L70 75" stroke={COLORS.primary[500]} strokeWidth="3" strokeLinecap="round" />
-          {/* Food items inside */}
-          <Circle cx="35" cy="30" r="6" fill={COLORS.accent.carrot} />
-          <Circle cx="50" cy="32" r="5" fill={COLORS.accent.tomato} />
-          <Circle cx="40" cy="60" r="7" fill={COLORS.accent.avocado} />
-          <Circle cx="55" cy="65" r="5" fill={COLORS.accent.lemon} />
-          {/* Sparkles */}
-          <Path d="M85 20 L88 25 L93 22 L88 28 L92 33 L87 30 L85 35 L83 30 L78 33 L82 28 L77 22 L82 25 Z" fill={COLORS.accent.lemon} />
-        </G>
-      </Svg>
+      <FridgeIllustration size={emptyIllustrationSize} />
     </Animated.View>
   );
 }
 
 export default function SpacesGrid({ lists, onCreateList, onListDeleted }: SpacesGridProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
@@ -95,12 +75,12 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
 
   const handleDeleteList = (list: List) => {
     Alert.alert(
-      'Supprimer la liste',
-      `Voulez-vous vraiment supprimer "${list.title}" ? Cette action est irréversible.`,
+      t('lists.deleteList'),
+      t('lists.deleteConfirm', { title: list.title }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteList(list.id);
@@ -120,7 +100,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Annuler', 'Modifier', 'Supprimer'],
+          options: [t('common.cancel'), t('common.edit'), t('common.delete')],
           cancelButtonIndex: 0,
           destructiveButtonIndex: 2,
           title: list.title,
@@ -131,10 +111,10 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         }
       );
     } else {
-      Alert.alert(list.title, 'Que voulez-vous faire ?', [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Modifier', onPress: () => handleEditList(list) },
-        { text: 'Supprimer', style: 'destructive', onPress: () => handleDeleteList(list) },
+      Alert.alert(list.title, t('recipes.whatToDo'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.edit'), onPress: () => handleEditList(list) },
+        { text: t('common.delete'), style: 'destructive', onPress: () => handleDeleteList(list) },
       ]);
     }
   };
@@ -150,9 +130,9 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Mes espaces</Text>
+          <Text style={styles.title}>{t('lists.myInventoryLists')}</Text>
           <Text style={styles.subtitle}>
-            {lists.length} espace{lists.length !== 1 ? 's' : ''}
+            {t('lists.itemsCount', { count: lists.length })}
           </Text>
         </View>
         <PressableScale
@@ -160,7 +140,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
           style={styles.addButton}
           hapticType="medium"
           activeScale={0.9}
-          accessibilityLabel="Créer un nouvel espace"
+          accessibilityLabel={t('lists.createNewList')}
           accessibilityRole="button"
         >
           <Ionicons name="add" size={scaleSize(isSmallScreen ? 20 : 24)} color={COLORS.neutral.white} />
@@ -195,7 +175,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   ]}
                   hapticType="selection"
                   activeScale={0.97}
-                  accessibilityLabel={`Espace ${list.title}`}
+                  accessibilityLabel={list.title}
                   accessibilityRole="button"
                 >
                   {/* Icon container */}
@@ -223,7 +203,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                         {activeCount}
                       </Text>
                       <Text style={[styles.countLabel, { color: hexToRgba(listColor, 0.7) }]}>
-                        {' '}aliment{activeCount !== 1 ? 's' : ''}
+                        {' '}{t('common.foodItem', { count: activeCount })}
                       </Text>
                     </View>
                     <View
@@ -252,9 +232,9 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         /* Empty state */
         <View style={styles.emptyState}>
           <EmptyStateIllustration />
-          <Text style={styles.emptyTitle}>Aucun espace créé</Text>
+          <Text style={styles.emptyTitle}>{t('lists.emptyLists')}</Text>
           <Text style={styles.emptySubtitle}>
-            Créez votre premier espace pour{'\n'}organiser vos aliments
+            {t('lists.emptyListsDesc')}
           </Text>
           <PressableScale
             onPress={onCreateList}
@@ -262,7 +242,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
             hapticType="medium"
           >
             <Ionicons name="add-circle-outline" size={scaleSize(isSmallScreen ? 18 : 20)} color={COLORS.neutral.white} />
-            <Text style={styles.emptyButtonText}>Créer un espace</Text>
+            <Text style={styles.emptyButtonText}>{t('lists.createList')}</Text>
           </PressableScale>
         </View>
       )}

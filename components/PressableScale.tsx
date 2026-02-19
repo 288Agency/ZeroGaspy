@@ -8,7 +8,7 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   haptic?: boolean;
   hapticType?: 'light' | 'medium' | 'heavy' | 'selection';
   style?: StyleProp<ViewStyle>;
-  className?: string;
+  minHitSlop?: number;
 }
 
 export default function PressableScale({
@@ -21,8 +21,9 @@ export default function PressableScale({
   onPress,
   onLongPress,
   style,
-  className,
   disabled,
+  minHitSlop = 8,
+  hitSlop,
   ...props
 }: PressableScaleProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -72,6 +73,14 @@ export default function PressableScale({
     onLongPress?.(e);
   };
 
+  // Calculer le hitSlop pour améliorer la zone tactile (important pour iPad)
+  const computedHitSlop = hitSlop ?? {
+    top: minHitSlop,
+    bottom: minHitSlop,
+    left: minHitSlop,
+    right: minHitSlop,
+  };
+
   return (
     <Pressable
       onPressIn={handlePressIn}
@@ -79,11 +88,11 @@ export default function PressableScale({
       onPress={handlePress}
       onLongPress={onLongPress ? handleLongPress : undefined}
       disabled={disabled}
+      hitSlop={computedHitSlop}
       {...props}
     >
       <Animated.View
         style={[{ transform: [{ scale: scaleAnim }] }, style]}
-        className={className}
       >
         {children}
       </Animated.View>

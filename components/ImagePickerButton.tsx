@@ -1,42 +1,21 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Animated } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import PressableScale from './PressableScale';
 import { COLORS, SHADOWS, RADIUS, hexToRgba } from '../utils/designSystem';
+import { FoodIllustration } from './icons';
 
 interface ImagePickerButtonProps {
   onPress: () => void;
   imageUri?: string | null;
 }
 
-// Decorative food illustration for empty state
-function FoodIllustration() {
-  return (
-    <Svg width={60} height={60} viewBox="0 0 60 60">
-      <Defs>
-        <LinearGradient id="plateGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor={COLORS.secondary.sage} />
-          <Stop offset="100%" stopColor={COLORS.primary[200]} />
-        </LinearGradient>
-      </Defs>
-      {/* Plate */}
-      <Circle cx="30" cy="35" rx="25" ry="12" fill="url(#plateGrad)" />
-      <Circle cx="30" cy="35" rx="20" ry="9" fill={COLORS.neutral.white} opacity="0.5" />
-      {/* Food items */}
-      <Circle cx="22" cy="30" r="6" fill={COLORS.accent.tomato} />
-      <Circle cx="35" cy="28" r="5" fill={COLORS.accent.avocado} />
-      <Circle cx="30" cy="35" r="4" fill={COLORS.accent.carrot} />
-      {/* Shine */}
-      <Circle cx="18" cy="28" r="2" fill="white" opacity="0.6" />
-    </Svg>
-  );
-}
-
 export default function ImagePickerButton({
   onPress,
   imageUri,
 }: ImagePickerButtonProps) {
+  const { t } = useTranslation();
   const hasImage = !!imageUri;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -72,7 +51,7 @@ export default function ImagePickerButton({
         style={styles.container}
         hapticType="light"
         activeScale={0.96}
-        accessibilityLabel={hasImage ? "Modifier l'image" : "Ajouter une image"}
+        accessibilityLabel={hasImage ? t('common.edit') : t('common.add')}
         accessibilityRole="button"
       >
         {hasImage ? (
@@ -95,7 +74,7 @@ export default function ImagePickerButton({
             <FoodIllustration />
 
             {/* Text */}
-            <Text style={styles.emptyText}>Ajouter une photo</Text>
+            <Text style={styles.emptyText}>{t('addFood.takePhoto')}</Text>
 
             {/* Add badge */}
             <View style={styles.addBadge}>

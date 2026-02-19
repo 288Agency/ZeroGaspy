@@ -14,6 +14,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -39,6 +40,7 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
 import { supabase } from '../config/supabase';
 import { useGamification } from '../contexts/GamificationContext';
+import { useAds } from '../contexts/AdContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import PaywallModal from '../components/PaywallModal';
@@ -110,6 +112,7 @@ function SearchBar({
   onChangeText: (text: string) => void;
   listColor: string;
 }) {
+  const { t } = useTranslation();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -132,7 +135,7 @@ function SearchBar({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder="Rechercher un aliment..."
+          placeholder={t('inventory.searchPlaceholder')}
           placeholderTextColor={COLORS.text.muted}
           style={styles.searchInput}
           onFocus={() => setIsFocused(true)}
@@ -170,14 +173,15 @@ function FilterMenu({
   onExpirationFilterSelect: (filter: string | null) => void;
   listColor: string;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const expirationFilters = [
-    { id: 'expired', label: 'Expiré', icon: 'alert-circle' },
-    { id: 'today', label: "Aujourd'hui", icon: 'today' },
-    { id: 'soon', label: '3 jours', icon: 'time' },
-    { id: 'week', label: '7 jours', icon: 'calendar' },
-    { id: 'fresh', label: 'Frais', icon: 'leaf' },
+    { id: 'expired', label: t('inventory.expired'), icon: 'alert-circle' },
+    { id: 'today', label: t('common.today'), icon: 'today' },
+    { id: 'soon', label: t('inventory.threeDays'), icon: 'time' },
+    { id: 'week', label: t('inventory.sevenDays'), icon: 'calendar' },
+    { id: 'fresh', label: t('inventory.fresh'), icon: 'leaf' },
   ];
 
   const hasActiveFilters = selectedCategory || selectedExpirationFilter;
@@ -221,7 +225,7 @@ function FilterMenu({
             hapticType="light"
             activeScale={0.95}
           >
-            <Text style={styles.clearFiltersText}>Effacer</Text>
+            <Text style={styles.clearFiltersText}>{t('common.clear')}</Text>
           </PressableScale>
         )}
       </View>
@@ -241,7 +245,7 @@ function FilterMenu({
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Categories section */}
               <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Catégories</Text>
+                <Text style={styles.filterSectionTitle}>{t('inventory.categories')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.filterMenuItem,
@@ -260,7 +264,7 @@ function FilterMenu({
                         !selectedCategory && { color: listColor, fontWeight: '600' },
                       ]}
                     >
-                      Toutes
+                      {t('inventory.allCategories')}
                     </Text>
                   </View>
                   {!selectedCategory && (
@@ -302,7 +306,7 @@ function FilterMenu({
 
               {/* Expiration section */}
               <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Date de péremption</Text>
+                <Text style={styles.filterSectionTitle}>{t('inventory.expirationDate')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.filterMenuItem,
@@ -321,7 +325,7 @@ function FilterMenu({
                         !selectedExpirationFilter && { color: listColor, fontWeight: '600' },
                       ]}
                     >
-                      Toutes
+                      {t('inventory.allCategories')}
                     </Text>
                   </View>
                   {!selectedExpirationFilter && (
@@ -395,15 +399,16 @@ function FoodItemCard({
   onToggleSelect: () => void;
   onLongPress: () => void;
 }) {
+  const { t } = useTranslation();
   const days = getDaysUntilExpiration(item.expirationDate);
 
   // Determine status color for indicator dot
-  let dotColor = '#4ADE80'; // Green - fresh (bright green)
+  let dotColor = COLORS.status.fresh; // Green - fresh (bright green)
   if (days !== null) {
     if (days < 0) {
-      dotColor = '#EF4444'; // Red - expired
+      dotColor = COLORS.status.expired; // Red - expired
     } else if (days <= 3) {
-      dotColor = '#FB923C'; // Orange - expiring soon
+      dotColor = COLORS.status.expiringSoon; // Orange - expiring soon
     }
   }
 
@@ -517,7 +522,7 @@ function FoodItemCard({
             style={styles.btnConsumed}
             activeOpacity={0.8}
           >
-            <Text style={styles.btnTextWhite}>Consommé</Text>
+            <Text style={styles.btnTextWhite}>{t('inventory.consumed')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -525,7 +530,7 @@ function FoodItemCard({
             style={styles.btnThrown}
             activeOpacity={0.8}
           >
-            <Text style={styles.btnTextWhite}>Jeter</Text>
+            <Text style={styles.btnTextWhite}>{t('inventory.throw')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -534,7 +539,7 @@ function FoodItemCard({
             activeOpacity={item.isOpened ? 1 : 0.8}
           >
             <Text style={[styles.btnTextDark, item.isOpened && styles.btnTextOpenedActive]}>
-              Ouvert
+              {t('inventory.opened')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -544,10 +549,12 @@ function FoodItemCard({
 }
 
 export default function InventoryListScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodConsumed, trackFoodThrown } = useGamification();
-  const { colors, isDark } = useTheme();
+  const { incrementActionCount } = useAds();
+  const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
@@ -643,12 +650,12 @@ export default function InventoryListScreen() {
           }).start();
         }
       } else {
-        Alert.alert('Erreur', 'Liste introuvable');
+        Alert.alert(t('common.error'), t('inventory.listNotFound'));
         navigation.goBack();
       }
     } catch (error) {
       logger.error('Erreur lors du chargement de la liste:', error);
-      Alert.alert('Erreur', 'Impossible de charger la liste');
+      Alert.alert(t('common.error'), t('inventory.loadError'));
     }
   };
 
@@ -768,8 +775,9 @@ export default function InventoryListScreen() {
 
       // Tracker pour la gamification
       trackFoodConsumed(wasBeforeExpiration);
+      incrementActionCount();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de marquer comme consommé');
+      Alert.alert(t('common.error'), t('inventory.consumedError'));
     }
   };
 
@@ -780,8 +788,9 @@ export default function InventoryListScreen() {
 
       // Tracker pour la gamification (reset du streak)
       trackFoodThrown();
+      incrementActionCount();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de marquer comme jeté');
+      Alert.alert(t('common.error'), t('inventory.thrownError'));
     }
   };
 
@@ -811,7 +820,7 @@ export default function InventoryListScreen() {
       setMarkAsOpenedModalVisible(false);
       setSelectedItemId(null);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de marquer comme ouvert');
+      Alert.alert(t('common.error'), t('inventory.openedError'));
     }
   };
 
@@ -844,12 +853,12 @@ export default function InventoryListScreen() {
       await loadListData();
 
       Alert.alert(
-        'Succès',
-        `${items.length} produit${items.length > 1 ? 's' : ''} ajouté${items.length > 1 ? 's' : ''} à la liste`
+        t('common.success'),
+        t('inventory.productsAdded', { count: items.length })
       );
     } catch (error) {
       logger.error('Erreur ajout produits:', error);
-      Alert.alert('Erreur', 'Impossible d\'ajouter les produits');
+      Alert.alert(t('common.error'), t('inventory.productsAddError'));
     }
   };
 
@@ -904,7 +913,7 @@ export default function InventoryListScreen() {
       exitSelectionMode();
       await loadListData();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de marquer comme consommés');
+      Alert.alert(t('common.error'), t('inventory.bulkConsumedError'));
     }
   };
 
@@ -918,7 +927,7 @@ export default function InventoryListScreen() {
       exitSelectionMode();
       await loadListData();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de marquer comme jetés');
+      Alert.alert(t('common.error'), t('inventory.bulkThrownError'));
     }
   };
 
@@ -930,7 +939,7 @@ export default function InventoryListScreen() {
       exitSelectionMode();
       await loadListData();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de supprimer les aliments');
+      Alert.alert(t('common.error'), t('inventory.bulkDeleteError'));
     }
   };
 
@@ -939,12 +948,12 @@ export default function InventoryListScreen() {
 
     if (action === 'delete') {
       Alert.alert(
-        'Supprimer définitivement',
-        `Supprimer ${count} aliment${count > 1 ? 's' : ''} de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.`,
+        t('inventory.deleteForever'),
+        t('inventory.deleteCountConfirm', { count }),
         [
-          { text: 'Annuler', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Supprimer',
+            text: t('common.delete'),
             style: 'destructive',
             onPress: handleBulkDelete,
           },
@@ -953,16 +962,17 @@ export default function InventoryListScreen() {
       return;
     }
 
-    const actionText = action === 'consumed' ? 'consommé' : 'jeté';
-    const actionPlural = action === 'consumed' ? 'consommés' : 'jetés';
+    const actionLabel = action === 'consumed'
+      ? t('inventory.consumedAction', { count })
+      : t('inventory.thrownAction', { count });
 
     Alert.alert(
-      `Confirmer l'action`,
-      `Marquer ${count} aliment${count > 1 ? 's' : ''} comme ${count > 1 ? actionPlural : actionText} ?`,
+      t('inventory.confirmAction'),
+      t('inventory.markCountAs', { count, action: actionLabel }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: action === 'consumed' ? handleBulkConsumed : handleBulkThrown,
         },
       ]
@@ -986,12 +996,12 @@ export default function InventoryListScreen() {
     if (!menuSelectedItem) return;
 
     Alert.alert(
-      'Supprimer l\'aliment',
-      `Êtes-vous sûr de vouloir supprimer "${menuSelectedItem.name}" ? Cet aliment ne sera pas comptabilisé dans les statistiques.`,
+      t('inventory.deleteItem'),
+      t('inventory.deleteItemConfirm', { name: menuSelectedItem.name }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -1001,7 +1011,7 @@ export default function InventoryListScreen() {
               setMenuSelectedItem(null);
               await loadListData();
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer l\'aliment');
+              Alert.alert(t('common.error'), t('inventory.deleteError'));
             }
           },
         },
@@ -1034,7 +1044,7 @@ export default function InventoryListScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.secondary.cream }]}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={[styles.loadingText, { color: colors.text.secondary }]}>Chargement...</Text>
+        <Text style={[styles.loadingText, { color: colors.text.secondary }]}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -1069,9 +1079,9 @@ export default function InventoryListScreen() {
         <View style={[styles.counterBadge, { backgroundColor: hexToRgba(listColor, 0.15) }]}>
           <Text style={[styles.counterText, { color: listColor }]}>
             {searchQuery ? (
-              `${filteredItems.length} résultat${filteredItems.length !== 1 ? 's' : ''}`
+              t('inventory.results', { count: filteredItems.length })
             ) : (
-              `${activeItems.length} aliment${activeItems.length !== 1 ? 's' : ''} actif${activeItems.length !== 1 ? 's' : ''}`
+              t('inventory.activeItems', { count: activeItems.length })
             )}
           </Text>
         </View>
@@ -1091,9 +1101,9 @@ export default function InventoryListScreen() {
                 <View style={styles.noResultsIcon}>
                   <Ionicons name="search-outline" size={48} color={COLORS.text.muted} />
                 </View>
-                <Text style={styles.emptyTitle}>Aucun résultat</Text>
+                <Text style={styles.emptyTitle}>{t('inventory.noResults')}</Text>
                 <Text style={styles.emptySubtitle}>
-                  Aucun aliment ne correspond à "{searchQuery}"
+                  {t('inventory.noMatchFor', { query: searchQuery })}
                 </Text>
                 <PressableScale
                   onPress={() => setSearchQuery('')}
@@ -1101,15 +1111,15 @@ export default function InventoryListScreen() {
                   hapticType="light"
                 >
                   <Text style={[styles.clearSearchText, { color: listColor }]}>
-                    Effacer la recherche
+                    {t('inventory.clearSearch')}
                   </Text>
                 </PressableScale>
               </>
             ) : (
               <>
                 <EmptyIllustration />
-                <Text style={styles.emptyTitle}>Aucun aliment</Text>
-                <Text style={styles.emptySubtitle}>Ajoutez-en un pour commencer !</Text>
+                <Text style={styles.emptyTitle}>{t('inventory.noFood')}</Text>
+                <Text style={styles.emptySubtitle}>{t('inventory.addToStart')}</Text>
               </>
             )}
           </Animated.View>
@@ -1130,7 +1140,7 @@ export default function InventoryListScreen() {
             </PressableScale>
 
             <Text style={styles.selectionCount}>
-              {selectedItems.size} sélectionné{selectedItems.size > 1 ? 's' : ''}
+              {t('inventory.selected', { count: selectedItems.size })}
             </Text>
 
             <PressableScale
@@ -1139,7 +1149,7 @@ export default function InventoryListScreen() {
               hapticType="light"
             >
               <Text style={[styles.selectAllText, { color: listColor }]}>
-                {selectedItems.size === filteredItems.length ? 'Désélect.' : 'Tout'}
+                {selectedItems.size === filteredItems.length ? t('inventory.deselectAll') : t('inventory.selectAll')}
               </Text>
             </PressableScale>
           </View>
@@ -1155,7 +1165,7 @@ export default function InventoryListScreen() {
               <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.primary[500] }]}>
                 <Ionicons name="checkmark" size={20} color={COLORS.neutral.white} />
               </View>
-              <Text style={[styles.bulkActionText, { color: COLORS.primary[500] }]}>Consommé</Text>
+              <Text style={[styles.bulkActionText, { color: COLORS.primary[500] }]}>{t('inventory.consumed')}</Text>
             </PressableScale>
 
             <PressableScale
@@ -1167,7 +1177,7 @@ export default function InventoryListScreen() {
               <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.accent.tomato }]}>
                 <Ionicons name="trash-outline" size={18} color={COLORS.neutral.white} />
               </View>
-              <Text style={[styles.bulkActionText, { color: COLORS.accent.tomato }]}>Jeté</Text>
+              <Text style={[styles.bulkActionText, { color: COLORS.accent.tomato }]}>{t('inventory.throw')}</Text>
             </PressableScale>
 
             <PressableScale
@@ -1179,7 +1189,7 @@ export default function InventoryListScreen() {
               <View style={[styles.bulkActionIconContainer, { backgroundColor: COLORS.neutral.gray500 }]}>
                 <Ionicons name="close" size={20} color={COLORS.neutral.white} />
               </View>
-              <Text style={[styles.bulkActionText, { color: COLORS.neutral.gray500 }]}>Supprimer</Text>
+              <Text style={[styles.bulkActionText, { color: COLORS.neutral.gray500 }]}>{t('common.delete')}</Text>
             </PressableScale>
           </View>
         </View>
@@ -1198,7 +1208,7 @@ export default function InventoryListScreen() {
         <View style={styles.fabMenuContainer}>
           {/* Scanner un ticket */}
           <Animated.View style={styles.fabMenuItem}>
-            <Text style={styles.fabMenuLabel}>Scanner un ticket</Text>
+            <Text style={styles.fabMenuLabel}>{t('inventory.scanReceipt')}</Text>
             <PressableScale
               onPress={() => {
                 setFabMenuOpen(false);
@@ -1208,7 +1218,7 @@ export default function InventoryListScreen() {
                   setReceiptScannerVisible(true);
                 }
               }}
-              style={[styles.fabSecondary, { backgroundColor: '#6366F1' }]}
+              style={[styles.fabSecondary, { backgroundColor: COLORS.status.indigo }]}
               hapticType="medium"
               activeScale={0.9}
             >
@@ -1218,7 +1228,7 @@ export default function InventoryListScreen() {
 
           {/* Ajouter un aliment */}
           <Animated.View style={styles.fabMenuItem}>
-            <Text style={styles.fabMenuLabel}>Ajouter un aliment</Text>
+            <Text style={styles.fabMenuLabel}>{t('inventory.addFood')}</Text>
             <PressableScale
               onPress={() => {
                 setFabMenuOpen(false);
@@ -1245,7 +1255,7 @@ export default function InventoryListScreen() {
           ]}
           hapticType="medium"
           activeScale={0.9}
-          accessibilityLabel="Menu d'ajout"
+          accessibilityLabel={t('inventory.addMenu')}
           accessibilityRole="button"
         >
           <Ionicons
@@ -1319,7 +1329,7 @@ export default function InventoryListScreen() {
               onPress={handleEditItem}
             >
               <Ionicons name="pencil-outline" size={22} color={COLORS.primary[500]} />
-              <Text style={styles.menuModalOptionText}>Modifier</Text>
+              <Text style={styles.menuModalOptionText}>{t('inventory.modify')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1327,7 +1337,7 @@ export default function InventoryListScreen() {
               onPress={handleDeleteItem}
             >
               <Ionicons name="trash-outline" size={22} color={COLORS.accent.tomato} />
-              <Text style={[styles.menuModalOptionText, styles.menuModalOptionTextDanger]}>Supprimer</Text>
+              <Text style={[styles.menuModalOptionText, styles.menuModalOptionTextDanger]}>{t('common.delete')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1353,25 +1363,25 @@ export default function InventoryListScreen() {
               {detailSelectedItem && (() => {
                 const days = getDaysUntilExpiration(detailSelectedItem.expirationDate);
                 const foodIconData = getFoodIcon(detailSelectedItem.name);
-                let statusColor = '#4ADE80';
-                let statusText = 'Frais';
+                let statusColor = COLORS.status.fresh;
+                let statusText = t('inventory.freshStatus');
                 let statusIcon = 'checkmark-circle';
 
                 if (days !== null) {
                   if (days < 0) {
-                    statusColor = '#EF4444';
-                    statusText = `Expiré depuis ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}`;
+                    statusColor = COLORS.status.expired;
+                    statusText = t('inventory.expiredSince', { count: Math.abs(days) });
                     statusIcon = 'close-circle';
                   } else if (days === 0) {
-                    statusColor = '#FB923C';
-                    statusText = "Expire aujourd'hui";
+                    statusColor = COLORS.status.expiringSoon;
+                    statusText = t('inventory.expiresToday');
                     statusIcon = 'alert-circle';
                   } else if (days <= 3) {
-                    statusColor = '#FB923C';
-                    statusText = `Expire dans ${days} jour${days > 1 ? 's' : ''}`;
+                    statusColor = COLORS.status.expiringSoon;
+                    statusText = t('inventory.expiresIn', { count: days });
                     statusIcon = 'time';
                   } else {
-                    statusText = `Expire dans ${days} jour${days > 1 ? 's' : ''}`;
+                    statusText = t('inventory.expiresIn', { count: days });
                     statusIcon = 'checkmark-circle';
                   }
                 }
@@ -1380,7 +1390,7 @@ export default function InventoryListScreen() {
                   <>
                     {/* Header with close button */}
                     <View style={styles.detailModalHeader}>
-                    <Text style={styles.detailModalTitle}>Détails de l'aliment</Text>
+                    <Text style={styles.detailModalTitle}>{t('inventory.foodDetails')}</Text>
                     <TouchableOpacity
                       onPress={() => setDetailModalVisible(false)}
                       style={styles.detailModalClose}
@@ -1420,7 +1430,7 @@ export default function InventoryListScreen() {
                       <View style={styles.detailInfoRow}>
                         <View style={styles.detailInfoLabel}>
                           <Ionicons name="fast-food-outline" size={20} color={COLORS.text.secondary} />
-                          <Text style={styles.detailInfoLabelText}>Catégorie</Text>
+                          <Text style={styles.detailInfoLabelText}>{t('inventory.category')}</Text>
                         </View>
                         <Text style={styles.detailInfoValue}>{detailSelectedItem.category}</Text>
                       </View>
@@ -1430,7 +1440,7 @@ export default function InventoryListScreen() {
                     <View style={styles.detailInfoRow}>
                       <View style={styles.detailInfoLabel}>
                         <Ionicons name="layers-outline" size={20} color={COLORS.text.secondary} />
-                        <Text style={styles.detailInfoLabelText}>Quantité</Text>
+                        <Text style={styles.detailInfoLabelText}>{t('inventory.quantity')}</Text>
                       </View>
                       <Text style={styles.detailInfoValue}>x{detailSelectedItem.quantity || 1}</Text>
                     </View>
@@ -1517,7 +1527,7 @@ export default function InventoryListScreen() {
                         setDetailModalVisible(false);
                         handleMarkAsThrown(detailSelectedItem);
                       }}
-                      style={[styles.detailActionButton, { backgroundColor: '#EF4444' }]}
+                      style={[styles.detailActionButton, { backgroundColor: COLORS.semantic.dangerLight }]}
                       hapticType="medium"
                       activeScale={0.96}
                     >
@@ -1849,7 +1859,7 @@ const styles = StyleSheet.create({
   },
   btnThrown: {
     flex: 1,
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.semantic.dangerLight,
     paddingVertical: 10,
     paddingHorizontal: 6,
     borderRadius: 25,
@@ -1871,7 +1881,7 @@ const styles = StyleSheet.create({
   btnTextWhite: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.neutral.white,
   },
   btnTextDark: {
     fontSize: 13,

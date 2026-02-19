@@ -7,6 +7,7 @@ import {
   Animated,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,8 +25,9 @@ import UnitSelector from '../components/UnitSelector';
 import BarcodeButton from '../components/BarcodeButton';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import PressableScale from '../components/PressableScale';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
+import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING, hexToRgba } from '../utils/designSystem';
 import { useGamification } from '../contexts/GamificationContext';
+import { useAds } from '../contexts/AdContext';
 import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'AddFood'>;
@@ -46,9 +48,11 @@ function BackgroundDecoration() {
 }
 
 export default function AddFoodScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodAdded } = useGamification();
+  const { incrementActionCount } = useAds();
   const { listId, editItem } = route.params;
 
   const isEditMode = !!editItem;
@@ -94,7 +98,7 @@ export default function AddFoodScreen() {
 
   const handleAddFood = async () => {
     if (!foodName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un nom d\'aliment');
+      Alert.alert(t('common.error'), t('addFood.nameRequired'));
       return;
     }
 
@@ -135,11 +139,13 @@ export default function AddFoodScreen() {
         await addItemToList(listId, newItem);
         // Tracker pour la gamification
         trackFoodAdded();
+        // Compteur pour les pubs interstitielles
+        incrementActionCount();
       }
       navigation.goBack();
     } catch (error) {
-      logger.error('Erreur lors de l\'ajout:', error);
-      Alert.alert('Erreur', isEditMode ? 'Impossible de modifier l\'aliment' : 'Impossible d\'ajouter l\'aliment');
+      logger.error('Error adding/editing food:', error);
+      Alert.alert(t('common.error'), isEditMode ? t('addFood.editError') : t('addFood.addError'));
     } finally {
       setIsAdding(false);
     }
@@ -151,18 +157,18 @@ export default function AddFoodScreen() {
 
       if (status !== 'granted') {
         Alert.alert(
-          'Permission requise',
-          'Nous avons besoin de votre permission pour accéder à vos photos.'
+          t('addFood.permissionRequired'),
+          t('addFood.permissionText')
         );
         return;
       }
 
       Alert.alert(
-        'Sélectionner une image',
-        'Choisissez une source',
+        t('addFood.selectImage'),
+        t('addFood.chooseSource'),
         [
           {
-            text: 'Caméra',
+            text: t('addFood.camera'),
             onPress: async () => {
               const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
               if (cameraStatus.status === 'granted') {
@@ -180,7 +186,7 @@ export default function AddFoodScreen() {
             },
           },
           {
-            text: 'Galerie',
+            text: t('addFood.gallery'),
             onPress: async () => {
               const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -195,7 +201,7 @@ export default function AddFoodScreen() {
             },
           },
           {
-            text: imageUri ? 'Supprimer' : 'Annuler',
+            text: imageUri ? t('common.delete') : t('common.cancel'),
             style: imageUri ? 'destructive' : 'cancel',
             onPress: () => {
               if (imageUri) {
@@ -207,8 +213,8 @@ export default function AddFoodScreen() {
         { cancelable: true }
       );
     } catch (error) {
-      logger.error('Erreur lors de la sélection d\'image:', error);
-      Alert.alert('Erreur', 'Impossible de sélectionner une image');
+      logger.error('Error selecting image:', error);
+      Alert.alert(t('common.error'), t('addFood.imageError'));
     }
   };
 
@@ -255,9 +261,9 @@ export default function AddFoodScreen() {
     }
 
     Alert.alert(
-      'Produit trouvé !',
-      `${product.name}${product.quantity ? `\nContenance: ${product.quantity}` : ''}`,
-      [{ text: 'OK' }]
+      t('addFood.productFound'),
+      `${product.name}${product.quantity ? `\n${t('addFood.productVolume', { volume: product.quantity })}` : ''}`,
+      [{ text: t('common.ok') }]
     );
   };
 
@@ -266,7 +272,7 @@ export default function AddFoodScreen() {
   return (
     <View style={styles.container}>
       <BackgroundDecoration />
-      <Header title={isEditMode ? "Modifier l'aliment" : "Ajouter un aliment"} showIcon={false} />
+      <Header title={isEditMode ? t('addFood.editTitle') : t('addFood.title')} showIcon={false} />
 
       <ScrollView
         style={styles.scrollView}
@@ -296,27 +302,27 @@ export default function AddFoodScreen() {
 
           {/* Form section */}
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Informations</Text>
+            <Text style={styles.sectionTitle}>{t('addFood.information')}</Text>
 
             <FieldInput
-              label="Nom de l'aliment"
+              label={t('addFood.name')}
               value={foodName}
               onChangeText={setFoodName}
-              placeholder="Ex: Tomates cerises"
+              placeholder={t('addFood.namePlaceholder')}
               icon="restaurant-outline"
             />
 
             <FieldInput
-              label="Nombre"
+              label={t('addFood.count')}
               value={quantity}
               onChangeText={setQuantity}
               placeholder="Ex: 3"
               icon="copy-outline"
               keyboardType="numeric"
-              hint="Nombre d'articles (ex: 3 paquets)"
+              hint={t('addFood.countHint')}
             />
 
-            <Text style={styles.fieldLabel}>Contenance</Text>
+            <Text style={styles.fieldLabel}>{t('addFood.volume')}</Text>
             <View style={styles.weightRow}>
               <View style={styles.weightInputContainer}>
                 <FieldInput
@@ -332,16 +338,16 @@ export default function AddFoodScreen() {
                 onUnitSelect={setUnit}
               />
             </View>
-            <Text style={styles.fieldHint}>Poids ou volume par article</Text>
+            <Text style={styles.fieldHint}>{t('addFood.weightHint')}</Text>
 
             <FieldInput
-              label="Prix total (€)"
+              label={t('addFood.totalPrice')}
               value={price}
               onChangeText={setPrice}
               placeholder="Ex: 4,50"
               icon="cash-outline"
               keyboardType="decimal-pad"
-              hint="Prix pour la quantité totale (comme sur le ticket)"
+              hint={t('addFood.priceHint')}
             />
 
             <CategorySelector
@@ -351,7 +357,7 @@ export default function AddFoodScreen() {
 
             {!isOpened && (
               <DatePickerField
-                label="Date d'expiration"
+                label={t('addFood.expirationDate')}
                 value={expirationDate}
                 onDateChange={setExpirationDate}
               />
@@ -360,7 +366,7 @@ export default function AddFoodScreen() {
 
           {/* Opened section */}
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>État du produit</Text>
+            <Text style={styles.sectionTitle}>{t('addFood.productState')}</Text>
 
             <PressableScale
               onPress={() => setIsOpened(!isOpened)}
@@ -379,9 +385,9 @@ export default function AddFoodScreen() {
                 )}
               </View>
               <View style={styles.toggleContent}>
-                <Text style={styles.toggleTitle}>Produit déjà ouvert</Text>
+                <Text style={styles.toggleTitle}>{t('addFood.alreadyOpened')}</Text>
                 <Text style={styles.toggleSubtitle}>
-                  Calcul automatique de la date de péremption
+                  {t('addFood.autoExpiration')}
                 </Text>
               </View>
               <Ionicons
@@ -394,19 +400,19 @@ export default function AddFoodScreen() {
             {isOpened && (
               <Animated.View style={styles.openedFields}>
                 <DatePickerField
-                  label="Date d'ouverture"
+                  label={t('addFood.openDate')}
                   value={openedDate}
                   onDateChange={setOpenedDate}
                 />
 
                 <FieldInput
-                  label="À consommer sous"
+                  label={t('addFood.consumeWithin')}
                   value={daysAfterOpening}
                   onChangeText={setDaysAfterOpening}
-                  placeholder="Nombre de jours"
+                  placeholder={t('addFood.daysAfterOpening')}
                   icon="time-outline"
                   keyboardType="numeric"
-                  hint="Nombre de jours après ouverture"
+                  hint={t('addFood.daysAfterOpening')}
                 />
               </Animated.View>
             )}
@@ -425,7 +431,7 @@ export default function AddFoodScreen() {
               activeScale={0.97}
             >
               {isAdding ? (
-                <Text style={styles.submitButtonText}>{isEditMode ? 'Modification en cours...' : 'Ajout en cours...'}</Text>
+                <Text style={styles.submitButtonText}>{isEditMode ? t('addFood.modifying') : t('addFood.adding')}</Text>
               ) : (
                 <>
                   <Ionicons
@@ -439,7 +445,7 @@ export default function AddFoodScreen() {
                       !isFormValid && styles.submitButtonTextDisabled,
                     ]}
                   >
-                    {isEditMode ? "Enregistrer" : "Ajouter l'aliment"}
+                    {isEditMode ? t('addFood.save') : t('addFood.addItem')}
                   </Text>
                 </>
               )}
@@ -472,26 +478,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: SPACING.xl,
+    paddingBottom: SPACING['4xl'],
   },
   imageSection: {
-    marginBottom: 32,
+    marginBottom: SPACING['3xl'],
   },
   formSection: {
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   sectionTitle: {
     ...TYPOGRAPHY.h4,
     color: COLORS.primary[500],
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   toggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.lg,
-    padding: 16,
+    padding: SPACING.lg,
     borderWidth: 1.5,
     borderColor: hexToRgba(COLORS.primary[500], 0.15),
     ...SHADOWS.sm,
@@ -499,12 +505,12 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 2,
     borderColor: hexToRgba(COLORS.primary[500], 0.4),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary[500],
@@ -524,18 +530,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   openedFields: {
-    marginTop: 16,
-    paddingLeft: 8,
+    marginTop: SPACING.lg,
+    paddingLeft: SPACING.sm,
     borderLeftWidth: 3,
     borderLeftColor: hexToRgba(COLORS.primary[500], 0.2),
   },
   barcodeSection: {
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   weightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
   },
   weightInputContainer: {
     flex: 1,
@@ -544,16 +550,16 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.primary[500],
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   fieldHint: {
     ...TYPOGRAPHY.caption,
     color: COLORS.text.secondary,
     marginTop: 6,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   submitSection: {
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   submitButton: {
     flexDirection: 'row',
@@ -562,7 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary[500],
     borderRadius: RADIUS.xl,
     paddingVertical: 18,
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING['3xl'],
     ...SHADOWS.colored(COLORS.primary[500], 0.35),
   },
   submitButtonDisabled: {
@@ -572,7 +578,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     ...TYPOGRAPHY.button,
     color: COLORS.neutral.white,
-    marginLeft: 8,
+    marginLeft: SPACING.sm,
   },
   submitButtonTextDisabled: {
     color: COLORS.text.muted,

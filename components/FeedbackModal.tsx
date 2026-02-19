@@ -5,12 +5,15 @@ import {
   TextInput,
   Alert,
   Image,
+  StyleSheet,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
 import { sendFeedback } from '../utils/feedbackService';
+import { COLORS, SPACING, RADIUS, hexToRgba, SHADOWS } from '../utils/designSystem';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -21,6 +24,7 @@ export default function FeedbackModal({
   visible,
   onClose,
 }: FeedbackModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -32,7 +36,7 @@ export default function FeedbackModal({
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Nous avons besoin de votre permission pour accéder à vos photos.');
+        Alert.alert(t('feedback.permissionRequired'), t('feedback.permissionText'));
         return;
       }
 
@@ -46,7 +50,7 @@ export default function FeedbackModal({
         setImages([...images, result.assets[0].uri]);
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de sélectionner une image');
+      Alert.alert(t('common.error'), t('feedback.imageError'));
     }
   };
 
@@ -56,15 +60,15 @@ export default function FeedbackModal({
 
   const handleSendFeedback = async () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      Alert.alert(t('common.error'), t('feedback.errorName'));
       return;
     }
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      Alert.alert(t('common.error'), t('feedback.errorEmail'));
       return;
     }
     if (!feedback.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre message');
+      Alert.alert(t('common.error'), t('feedback.errorMessage'));
       return;
     }
 
@@ -82,9 +86,9 @@ export default function FeedbackModal({
       setFeedback('');
       setImages([]);
       onClose();
-      Alert.alert('Succès', 'Votre feedback a été envoyé !');
+      Alert.alert(t('common.success'), t('feedback.sent'));
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le feedback');
+      Alert.alert(t('common.error'), error.message || t('feedback.sendError'));
     } finally {
       setIsSending(false);
     }
@@ -99,54 +103,52 @@ export default function FeedbackModal({
       position="center"
       closeOnBackdrop={!isSending}
     >
-      <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl">
+      <View style={[styles.container, SHADOWS.xl]}>
         {/* Header */}
-        <View className="flex-row justify-between items-center px-4 py-3 border-b border-[#3C6E47]/20">
+        <View style={styles.header}>
           <PressableScale
             onPress={onClose}
             disabled={isSending}
-            className="px-3 py-2 rounded-xl"
+            style={styles.headerButton}
           >
-            <Text className={`font-medium text-base ${isSending ? 'text-[#6A8A6E]' : 'text-[#3C6E47]'}`}>
-              Annuler
+            <Text style={[styles.cancelText, isSending && styles.disabledText]}>
+              {t('feedback.cancel')}
             </Text>
           </PressableScale>
 
-          <Text className="text-[#3C6E47] font-bold text-lg">Feedback</Text>
+          <Text style={styles.headerTitle}>{t('feedback.title')}</Text>
 
           <PressableScale
             onPress={handleSendFeedback}
             disabled={isSending || !isValid}
             hapticType="medium"
-            className="px-3 py-2 rounded-xl"
+            style={styles.headerButton}
           >
-            <Text className={`font-semibold text-base ${isSending || !isValid ? 'text-[#6A8A6E]' : 'text-[#3C6E47]'}`}>
-              {isSending ? 'Envoi...' : 'Envoyer'}
+            <Text style={[styles.sendText, (isSending || !isValid) && styles.disabledText]}>
+              {isSending ? t('feedback.sending') : t('feedback.send')}
             </Text>
           </PressableScale>
         </View>
 
         {/* Content */}
-        <View className="p-4">
+        <View style={styles.content}>
           {/* Name & Email row */}
-          <View className="flex-row gap-2 mb-3">
+          <View style={styles.inputRow}>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Nom"
-              placeholderTextColor="#6A8A6E"
-              className="flex-1 bg-[#A3C9A8]/40 rounded-xl px-4 py-3 border border-[#3C6E47]/20 text-[#3C6E47] text-sm"
-              style={{ fontSize: 14 }}
+              placeholder={t('feedback.namePlaceholder')}
+              placeholderTextColor={COLORS.text.tertiary}
+              style={styles.halfInput}
             />
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
-              placeholderTextColor="#6A8A6E"
+              placeholder={t('feedback.emailPlaceholder')}
+              placeholderTextColor={COLORS.text.tertiary}
               keyboardType="email-address"
               autoCapitalize="none"
-              className="flex-1 bg-[#A3C9A8]/40 rounded-xl px-4 py-3 border border-[#3C6E47]/20 text-[#3C6E47] text-sm"
-              style={{ fontSize: 14 }}
+              style={styles.halfInput}
             />
           </View>
 
@@ -154,29 +156,27 @@ export default function FeedbackModal({
           <TextInput
             value={feedback}
             onChangeText={setFeedback}
-            placeholder="Votre message..."
-            placeholderTextColor="#6A8A6E"
+            placeholder={t('feedback.messagePlaceholder')}
+            placeholderTextColor={COLORS.text.tertiary}
             multiline
             numberOfLines={4}
-            className="bg-[#A3C9A8]/40 rounded-xl px-4 py-3 border border-[#3C6E47]/20 text-[#3C6E47] text-sm mb-3"
-            style={{ fontSize: 14, textAlignVertical: 'top', minHeight: 100 }}
+            style={styles.messageInput}
           />
 
           {/* Images row */}
-          <View className="flex-row items-center gap-2">
+          <View style={styles.imagesRow}>
             {images.map((uri, index) => (
-              <View key={index} className="relative">
+              <View key={index} style={styles.imageWrapper}>
                 <Image
                   source={{ uri }}
-                  className="w-14 h-14 rounded-xl"
-                  style={{ resizeMode: 'cover' }}
+                  style={styles.image}
                 />
                 <PressableScale
                   onPress={() => handleRemoveImage(index)}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 items-center justify-center"
+                  style={styles.removeButton}
                   hapticType="light"
                 >
-                  <Ionicons name="close" size={12} color="white" />
+                  <Ionicons name="close" size={12} color={COLORS.neutral.white} />
                 </PressableScale>
               </View>
             ))}
@@ -184,10 +184,10 @@ export default function FeedbackModal({
             {images.length < 3 && (
               <PressableScale
                 onPress={handleAddImage}
-                className="w-14 h-14 rounded-xl bg-[#A3C9A8]/40 border border-dashed border-[#3C6E47]/30 items-center justify-center"
+                style={styles.addImageButton}
                 hapticType="light"
               >
-                <Ionicons name="image-outline" size={20} color="#3C6E47" />
+                <Ionicons name="image-outline" size={20} color={COLORS.primary[500]} />
               </PressableScale>
             )}
           </View>
@@ -196,3 +196,111 @@ export default function FeedbackModal({
     </AnimatedModal>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  headerButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
+  cancelText: {
+    fontWeight: '500',
+    fontSize: 16,
+    color: COLORS.primary[500],
+  },
+  disabledText: {
+    color: COLORS.text.tertiary,
+  },
+  headerTitle: {
+    color: COLORS.primary[500],
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  sendText: {
+    fontWeight: '600',
+    fontSize: 16,
+    color: COLORS.primary[500],
+  },
+  content: {
+    padding: SPACING.lg,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  halfInput: {
+    flex: 1,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    color: COLORS.primary[500],
+    fontSize: 14,
+  },
+  messageInput: {
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    color: COLORS.primary[500],
+    fontSize: 14,
+    textAlignVertical: 'top',
+    minHeight: 100,
+    marginBottom: SPACING.md,
+  },
+  imagesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  imageWrapper: {
+    position: 'relative',
+  },
+  image: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.lg,
+    resizeMode: 'cover',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.semantic.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageButton: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.lg,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.4),
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: hexToRgba(COLORS.primary[500], 0.3),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

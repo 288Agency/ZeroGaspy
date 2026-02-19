@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, Alert, ScrollView, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { List, LIST_COLORS, LIST_ICONS } from '../types';
 import { updateList } from '../utils/localStorage';
 import AnimatedModal from './AnimatedModal';
 import ColorPicker from './ColorPicker';
 import IconPicker from './IconPicker';
 import Button from './Button';
+import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface EditListModalProps {
   visible: boolean;
@@ -20,6 +22,7 @@ export default function EditListModal({
   onClose,
   onListUpdated,
 }: EditListModalProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [selectedColor, setSelectedColor] = useState(LIST_COLORS[0].value);
   const [selectedIcon, setSelectedIcon] = useState(LIST_ICONS[0].value);
@@ -37,7 +40,7 @@ export default function EditListModal({
     if (!list) return;
 
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Le titre ne peut pas être vide');
+      Alert.alert(t('common.error'), t('editList.errorEmptyTitle'));
       return;
     }
 
@@ -51,7 +54,7 @@ export default function EditListModal({
       onListUpdated();
       onClose();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de modifier la liste');
+      Alert.alert(t('common.error'), error.message || t('editList.errorSave'));
     } finally {
       setIsSaving(false);
     }
@@ -64,27 +67,27 @@ export default function EditListModal({
       position="center"
       closeOnBackdrop={!isSaving}
     >
-      <View className="bg-[#F7F5E6] rounded-3xl mx-4 max-h-[85%]">
+      <View style={styles.container}>
         <ScrollView
-          className="p-6"
+          style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="text-xl font-bold text-[#3C6E47] mb-6 text-center">
-            Modifier la liste
+          <Text style={styles.title}>
+            {t('editList.title')}
           </Text>
 
-          <View className="mb-4">
-            <Text className="text-base font-semibold text-gray-700 mb-2">
-              Nom de la liste
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>
+              {t('editList.listName')}
             </Text>
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder="Ex: Frigo, Épicerie..."
-              placeholderTextColor="#9CA3AF"
+              placeholder={t('editList.placeholder')}
+              placeholderTextColor={COLORS.neutral.grayDisabled}
               maxLength={50}
-              className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900"
+              style={styles.textInput}
             />
           </View>
 
@@ -92,28 +95,28 @@ export default function EditListModal({
             selectedIcon={selectedIcon}
             onIconSelect={setSelectedIcon}
             selectedColor={selectedColor}
-            label="Icône"
+            label={t('editList.icon')}
           />
 
           <ColorPicker
             selectedColor={selectedColor}
             onColorSelect={setSelectedColor}
-            label="Couleur"
+            label={t('editList.color')}
           />
 
-          <View className="flex-row gap-3 mt-4 pb-2">
-            <View className="flex-1">
+          <View style={styles.buttonsRow}>
+            <View style={styles.buttonWrapper}>
               <Button
                 onPress={onClose}
-                label="Annuler"
+                label={t('editList.cancel')}
                 variant="outline"
                 disabled={isSaving}
               />
             </View>
-            <View className="flex-1">
+            <View style={styles.buttonWrapper}>
               <Button
                 onPress={handleSave}
-                label={isSaving ? 'Enregistrement...' : 'Enregistrer'}
+                label={isSaving ? t('editList.saving') : t('editList.save')}
                 variant="primary"
                 disabled={isSaving || !title.trim()}
               />
@@ -124,3 +127,50 @@ export default function EditListModal({
     </AnimatedModal>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    marginHorizontal: SPACING.lg,
+    maxHeight: '85%',
+  },
+  scrollView: {
+    padding: SPACING['2xl'],
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: SPACING['2xl'],
+    textAlign: 'center',
+  },
+  fieldContainer: {
+    marginBottom: SPACING.lg,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.neutral.gray700,
+    marginBottom: SPACING.sm,
+  },
+  textInput: {
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: COLORS.neutral.gray200,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    fontSize: 16,
+    color: COLORS.neutral.gray900,
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  buttonWrapper: {
+    flex: 1,
+  },
+});

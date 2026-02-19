@@ -25,6 +25,7 @@ interface SubscriptionContextType {
   purchasePackage: (pkg: PurchasesPackage) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   refreshSubscriptionStatus: () => Promise<void>;
+  reloadOfferings: () => Promise<void>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -80,14 +81,13 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     const setupUser = async () => {
       setIsLoading(true);
       try {
-        // Identifier l'utilisateur si connecte
+        // Identifier l'utilisateur si connecte, sinon utiliser un utilisateur anonyme
         if (user?.id) {
           await Purchases.logIn(user.id);
           logger.info('RevenueCat user identified:', user.id);
-        } else {
-          // Deconnecter de RevenueCat si pas d'utilisateur
-          await Purchases.logOut();
         }
+        // Note: On ne fait plus de logOut() quand pas d'utilisateur
+        // RevenueCat utilise automatiquement un ID anonyme
 
         // Charger les packages disponibles
         await loadOfferings();
@@ -122,8 +122,28 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const loadOfferings = async () => {
     try {
       const offerings = await Purchases.getOfferings();
+      logger.info('RevenueCat offerings loaded:', {
+        hasCurrentOffering: !!offerings.current,
+        currentOfferingId: offerings.current?.identifier,
+        packagesCount: offerings.current?.availablePackages?.length || 0,
+        allOfferingsCount: Object.keys(offerings.all).length,
+      });
+
       if (offerings.current?.availablePackages) {
         setPackages(offerings.current.availablePackages);
+        logger.info('Packages set:', offerings.current.availablePackages.map(p => p.identifier));
+      } else {
+        // Essayer de trouver un offering alternatif
+        const allOfferingKeys = Object.keys(offerings.all);
+        if (allOfferingKeys.length > 0) {
+          const firstOffering = offerings.all[allOfferingKeys[0]];
+          if (firstOffering?.availablePackages) {
+            setPackages(firstOffering.availablePackages);
+            logger.info('Using fallback offering:', allOfferingKeys[0]);
+          }
+        } else {
+          logger.warn('No offerings available from RevenueCat');
+        }
       }
     } catch (error) {
       logger.error('Error loading offerings:', error);
@@ -140,10 +160,27 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   };
 
   const updateSubscriptionState = (customerInfo: CustomerInfo) => {
+    // Debug: afficher toutes les entitlements reçues
+    const activeEntitlementKeys = Object.keys(customerInfo.entitlements.active);
+    const allEntitlementKeys = Object.keys(customerInfo.entitlements.all);
+    logger.info('RevenueCat entitlements debug:', {
+      expectedId: ENTITLEMENT_ID,
+      activeEntitlements: activeEntitlementKeys,
+      allEntitlements: allEntitlementKeys,
+      activeSubscriptions: customerInfo.activeSubscriptions,
+    });
+
+    if (activeEntitlementKeys.length > 0 && !customerInfo.entitlements.active[ENTITLEMENT_ID]) {
+      logger.warn(
+        `ENTITLEMENT_ID mismatch! Expected "${ENTITLEMENT_ID}" but got: [${activeEntitlementKeys.join(', ')}]`
+      );
+    }
+
     const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
 
     if (entitlement) {
       setIsPremium(true);
+      logger.info('Premium activated:', { productId: entitlement.productIdentifier });
 
       // Determiner le type d'abonnement
       const productId = entitlement.productIdentifier;
@@ -161,23 +198,21 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       setIsPremium(false);
       setCurrentPlan('free');
       setExpirationDate(null);
+      logger.info('No active premium entitlement found');
     }
   };
 
   const purchasePackage = async (pkg: PurchasesPackage): Promise<boolean> => {
-    // Verifier que l'utilisateur est connecte
-    if (!user) {
-      Alert.alert(
-        'Compte requis',
-        'Vous devez avoir un compte pour vous abonner. Connectez-vous ou creez un compte.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-
     try {
       setIsLoading(true);
+
+      // RevenueCat gère les achats anonymes nativement
+      // L'achat sera lié au compte quand l'utilisateur se connectera
       const { customerInfo } = await Purchases.purchasePackage(pkg);
+      logger.info('Purchase completed, checking entitlements...', {
+        activeEntitlements: Object.keys(customerInfo.entitlements.active),
+        expectedEntitlement: ENTITLEMENT_ID,
+      });
       updateSubscriptionState(customerInfo);
 
       if (customerInfo.entitlements.active[ENTITLEMENT_ID]) {
@@ -188,6 +223,17 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         );
         return true;
       }
+
+      // L'achat a reussi cote Store mais l'entitlement n'est pas trouve
+      logger.warn('Purchase succeeded but entitlement not found!', {
+        expected: ENTITLEMENT_ID,
+        got: Object.keys(customerInfo.entitlements.active),
+      });
+      Alert.alert(
+        'Achat effectue',
+        'L\'achat a ete effectue mais l\'activation n\'a pas pu etre verifiee. Essayez "Restaurer les achats" dans quelques instants.',
+        [{ text: 'OK' }]
+      );
       return false;
     } catch (error) {
       const purchaseError = error as PurchasesError;
@@ -247,6 +293,15 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     await checkSubscriptionStatus();
   };
 
+  const reloadOfferings = async () => {
+    setIsLoading(true);
+    try {
+      await loadOfferings();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SubscriptionContext.Provider
       value={{
@@ -258,6 +313,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
         purchasePackage,
         restorePurchases,
         refreshSubscriptionStatus,
+        reloadOfferings,
       }}
     >
       {children}

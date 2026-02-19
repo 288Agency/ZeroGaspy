@@ -30,17 +30,14 @@ function TabIcon({ name, focused, color }: TabIconProps) {
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const bottomPadding = Math.max(insets.bottom, 12);
 
-  // Couleurs dynamiques basées sur le thème
   const glowColor = hexToRgba(colors.primary[500], 0.08);
   const iconContainerFocusedColor = hexToRgba(colors.primary[500], 0.15);
-  const inactiveTextColor = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(60, 60, 67, 0.6)';
-  const glassOverlayColor = isDark
-    ? (Platform.OS === 'ios' ? 'rgba(30, 30, 30, 0.7)' : 'rgba(30, 30, 30, 0.95)')
-    : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.92)');
-  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)';
+  const inactiveTextColor = 'rgba(60, 60, 67, 0.6)';
+  const glassOverlayColor = Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.92)';
+  const borderColor = 'rgba(255, 255, 255, 0.4)';
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPadding }]}>
@@ -49,7 +46,7 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
 
       <BlurView
         intensity={Platform.OS === 'ios' ? 60 : 100}
-        tint={Platform.OS === 'ios' ? (isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight') : (isDark ? 'dark' : 'light')}
+        tint={Platform.OS === 'ios' ? 'systemThinMaterialLight' : 'light'}
         style={[styles.blurContainer, { borderColor }]}
       >
         {/* Inner gradient overlay for glass effect */}
@@ -155,7 +152,7 @@ const styles = StyleSheet.create({
     borderWidth: Platform.OS === 'ios' ? 0.5 : 1,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: COLORS.neutral.black,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,

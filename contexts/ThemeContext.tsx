@@ -6,16 +6,11 @@ import {
   EXPIRATION_COLORS,
 } from '../utils/designSystem';
 
-export type ThemePreference = 'light';
-
 interface ThemeContextType {
-  theme: ThemePreference;
-  isDark: boolean;
   colors: typeof COLORS;
   gradients: typeof GRADIENTS;
   categoryColors: typeof CATEGORY_COLORS;
   expirationColors: typeof EXPIRATION_COLORS;
-  setTheme: (theme: ThemePreference) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -25,16 +20,8 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  // Mode clair uniquement - pas de dark mode
-  const isDark = false;
-  const theme: ThemePreference = 'light';
-
-  const setTheme = async (_newTheme: ThemePreference) => {
-    // Dark mode désactivé - ne fait rien
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, isDark, colors: COLORS, gradients: GRADIENTS, categoryColors: CATEGORY_COLORS, expirationColors: EXPIRATION_COLORS, setTheme }}>
+    <ThemeContext.Provider value={{ colors: COLORS, gradients: GRADIENTS, categoryColors: CATEGORY_COLORS, expirationColors: EXPIRATION_COLORS }}>
       {children}
     </ThemeContext.Provider>
   );

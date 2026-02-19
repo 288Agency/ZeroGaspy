@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
+import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface QuantityModalProps {
   visible: boolean;
@@ -45,13 +46,13 @@ export default function QuantityModal({
   const getActionColor = () => {
     switch (actionType) {
       case 'consumed':
-        return '#3C6E47';
+        return COLORS.primary[500];
       case 'thrown':
-        return '#DC2626';
+        return COLORS.semantic.dangerDark;
       case 'opened':
-        return '#D97706';
+        return COLORS.semantic.warningAmber;
       default:
-        return '#3C6E47';
+        return COLORS.primary[500];
     }
   };
 
@@ -106,50 +107,49 @@ export default function QuantityModal({
       onClose={onClose}
       position="center"
     >
-      <View className="bg-[#F7F5E6] rounded-3xl overflow-hidden shadow-2xl mx-6">
+      <View style={styles.container}>
         {/* Header */}
-        <View className="items-center pt-6 pb-4 px-6">
-          <View 
-            className="w-16 h-16 rounded-full items-center justify-center mb-4"
-            style={{ backgroundColor: `${getActionColor()}20` }}
+        <View style={styles.header}>
+          <View
+            style={[styles.iconCircle, { backgroundColor: `${getActionColor()}20` }]}
           >
             <Ionicons name={getIcon()} size={32} color={getActionColor()} />
           </View>
-          <Text className="text-xl font-bold text-[#3C6E47] text-center mb-1">
+          <Text style={styles.title}>
             Quelle quantité ?
           </Text>
-          <Text className="text-sm text-[#6A8A6E] text-center">
+          <Text style={styles.subtitle}>
             {itemName} • {maxQuantity} disponible{maxQuantity > 1 ? 's' : ''}
           </Text>
         </View>
 
         {/* Quantity selector */}
-        <View className="px-6 pb-4">
-          <View className="flex-row items-center justify-center gap-4">
+        <View style={styles.selectorSection}>
+          <View style={styles.selectorRow}>
             {/* Decrement button */}
             <PressableScale
               onPress={decrementQuantity}
               disabled={currentQty <= 1}
-              className={`w-14 h-14 rounded-2xl items-center justify-center ${
-                currentQty <= 1 ? 'bg-gray-200' : 'bg-[#A3C9A8]'
-              }`}
+              style={[
+                styles.stepButton,
+                currentQty <= 1 ? styles.stepButtonDisabled : styles.stepButtonEnabled,
+              ]}
               hapticType="light"
             >
-              <Ionicons 
-                name="remove" 
-                size={28} 
-                color={currentQty <= 1 ? '#9CA3AF' : '#3C6E47'} 
+              <Ionicons
+                name="remove"
+                size={28}
+                color={currentQty <= 1 ? COLORS.neutral.grayDisabled : COLORS.primary[500]}
               />
             </PressableScale>
 
             {/* Quantity input */}
-            <View className="items-center">
+            <View style={styles.inputContainer}>
               <TextInput
                 value={quantity}
                 onChangeText={setQuantity}
                 keyboardType="numeric"
-                className="text-4xl font-bold text-[#3C6E47] text-center w-20"
-                style={{ fontSize: 40 }}
+                style={styles.quantityInput}
                 maxLength={3}
               />
             </View>
@@ -158,15 +158,16 @@ export default function QuantityModal({
             <PressableScale
               onPress={incrementQuantity}
               disabled={currentQty >= maxQuantity}
-              className={`w-14 h-14 rounded-2xl items-center justify-center ${
-                currentQty >= maxQuantity ? 'bg-gray-200' : 'bg-[#A3C9A8]'
-              }`}
+              style={[
+                styles.stepButton,
+                currentQty >= maxQuantity ? styles.stepButtonDisabled : styles.stepButtonEnabled,
+              ]}
               hapticType="light"
             >
-              <Ionicons 
-                name="add" 
-                size={28} 
-                color={currentQty >= maxQuantity ? '#9CA3AF' : '#3C6E47'} 
+              <Ionicons
+                name="add"
+                size={28}
+                color={currentQty >= maxQuantity ? COLORS.neutral.grayDisabled : COLORS.primary[500]}
               />
             </PressableScale>
           </View>
@@ -175,10 +176,10 @@ export default function QuantityModal({
           {maxQuantity > 1 && (
             <PressableScale
               onPress={setAllQuantity}
-              className="mt-4 py-2 px-4 rounded-xl bg-[#A3C9A8]/30 self-center"
+              style={styles.allButton}
               hapticType="light"
             >
-              <Text className="text-sm font-medium text-[#3C6E47]">
+              <Text style={styles.allButtonText}>
                 Tout ({maxQuantity})
               </Text>
             </PressableScale>
@@ -186,23 +187,25 @@ export default function QuantityModal({
         </View>
 
         {/* Actions */}
-        <View className="px-6 pb-6 pt-2 gap-3">
+        <View style={styles.actions}>
           {/* Bouton Valider */}
           <PressableScale
             onPress={handleConfirm}
             disabled={!isValid}
-            className="py-4 rounded-2xl items-center justify-center flex-row"
-            style={{ backgroundColor: isValid ? getActionColor() : '#D1D5DB' }}
+            style={[
+              styles.confirmButton,
+              { backgroundColor: isValid ? getActionColor() : COLORS.neutral.gray300 },
+            ]}
             hapticType="medium"
           >
-            <Ionicons 
-              name={getIcon()} 
-              size={20} 
-              color="white" 
+            <Ionicons
+              name={getIcon()}
+              size={20}
+              color={COLORS.neutral.white}
             />
-            <Text className="text-base font-semibold text-white ml-2">
-              {currentQty === maxQuantity 
-                ? `Tout marquer comme ${getActionLabel()}` 
+            <Text style={styles.confirmButtonText}>
+              {currentQty === maxQuantity
+                ? `Tout marquer comme ${getActionLabel()}`
                 : `Marquer ${currentQty} comme ${getActionLabel()}`}
             </Text>
           </PressableScale>
@@ -210,10 +213,10 @@ export default function QuantityModal({
           {/* Bouton Annuler */}
           <PressableScale
             onPress={onClose}
-            className="py-3 items-center justify-center"
+            style={styles.cancelButton}
             hapticType="light"
           >
-            <Text className="text-base font-medium text-[#6A8A6E]">
+            <Text style={styles.cancelButtonText}>
               Annuler
             </Text>
           </PressableScale>
@@ -222,3 +225,113 @@ export default function QuantityModal({
     </AnimatedModal>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: COLORS.secondary.cream,
+    borderRadius: RADIUS['3xl'],
+    overflow: 'hidden',
+    marginHorizontal: SPACING['2xl'],
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: SPACING['2xl'],
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING['2xl'],
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
+  },
+  selectorSection: {
+    paddingHorizontal: SPACING['2xl'],
+    paddingBottom: SPACING.lg,
+  },
+  selectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.lg,
+  },
+  stepButton: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS['2xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepButtonDisabled: {
+    backgroundColor: COLORS.neutral.gray200,
+  },
+  stepButtonEnabled: {
+    backgroundColor: COLORS.secondary.sage,
+  },
+  inputContainer: {
+    alignItems: 'center',
+  },
+  quantityInput: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    textAlign: 'center',
+    width: 80,
+  },
+  allButton: {
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
+    alignSelf: 'center',
+  },
+  allButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.primary[500],
+  },
+  actions: {
+    paddingHorizontal: SPACING['2xl'],
+    paddingBottom: SPACING['2xl'],
+    paddingTop: SPACING.sm,
+    gap: SPACING.md,
+  },
+  confirmButton: {
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS['2xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.neutral.white,
+    marginLeft: SPACING.sm,
+  },
+  cancelButton: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.text.tertiary,
+  },
+});

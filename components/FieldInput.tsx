@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TextInputProps, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
+import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface FieldInputProps extends TextInputProps {
   label?: string;
@@ -74,7 +74,7 @@ export default function FieldInput({
           {...props}
           value={value}
           onChangeText={onChangeText}
-          style={[styles.input, icon && { paddingLeft: 8 }]}
+          style={[styles.input, icon && { paddingLeft: SPACING.sm }]}
           placeholderTextColor={COLORS.text.muted}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -90,7 +90,7 @@ export default function FieldInput({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   containerNoLabel: {
     marginBottom: 0,
@@ -98,14 +98,14 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.label,
     color: COLORS.text.brand,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: RADIUS.lg,
     borderWidth: 1.5,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.lg,
     minHeight: 56,
     ...SHADOWS.sm,
   },
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   iconContainer: {
-    marginRight: 4,
+    marginRight: SPACING.xs,
   },
   input: {
     flex: 1,
@@ -126,6 +126,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.text.secondary,
     marginTop: 6,
-    paddingLeft: 4,
+    paddingLeft: SPACING.xs,
   },
 });

@@ -11,13 +11,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { LIST_COLORS, LIST_ICONS } from '../types';
 import { createList, loadLists } from '../utils/localStorage';
+import { useTranslation } from 'react-i18next';
 import Header from '../components/Header';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import ColorPicker from '../components/ColorPicker';
 import IconPicker from '../components/IconPicker';
 import PaywallModal from '../components/PaywallModal';
-import { COLORS } from '../utils/designSystem';
+import { COLORS, SPACING } from '../utils/designSystem';
 import { useGamification } from '../contexts/GamificationContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { FREE_LIMITS } from '../constants/subscription';
@@ -26,6 +27,7 @@ import logger from '../utils/logger';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateList'>;
 
 export default function CreateListScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { trackListCreated } = useGamification();
   const { isPremium } = useSubscription();
@@ -47,7 +49,7 @@ export default function CreateListScreen() {
 
   const handleCreate = async () => {
     if (!listTitle.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer un titre pour la liste');
+      Alert.alert(t('common.error'), t('lists.titleRequired'));
       return;
     }
 
@@ -84,14 +86,14 @@ export default function CreateListScreen() {
       });
     } catch (error: any) {
       logger.error('Erreur lors de la création de la liste:', error.message);
-      Alert.alert('Erreur', 'Impossible de créer la liste');
+      Alert.alert(t('common.error'), t('lists.createError'));
       setIsCreating(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Header title="Nouvelle liste" showIcon={false} />
+      <Header title={t('lists.newList')} showIcon={false} />
 
       <ScrollView
         style={styles.scrollView}
@@ -102,13 +104,13 @@ export default function CreateListScreen() {
       >
         <View style={styles.descriptionContainer}>
           <Text style={styles.description}>
-            Créez une nouvelle liste pour organiser vos aliments. Vous pourrez y ajouter des aliments avec leurs dates d'expiration.
+            {t('lists.createDescription')}
           </Text>
         </View>
 
         <Input
-          label="Titre de la liste"
-          placeholder="Ex: Frigo, Épicerie, Congélateur..."
+          label={t('lists.listTitlePlaceholder')}
+          placeholder={t('lists.listPlaceholderExample')}
           value={listTitle}
           onChangeText={setListTitle}
           autoFocus
@@ -135,20 +137,20 @@ export default function CreateListScreen() {
         <View style={styles.buttonContainer}>
           <Button
             onPress={handleCreate}
-            label={isCreating ? 'Création...' : 'Créer la liste'}
+            label={isCreating ? t('lists.creating') : t('lists.createList')}
             icon="add-circle-outline"
             variant="primary"
             disabled={isCreating || !listTitle.trim()}
-            accessibilityLabel="Créer la liste"
+            accessibilityLabel={t('lists.createList')}
           />
         </View>
 
         <View style={styles.buttonContainer}>
           <Button
             onPress={() => navigation.goBack()}
-            label="Annuler"
+            label={t('common.cancel')}
             variant="outline"
-            accessibilityLabel="Annuler la création"
+            accessibilityLabel={t('common.cancel')}
           />
         </View>
       </ScrollView>
@@ -172,10 +174,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: SPACING.xl,
   },
   descriptionContainer: {
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
   },
   description: {
     fontSize: 16,
@@ -183,10 +185,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   pickerContainer: {
-    marginTop: 24,
+    marginTop: SPACING['2xl'],
   },
   buttonContainer: {
-    marginTop: 16,
+    marginTop: SPACING.lg,
   },
 });
 

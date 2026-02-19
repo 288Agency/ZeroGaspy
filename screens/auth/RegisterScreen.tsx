@@ -14,14 +14,20 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
+import * as Linking from 'expo-linking';
 import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS } from '../../utils/designSystem';
+import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING } from '../../utils/designSystem';
 import { validatePassword } from '../../utils/security';
+
+const TERMS_URL = 'https://www.zerogaspy.fr/terms/';
+const PRIVACY_URL = 'https://www.zerogaspy.fr/privacy/';
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
   const { signUp } = useAuth();
+  const { t } = useTranslation();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -36,27 +42,27 @@ export default function RegisterScreen() {
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre nom');
+      Alert.alert(t('common.error'), t('auth.nameRequired'));
       return false;
     }
     if (!email.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer votre email');
+      Alert.alert(t('common.error'), t('auth.emailRequired'));
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Erreur', 'Format d\'email invalide');
+      Alert.alert(t('common.error'), t('auth.invalidEmailFormat'));
       return false;
     }
     if (!passwordValidation.isValid) {
-      Alert.alert('Mot de passe invalide', passwordValidation.errors.join('\n'));
+      Alert.alert(t('auth.passwordInvalid'), passwordValidation.errors.join('\n'));
       return false;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      Alert.alert(t('common.error'), t('auth.passwordMismatch'));
       return false;
     }
     if (!acceptTerms) {
-      Alert.alert('Erreur', 'Veuillez accepter les conditions d\'utilisation');
+      Alert.alert(t('common.error'), t('auth.acceptTermsRequired'));
       return false;
     }
     return true;
@@ -71,12 +77,23 @@ export default function RegisterScreen() {
     try {
       const { error } = await signUp(email, password, fullName);
       if (error) {
-        Alert.alert('Erreur', error.message);
+        if (error.message === 'USER_ALREADY_EXISTS') {
+          Alert.alert(
+            t('auth.emailAlreadyUsedTitle'),
+            t('auth.emailAlreadyUsedMessage'),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('auth.signIn'), onPress: () => navigation.goBack() },
+            ]
+          );
+        } else {
+          Alert.alert(t('common.error'), error.message);
+        }
       } else {
         Alert.alert(
-          'Compte cree !',
-          'Un email de confirmation vous a ete envoye. Verifiez votre boite mail pour activer votre compte.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          t('auth.accountCreated'),
+          t('auth.confirmEmail'),
+          [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
         );
       }
     } finally {
@@ -105,20 +122,20 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Creer un compte</Text>
+        <Text style={styles.title}>{t('auth.registerTitle')}</Text>
         <Text style={styles.subtitle}>
-          Rejoignez ZeroGaspy et sauvegardez vos donnees dans le cloud
+          {t('auth.registerSubtitle')}
         </Text>
 
         {/* Formulaire */}
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom complet</Text>
+            <Text style={styles.label}>{t('auth.fullName')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Votre nom"
+                placeholder={t('auth.namePlaceholder')}
                 placeholderTextColor={COLORS.text.muted}
                 value={fullName}
                 onChangeText={setFullName}
@@ -129,12 +146,12 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="votre@email.com"
+                placeholder={t('auth.emailPlaceholder')}
                 placeholderTextColor={COLORS.text.muted}
                 value={email}
                 onChangeText={setEmail}
@@ -147,12 +164,12 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mot de passe</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Minimum 8 caracteres"
+                placeholder={t('auth.minChars')}
                 placeholderTextColor={COLORS.text.muted}
                 value={password}
                 onChangeText={setPassword}
@@ -184,24 +201,24 @@ export default function RegisterScreen() {
                   passwordValidation.strength === 'medium' && styles.strengthTextMedium,
                   passwordValidation.strength === 'strong' && styles.strengthTextStrong,
                 ]}>
-                  {passwordValidation.strength === 'weak' ? 'Faible' : passwordValidation.strength === 'medium' ? 'Moyen' : 'Fort'}
+                  {passwordValidation.strength === 'weak' ? t('auth.passwordWeak') : passwordValidation.strength === 'medium' ? t('auth.passwordMedium') : t('auth.passwordStrong')}
                 </Text>
               </View>
             )}
             {password.length > 0 && !passwordValidation.isValid && (
               <Text style={styles.passwordHint}>
-                Requis: majuscule, minuscule, chiffre, 8+ caracteres
+                {t('auth.passwordHint')}
               </Text>
             )}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirmer le mot de passe</Text>
+            <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Retapez votre mot de passe"
+                placeholder={t('auth.retypePassword')}
                 placeholderTextColor={COLORS.text.muted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -220,10 +237,10 @@ export default function RegisterScreen() {
               {acceptTerms && <Ionicons name="checkmark" size={16} color={COLORS.neutral.white} />}
             </View>
             <Text style={styles.checkboxText}>
-              J'accepte les{' '}
-              <Text style={styles.link}>conditions d'utilisation</Text>
-              {' '}et la{' '}
-              <Text style={styles.link}>politique de confidentialite</Text>
+              {t('auth.acceptTermsText')}{' '}
+              <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)}>{t('auth.termsOfUse')}</Text>
+              {' '}{t('auth.andThe')}{' '}
+              <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>{t('auth.privacyPolicy')}</Text>
             </Text>
           </TouchableOpacity>
 
@@ -237,15 +254,15 @@ export default function RegisterScreen() {
             {isLoading ? (
               <ActivityIndicator color={COLORS.neutral.white} />
             ) : (
-              <Text style={styles.registerButtonText}>Creer mon compte</Text>
+              <Text style={styles.registerButtonText}>{t('auth.createMyAccount')}</Text>
             )}
           </PressableScale>
 
           {/* Lien connexion */}
           <View style={styles.loginLink}>
-            <Text style={styles.loginLinkText}>Deja un compte ? </Text>
+            <Text style={styles.loginLinkText}>{t('auth.hasAccount')} </Text>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.loginLinkBold}>Se connecter</Text>
+              <Text style={styles.loginLinkBold}>{t('auth.signIn')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -260,9 +277,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary.cream,
   },
   headerBar: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingTop: Platform.OS === 'ios' ? 60 : SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
   },
   backButton: {
     width: 44,
@@ -272,32 +289,32 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING['2xl'],
+    paddingBottom: SPACING['4xl'],
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: COLORS.primary[500],
     letterSpacing: -0.5,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
     ...TYPOGRAPHY.body,
     color: COLORS.text.secondary,
-    marginBottom: 32,
+    marginBottom: SPACING['3xl'],
     lineHeight: 22,
   },
   form: {
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   label: {
     ...TYPOGRAPHY.label,
     color: COLORS.primary[500],
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -306,17 +323,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     borderWidth: 1.5,
     borderColor: COLORS.primary[100],
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.lg,
     ...SHADOWS.sm,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   input: {
     flex: 1,
     ...TYPOGRAPHY.body,
     color: COLORS.text.primary,
-    paddingVertical: 16,
+    paddingVertical: SPACING.lg,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -326,12 +343,12 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 2,
     borderColor: COLORS.primary[300],
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: SPACING.md,
     marginTop: 2,
   },
   checkboxChecked: {
@@ -353,7 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     paddingVertical: 18,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING['2xl'],
     ...SHADOWS.colored(COLORS.primary[500], 0.3),
   },
   registerButtonText: {
@@ -377,45 +394,45 @@ const styles = StyleSheet.create({
   passwordStrength: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
   },
   strengthBars: {
     flexDirection: 'row',
-    gap: 4,
+    gap: SPACING.xs,
     flex: 1,
   },
   strengthBar: {
     flex: 1,
-    height: 4,
+    height: SPACING.xs,
     borderRadius: 2,
     backgroundColor: COLORS.neutral.gray200,
   },
   strengthBarWeak: {
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.semantic.dangerLight,
   },
   strengthBarMedium: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: COLORS.accent.gold,
   },
   strengthBarStrong: {
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.semantic.successLight,
   },
   strengthText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     fontWeight: '600',
   },
   strengthTextWeak: {
-    color: '#EF4444',
+    color: COLORS.semantic.dangerLight,
   },
   strengthTextMedium: {
-    color: '#F59E0B',
+    color: COLORS.accent.gold,
   },
   strengthTextStrong: {
-    color: '#10B981',
+    color: COLORS.semantic.successLight,
   },
   passwordHint: {
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
     color: COLORS.text.muted,
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
 });
