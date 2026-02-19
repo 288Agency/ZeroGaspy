@@ -78,7 +78,8 @@
       "mcp__claude_ai_Notion__notion-search",
       "mcp__claude_ai_Notion__notion-fetch",
       "mcp__plugin_supabase_supabase__get_logs",
-      "mcp__plugin_supabase_supabase__get_project"
+      "mcp__plugin_supabase_supabase__get_project",
+      "Bash(git commit:*)"
     ]
   }
 }
