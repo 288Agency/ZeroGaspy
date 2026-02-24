@@ -14,6 +14,10 @@ import {
 } from '../constants/subscription';
 import logger from '../utils/logger';
 
+// 🛠️ MODE DÉVELOPPEMENT - Activer Premium gratuitement pour tester
+// ⚠️ IMPORTANT : Mettre à FALSE avant le build de production !
+const ENABLE_PREMIUM_IN_DEV = __DEV__ && true;
+
 export type SubscriptionPlan = 'free' | 'monthly' | 'yearly';
 
 interface SubscriptionContextType {
@@ -36,12 +40,22 @@ interface SubscriptionProviderProps {
 
 export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const { user } = useAuth();
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(ENABLE_PREMIUM_IN_DEV);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan>('free');
+  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan>(ENABLE_PREMIUM_IN_DEV ? 'yearly' : 'free');
   const [expirationDate, setExpirationDate] = useState<Date | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isConfigured, setIsConfigured] = useState(false);
+
+  // Mode développement : forcer premium
+  useEffect(() => {
+    if (ENABLE_PREMIUM_IN_DEV) {
+      logger.info('🛠️ MODE DEV : Premium activé gratuitement pour tester');
+      setIsPremium(true);
+      setCurrentPlan('yearly');
+      setIsLoading(false);
+    }
+  }, []);
 
   // Configuration de RevenueCat
   useEffect(() => {
