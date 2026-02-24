@@ -148,9 +148,9 @@ function formatProductName(name: string): string {
 }
 
 /**
- * Convertit une image en base64
+ * Prépare l'URI de l'image pour l'upload
  */
-async function imageToBase64(imageUri: string): Promise<string> {
+async function prepareImageUri(imageUri: string): Promise<string> {
   try {
     let localUri = imageUri;
 
@@ -161,18 +161,15 @@ async function imageToBase64(imageUri: string): Promise<string> {
       localUri = downloadResult.uri;
     }
 
-    // Lire le fichier en base64
-    const base64 = await FileSystem.readAsStringAsync(localUri, {
-      encoding: 'base64',
-    });
-
-    if (!base64 || base64.length < 100) {
-      throw new Error('Image corrompue ou vide');
+    // Vérifier que le fichier existe
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    if (!fileInfo.exists) {
+      throw new Error('Fichier image introuvable');
     }
 
-    return base64;
+    return localUri;
   } catch (error: any) {
-    logger.error('Erreur conversion base64:', error.message);
+    logger.error('Erreur préparation image:', error.message);
     throw new Error('Impossible de lire l\'image');
   }
 }
@@ -180,7 +177,7 @@ async function imageToBase64(imageUri: string): Promise<string> {
 /**
  * Appelle Mindee Receipt OCR API
  */
-async function callMindeeAPI(base64Image: string, apiKey: string): Promise<MindeeResponse> {
+async function callMindeeAPI(imageUri: string, apiKey: string): Promise<MindeeResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
@@ -188,16 +185,12 @@ async function callMindeeAPI(base64Image: string, apiKey: string): Promise<Minde
     // Créer FormData pour l'upload
     const formData = new FormData();
 
-    // Convertir base64 en Blob
-    const byteCharacters = atob(base64Image);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-    formData.append('document', blob, 'receipt.jpg');
+    // Dans React Native, on doit passer l'URI directement avec le type
+    formData.append('document', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'receipt.jpg',
+    } as any);
 
     const response = await fetch(MINDEE_API_URL, {
       method: 'POST',
@@ -341,14 +334,14 @@ export async function scanReceiptWithMindee(
       };
     }
 
-    // Convertir l'image en base64
-    logger.info('📸 Conversion de l\'image en base64');
-    const base64 = await imageToBase64(imageUri);
+    // Préparer l'URI de l'image
+    logger.info('📸 Préparation de l\'image');
+    const preparedUri = await prepareImageUri(imageUri);
 
     // Appeler l'API Mindee avec rate limiting
     logger.info('🔍 Appel de Mindee Receipt OCR API');
     const mindeeData = await withRateLimit('mindee-receipt', () =>
-      callMindeeAPI(base64, mindeeApiKey)
+      callMindeeAPI(preparedUri, mindeeApiKey)
     );
 
     // Parser la réponse
@@ -376,36 +369,28 @@ export async function scanReceiptWithMindee(
 
 /**
  * Teste si la clé API Mindee est valide
+ * En mode React Native, on teste juste avec un appel simple
  */
 export async function testMindeeAPIKey(apiKey: string): Promise<boolean> {
   try {
-    // Image test minimaliste (1x1 pixel blanc en PNG base64)
-    const testImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-
+    // Simplement tester avec une requête vide pour vérifier l'auth
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const formData = new FormData();
-    const byteCharacters = atob(testImage);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'image/png' });
-    formData.append('document', blob, 'test.png');
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(MINDEE_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: JSON.stringify({}),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-    return response.ok || response.status === 400; // 400 = image invalide mais API key valide
+
+    // 401 = clé invalide, 400 = clé valide mais requête invalide
+    return response.status !== 401;
   } catch {
     return false;
   }
