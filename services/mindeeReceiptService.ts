@@ -148,11 +148,11 @@ function formatProductName(name: string): string {
 }
 
 /**
- * Prépare l'URI de l'image pour l'upload
+ * Convertit l'image en base64 pour l'upload
  */
-async function prepareImageUri(imageUri: string): Promise<string> {
+async function imageToBase64(imageUri: string): Promise<string> {
   try {
-    logger.info('📁 Préparation URI:', imageUri);
+    logger.info('📁 Conversion image en base64:', imageUri);
     let localUri = imageUri;
 
     // Si c'est une URL http, télécharger d'abord
@@ -176,37 +176,40 @@ async function prepareImageUri(imageUri: string): Promise<string> {
       logger.info(`📏 Taille image: ${(fileInfo.size / 1024).toFixed(2)} KB`);
     }
 
-    return localUri;
+    // Lire en base64
+    logger.info('🔄 Lecture base64...');
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: 'base64',
+    });
+
+    if (!base64 || base64.length < 100) {
+      throw new Error('Image corrompue ou vide');
+    }
+
+    logger.info(`✅ Base64 créé: ${(base64.length / 1024).toFixed(2)} KB`);
+    return base64;
   } catch (error: any) {
-    logger.error('Erreur préparation image:', error.message);
+    logger.error('Erreur conversion base64:', error.message);
     throw new Error('Impossible de lire l\'image');
   }
 }
 
 /**
- * Appelle Mindee Receipt OCR API
+ * Appelle Mindee Receipt OCR API avec base64
  */
-async function callMindeeAPI(imageUri: string, apiKey: string): Promise<MindeeResponse> {
+async function callMindeeAPI(base64Image: string, apiKey: string): Promise<MindeeResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
   try {
-    logger.info('📤 Upload image vers Mindee');
-    logger.debug('URI:', imageUri);
+    logger.info('📤 Envoi image vers Mindee (base64)');
     logger.debug('API Key:', apiKey.substring(0, 10) + '...');
+    logger.debug('Base64 length:', base64Image.length);
 
-    // Créer FormData pour l'upload
-    const formData = new FormData();
-
-    // Dans React Native, on doit passer l'URI directement avec le type
-    const fileData = {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'receipt.jpg',
-    };
-
-    logger.debug('FileData:', JSON.stringify(fileData));
-    formData.append('document', fileData as any);
+    // Envoyer en JSON avec base64 (plus compatible React Native)
+    const requestBody = JSON.stringify({
+      document: base64Image,
+    });
 
     logger.info('🌐 Envoi requête à Mindee...');
 
@@ -214,9 +217,9 @@ async function callMindeeAPI(imageUri: string, apiKey: string): Promise<MindeeRe
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,
-        // Ne pas spécifier Content-Type, FormData le gère automatiquement
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: requestBody,
       signal: controller.signal,
     });
 
@@ -355,14 +358,14 @@ export async function scanReceiptWithMindee(
       };
     }
 
-    // Préparer l'URI de l'image
+    // Convertir l'image en base64
     logger.info('📸 Préparation de l\'image');
-    const preparedUri = await prepareImageUri(imageUri);
+    const base64Image = await imageToBase64(imageUri);
 
     // Appeler l'API Mindee avec rate limiting
     logger.info('🔍 Appel de Mindee Receipt OCR API');
     const mindeeData = await withRateLimit('mindee-receipt', () =>
-      callMindeeAPI(preparedUri, mindeeApiKey)
+      callMindeeAPI(base64Image, mindeeApiKey)
     );
 
     // Parser la réponse
