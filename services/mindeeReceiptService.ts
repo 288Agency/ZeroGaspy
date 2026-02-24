@@ -10,8 +10,8 @@ import { sanitizeString } from '../utils/security';
 import { withRateLimit } from '../utils/rateLimiter';
 import logger from '../utils/logger';
 
-// Configuration
-const MINDEE_API_URL = 'https://api.mindee.net/v1/products/mindee/expense_receipts/v5/predict';
+// Configuration - API v2
+const MINDEE_API_URL = 'https://api.mindee.com/v1/products/mindee/expense_receipts/v5/predict';
 const API_TIMEOUT = 15000; // 15 secondes
 
 // Types
