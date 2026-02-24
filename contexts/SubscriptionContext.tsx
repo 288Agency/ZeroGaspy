@@ -14,9 +14,9 @@ import {
 } from '../constants/subscription';
 import logger from '../utils/logger';
 
-// 🛠️ MODE DÉVELOPPEMENT - Activer Premium gratuitement pour tester
-// ⚠️ IMPORTANT : Mettre à FALSE avant le build de production !
-const ENABLE_PREMIUM_IN_DEV = __DEV__ && true;
+// 🛠️ MODE DÉVELOPPEMENT - Désactivé pour sécurité
+// Pour tester le premium en dev : utiliser RevenueCat sandbox
+const ENABLE_PREMIUM_IN_DEV = false;
 
 export type SubscriptionPlan = 'free' | 'monthly' | 'yearly';
 
