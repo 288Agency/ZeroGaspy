@@ -16,7 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
-import { scanReceiptWithMindee, ReceiptScanResult } from '../services/mindeeReceiptService';
+import { scanReceipt, ReceiptScanResult } from '../services/receiptScannerService'; // Google Vision (fallback)
 import { COLORS, SHADOWS, RADIUS } from '../utils/designSystem';
 import Constants from 'expo-constants';
 import logger from '../utils/logger';
@@ -43,9 +43,9 @@ export default function ReceiptScannerModal({
   const [processingMessage, setProcessingMessage] = useState('');
   const cameraRef = useRef<CameraView>(null);
 
-  // Récupérer la clé API Mindee depuis les variables d'environnement
-  const apiKey = Constants.expoConfig?.extra?.mindeeApiKey ||
-                 process.env.EXPO_PUBLIC_MINDEE_API_KEY || '';
+  // Récupérer la clé API Google Vision depuis les variables d'environnement
+  const apiKey = Constants.expoConfig?.extra?.googleVisionApiKey ||
+                 process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
 
   const resetState = () => {
     setScanState('camera');
@@ -159,7 +159,7 @@ export default function ReceiptScannerModal({
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setProcessingMessage(t('receiptScanner.extractingText'));
-      const result = await scanReceiptWithMindee(capturedImage, apiKey);
+      const result = await scanReceipt(capturedImage, apiKey);
 
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
