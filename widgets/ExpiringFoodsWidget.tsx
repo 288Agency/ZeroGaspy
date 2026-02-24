@@ -49,7 +49,7 @@ function FoodItem({ food }: { food: ExpiringFood }) {
           width: 8,
           height: 8,
           borderRadius: 4,
-          backgroundColor: color,
+          backgroundColor: color as any,
           marginRight: 8,
         }}
       />
@@ -74,7 +74,7 @@ function FoodItem({ food }: { food: ExpiringFood }) {
       </FlexWidget>
       <FlexWidget
         style={{
-          backgroundColor: color + '20',
+          backgroundColor: (color + '20') as any,
           paddingHorizontal: 8,
           paddingVertical: 2,
           borderRadius: 10,
@@ -84,7 +84,7 @@ function FoodItem({ food }: { food: ExpiringFood }) {
           text={getExpirationText(food.daysLeft)}
           style={{
             fontSize: 11,
-            color: color,
+            color: color as any,
             fontWeight: '700',
           }}
         />
@@ -161,9 +161,11 @@ export function ExpiringFoodsWidget({ expiringFoods }: ExpiringFoodsWidgetProps)
       {/* Liste des aliments */}
       {hasExpiring ? (
         <ListWidget
-          style={{
-            flex: 1,
-          }}
+          style={
+            {
+              flex: 1,
+            } as any
+          }
         >
           {expiringFoods.slice(0, 4).map((food, index) => (
             <FoodItem key={index} food={food} />

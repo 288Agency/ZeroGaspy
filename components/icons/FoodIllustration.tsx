@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { COLORS } from '../../utils/designSystem';
 
 interface FoodIllustrationProps {
@@ -15,8 +15,8 @@ const FoodIllustration = React.memo(function FoodIllustration({ size = 60 }: Foo
           <Stop offset="100%" stopColor={COLORS.primary[200]} />
         </LinearGradient>
       </Defs>
-      <Circle cx="30" cy="35" rx="25" ry="12" fill="url(#plateGrad)" />
-      <Circle cx="30" cy="35" rx="20" ry="9" fill={COLORS.neutral.white} opacity="0.5" />
+      <Ellipse cx="30" cy="35" rx="25" ry="12" fill="url(#plateGrad)" />
+      <Ellipse cx="30" cy="35" rx="20" ry="9" fill={COLORS.neutral.white} opacity="0.5" />
       <Circle cx="22" cy="30" r="6" fill={COLORS.accent.tomato} />
       <Circle cx="35" cy="28" r="5" fill={COLORS.accent.avocado} />
       <Circle cx="30" cy="35" r="4" fill={COLORS.accent.carrot} />

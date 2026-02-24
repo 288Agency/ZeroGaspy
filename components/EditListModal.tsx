@@ -24,8 +24,8 @@ export default function EditListModal({
 }: EditListModalProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
-  const [selectedColor, setSelectedColor] = useState(LIST_COLORS[0].value);
-  const [selectedIcon, setSelectedIcon] = useState(LIST_ICONS[0].value);
+  const [selectedColor, setSelectedColor] = useState<string>(LIST_COLORS[0].value);
+  const [selectedIcon, setSelectedIcon] = useState<string>(LIST_ICONS[0].value);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {

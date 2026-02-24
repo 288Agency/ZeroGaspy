@@ -136,6 +136,13 @@ export const COLORS = {
 // ============================================
 
 export const SHADOWS = {
+  xs: {
+    shadowColor: '#3C6E47',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
   sm: {
     shadowColor: '#3C6E47',
     shadowOffset: { width: 0, height: 2 },
@@ -241,11 +248,13 @@ export const TYPOGRAPHY = {
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '600' as const,
+    letterSpacing: 0,
   },
   h4: {
     fontSize: 18,
     lineHeight: 24,
     fontWeight: '600' as const,
+    letterSpacing: 0,
   },
 
   // Body text
@@ -289,6 +298,7 @@ export const TYPOGRAPHY = {
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600' as const,
+    letterSpacing: 0.2,
   },
 };
 

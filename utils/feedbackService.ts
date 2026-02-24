@@ -1,10 +1,11 @@
 // Service pour envoyer les feedbacks par email via Supabase Edge Function + Resend
 import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 import { sanitizeString, validateEmail, escapeHtml } from './security';
 import logger from './logger';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || '';
+const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || '';
 
 export interface FeedbackData {
   name: string;
@@ -65,7 +66,7 @@ async function convertImagesToBase64(imageUris: string[]): Promise<ImageAttachme
     try {
       const uri = imageUris[i];
       const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Determiner le type MIME

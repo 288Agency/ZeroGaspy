@@ -84,7 +84,7 @@ export default function Card({
 
   // Gradient variant
   if (variant === 'gradient') {
-    const gradientColors = color
+    const gradientColors: readonly [string, string] = color
       ? [hexToRgba(color, 0.15), hexToRgba(color, 0.05)]
       : [hexToRgba(COLORS.primary[500], 0.12), hexToRgba(COLORS.primary[500], 0.04)];
 

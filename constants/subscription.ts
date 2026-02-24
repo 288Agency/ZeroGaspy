@@ -4,8 +4,8 @@ export const FREE_LIMITS = {
 } as const;
 
 // Clés API RevenueCat (à remplacer par vos clés)
-export const REVENUECAT_API_KEY_IOS = 'appl_PPJvqpqEsLOilhGTcuHFqyURZLB';
-export const REVENUECAT_API_KEY_ANDROID = 'YOUR_ANDROID_API_KEY';
+export const REVENUECAT_API_KEY_IOS: string = 'appl_PPJvqpqEsLOilhGTcuHFqyURZLB';
+export const REVENUECAT_API_KEY_ANDROID: string = 'YOUR_ANDROID_API_KEY';
 
 // ID de l'entitlement RevenueCat
 export const ENTITLEMENT_ID = 'Zerogaspy Pro';

@@ -163,6 +163,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId: '67db9e46-01d4-4c41-815b-237ba7f22681',
     },
+    // Variables d'environnement exposées à l'application
+    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    googleVisionApiKey: process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY,
+    feedbackEmail: process.env.EXPO_PUBLIC_FEEDBACK_EMAIL,
   },
   owner: '288agency',
 });

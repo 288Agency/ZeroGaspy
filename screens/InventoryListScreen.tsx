@@ -766,9 +766,14 @@ export default function InventoryListScreen() {
     try {
       // Verifier si l'aliment est consomme avant expiration
       const item = list?.items.find(i => i.id === itemId);
-      const wasBeforeExpiration = item?.expirationDate
-        ? getDaysUntilExpiration(item.expirationDate) >= 0
-        : true;
+      let wasBeforeExpiration = true;
+      if (item) {
+        const expDate = item.expirationDate;
+        if (expDate) {
+          const days = getDaysUntilExpiration(expDate as string);
+          wasBeforeExpiration = days !== null && days >= 0;
+        }
+      }
 
       await updateItemStatusWithQuantity(listId, itemId, 'consumed', quantity);
       await loadListData();

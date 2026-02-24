@@ -5,6 +5,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import { loadLists } from '../utils/localStorage';
 import { calculateUserStats, calculateDailyStats, calculateMonthlyStats } from './statsService';
@@ -63,7 +64,7 @@ async function collectExportData(): Promise<ExportData> {
 
     return {
       exportDate: new Date().toISOString(),
-      appVersion: '1.0.0', // TODO: Récupérer depuis app.json
+      appVersion: Constants.expoConfig?.version || '1.0.0',
       lists,
       stats: {
         user: userStats,

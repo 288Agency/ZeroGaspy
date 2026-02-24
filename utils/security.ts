@@ -95,10 +95,10 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
         sanitized[key] = sanitizeString(value) as any;
       } else if (value === null || value === undefined) {
         sanitized[key] = value;
-      } else if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      } else if (typeof value === 'object' && !Array.isArray(value) && !(value as any instanceof Date)) {
         sanitized[key] = sanitizeObject(value);
       } else if (Array.isArray(value)) {
-        sanitized[key] = value.map(item =>
+        sanitized[key] = value.map((item: any) =>
           typeof item === 'string' ? sanitizeString(item) :
           typeof item === 'object' && item !== null ? sanitizeObject(item) : item
         ) as any;
