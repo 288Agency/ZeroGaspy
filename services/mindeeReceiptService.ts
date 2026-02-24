@@ -152,19 +152,28 @@ function formatProductName(name: string): string {
  */
 async function prepareImageUri(imageUri: string): Promise<string> {
   try {
+    logger.info('📁 Préparation URI:', imageUri);
     let localUri = imageUri;
 
     // Si c'est une URL http, télécharger d'abord
     if (imageUri.startsWith('http')) {
+      logger.info('⬇️ Téléchargement image HTTP...');
       const destUri = FileSystem.cacheDirectory + 'receipt_temp.jpg';
       const downloadResult = await FileSystem.downloadAsync(imageUri, destUri);
       localUri = downloadResult.uri;
+      logger.info('✅ Image téléchargée:', localUri);
     }
 
     // Vérifier que le fichier existe
     const fileInfo = await FileSystem.getInfoAsync(localUri);
+    logger.debug('📊 Info fichier:', JSON.stringify(fileInfo));
+
     if (!fileInfo.exists) {
       throw new Error('Fichier image introuvable');
+    }
+
+    if ('size' in fileInfo) {
+      logger.info(`📏 Taille image: ${(fileInfo.size / 1024).toFixed(2)} KB`);
     }
 
     return localUri;
@@ -182,24 +191,36 @@ async function callMindeeAPI(imageUri: string, apiKey: string): Promise<MindeeRe
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
   try {
+    logger.info('📤 Upload image vers Mindee');
+    logger.debug('URI:', imageUri);
+    logger.debug('API Key:', apiKey.substring(0, 10) + '...');
+
     // Créer FormData pour l'upload
     const formData = new FormData();
 
     // Dans React Native, on doit passer l'URI directement avec le type
-    formData.append('document', {
+    const fileData = {
       uri: imageUri,
       type: 'image/jpeg',
       name: 'receipt.jpg',
-    } as any);
+    };
+
+    logger.debug('FileData:', JSON.stringify(fileData));
+    formData.append('document', fileData as any);
+
+    logger.info('🌐 Envoi requête à Mindee...');
 
     const response = await fetch(MINDEE_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,
+        // Ne pas spécifier Content-Type, FormData le gère automatiquement
       },
       body: formData,
       signal: controller.signal,
     });
+
+    logger.info('📥 Réponse reçue:', response.status);
 
     clearTimeout(timeoutId);
 
