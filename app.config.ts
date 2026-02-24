@@ -166,7 +166,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Variables d'environnement exposées à l'application
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    googleVisionApiKey: process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY,
+    mindeeApiKey: process.env.EXPO_PUBLIC_MINDEE_API_KEY,
+    googleVisionApiKey: process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY, // Deprecated - utiliser Mindee
     feedbackEmail: process.env.EXPO_PUBLIC_FEEDBACK_EMAIL,
   },
   owner: '288agency',

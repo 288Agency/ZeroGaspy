@@ -15,7 +15,7 @@ import Animated, {
   FadeOut,
   Layout,
 } from 'react-native-reanimated';
-import { ReceiptItem } from '../services/receiptScannerService';
+import { ReceiptItem } from '../services/mindeeReceiptService';
 import { COLORS, SHADOWS, RADIUS, TYPOGRAPHY, hexToRgba } from '../utils/designSystem';
 import PressableScale from './PressableScale';
 import DatePickerField from './DatePickerField';

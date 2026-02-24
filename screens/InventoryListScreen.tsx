@@ -34,7 +34,7 @@ import QuantityModal from '../components/QuantityModal';
 import PressableScale from '../components/PressableScale';
 import ReceiptScannerModal from '../components/ReceiptScannerModal';
 import ReceiptReviewModal from '../components/ReceiptReviewModal';
-import { ReceiptScanResult, ReceiptItem } from '../services/receiptScannerService';
+import { ReceiptScanResult, ReceiptItem } from '../services/mindeeReceiptService';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
