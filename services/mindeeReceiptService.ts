@@ -250,9 +250,19 @@ async function callMindeeAPI(base64Image: string, apiKey: string): Promise<Minde
   } catch (error: any) {
     clearTimeout(timeoutId);
 
+    logger.error('❌ Erreur requête Mindee:', error);
+    logger.error('Error name:', error.name);
+    logger.error('Error message:', error.message);
+    logger.error('Error stack:', error.stack);
+
     if (error.name === 'AbortError') {
       throw new Error('Timeout - l\'analyse a pris trop de temps');
     }
+
+    if (error.message === 'Network request failed') {
+      throw new Error('Impossible de contacter Mindee. Vérifiez votre connexion Internet ou les permissions réseau de l\'app.');
+    }
+
     throw error;
   }
 }
@@ -392,12 +402,43 @@ export async function scanReceiptWithMindee(
 }
 
 /**
+ * Teste la connexion à Mindee (sans clé API)
+ */
+export async function testMindeeConnection(): Promise<{ success: boolean; error?: string }> {
+  try {
+    logger.info('🧪 Test de connexion à Mindee...');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    // Test simple GET sur le domaine Mindee
+    const response = await fetch('https://api.mindee.com', {
+      method: 'GET',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    logger.info('✅ Connexion Mindee OK, status:', response.status);
+    return { success: true };
+  } catch (error: any) {
+    logger.error('❌ Connexion Mindee FAILED:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Teste si la clé API Mindee est valide
- * En mode React Native, on teste juste avec un appel simple
  */
 export async function testMindeeAPIKey(apiKey: string): Promise<boolean> {
   try {
-    // Simplement tester avec une requête vide pour vérifier l'auth
+    // D'abord tester la connexion
+    const connTest = await testMindeeConnection();
+    if (!connTest.success) {
+      logger.error('Impossible de contacter Mindee:', connTest.error);
+      return false;
+    }
+
+    // Ensuite tester l'auth
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -415,7 +456,8 @@ export async function testMindeeAPIKey(apiKey: string): Promise<boolean> {
 
     // 401 = clé invalide, 400 = clé valide mais requête invalide
     return response.status !== 401;
-  } catch {
+  } catch (error) {
+    logger.error('Test API key failed:', error);
     return false;
   }
 }
