@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
-  version: '1.0.7',
+  version: '2.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
@@ -71,7 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   },
   android: {
     package: 'com.zerogaspy.app',
-    versionCode: 7,
+    versionCode: 8,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#F7F5E6',
