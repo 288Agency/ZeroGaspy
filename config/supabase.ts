@@ -3,11 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import { ENV } from './env';
 
-// Récupérer les credentials depuis app.config.ts extra
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || '';
-const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || '';
+// Récupérer les credentials depuis le système de configuration centralisé
+const supabaseUrl = ENV.supabaseUrl;
+const supabaseAnonKey = ENV.supabaseAnonKey;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Supabase credentials not configured!');

@@ -9,7 +9,10 @@
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:env": "npx ts-node scripts/test-env.ts",
+    "prebuild:ios": "npm run test:env",
+    "prebuild:android": "npm run test:env"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

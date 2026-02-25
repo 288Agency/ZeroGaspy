@@ -24,6 +24,10 @@ import {
   addNotificationResponseListener,
 } from './services/notificationService';
 import logger from './utils/logger';
+import { runStartupDiagnostics } from './utils/diagnostics';
+
+// Exécuter les diagnostics au démarrage
+runStartupDiagnostics();
 
 // Configuration du deep linking
 const linking = {

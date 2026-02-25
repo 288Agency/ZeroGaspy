@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { scanReceipt, ReceiptScanResult } from '../services/receiptScannerService'; // Google Vision (fallback)
 import { COLORS, SHADOWS, RADIUS } from '../utils/designSystem';
-import Constants from 'expo-constants';
+import { ENV } from '../config/env';
 import logger from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -43,9 +43,8 @@ export default function ReceiptScannerModal({
   const [processingMessage, setProcessingMessage] = useState('');
   const cameraRef = useRef<CameraView>(null);
 
-  // Récupérer la clé API Google Vision depuis les variables d'environnement
-  const apiKey = Constants.expoConfig?.extra?.googleVisionApiKey ||
-                 process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
+  // Récupérer la clé API Google Vision depuis la configuration centralisée
+  const apiKey = ENV.googleVisionApiKey;
 
   const resetState = () => {
     setScanState('camera');

@@ -24,7 +24,12 @@ const widgetConfig: WithAndroidWidgetsParams = {
   ],
 };
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+export default ({ config }: ConfigContext): ExpoConfig => {
+  // Diagnostic : vérifier que les variables sont chargées au build
+  console.log('🔍 [Build] EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING');
+  console.log('🔍 [Build] EXPO_PUBLIC_SUPABASE_ANON_KEY:', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING');
+
+  return {
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
@@ -171,4 +176,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     feedbackEmail: process.env.EXPO_PUBLIC_FEEDBACK_EMAIL,
   },
   owner: '288agency',
-});
+  };
+};
