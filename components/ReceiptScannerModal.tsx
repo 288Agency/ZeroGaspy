@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { scanReceipt, ReceiptScanResult } from '../services/receiptScannerService'; // Google Vision (fallback)
+import { scanReceiptWithMindee } from '../services/mindeeReceiptService'; // Mindee (prioritaire)
 import { COLORS, SHADOWS, RADIUS } from '../utils/designSystem';
 import { ENV } from '../config/env';
 import logger from '../utils/logger';
@@ -42,9 +43,6 @@ export default function ReceiptScannerModal({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [processingMessage, setProcessingMessage] = useState('');
   const cameraRef = useRef<CameraView>(null);
-
-  // Récupérer la clé API Google Vision depuis la configuration centralisée
-  const apiKey = ENV.googleVisionApiKey;
 
   const resetState = () => {
     setScanState('camera');
@@ -142,14 +140,6 @@ export default function ReceiptScannerModal({
   const processReceipt = async () => {
     if (!capturedImage) return;
 
-    if (!apiKey) {
-      Alert.alert(
-        t('receiptScanner.configRequired'),
-        t('receiptScanner.configMessage')
-      );
-      return;
-    }
-
     setScanState('processing');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -157,8 +147,38 @@ export default function ReceiptScannerModal({
       setProcessingMessage(t('receiptScanner.reading'));
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      setProcessingMessage(t('receiptScanner.extractingText'));
-      const result = await scanReceipt(capturedImage, apiKey);
+      let result: ReceiptScanResult;
+
+      // Stratégie : Mindee en priorité, fallback sur Google Vision
+      const hasMindeeKey = ENV.mindeeApiKey && ENV.mindeeApiKey.length > 10;
+      const hasGoogleVisionKey = ENV.googleVisionApiKey && ENV.googleVisionApiKey.length > 10;
+
+      if (hasMindeeKey) {
+        // Tenter Mindee d'abord (meilleure précision)
+        logger.info('🧠 Tentative avec Mindee Receipt OCR...');
+        setProcessingMessage('Analyse avec Mindee...');
+        result = await scanReceiptWithMindee(capturedImage);
+
+        // Si Mindee échoue, fallback sur Google Vision
+        if (!result.success && hasGoogleVisionKey) {
+          logger.warn('⚠️ Mindee a échoué, fallback sur Google Vision');
+          setProcessingMessage(t('receiptScanner.extractingText'));
+          result = await scanReceipt(capturedImage, ENV.googleVisionApiKey);
+        }
+      } else if (hasGoogleVisionKey) {
+        // Pas de clé Mindee, utiliser Google Vision directement
+        logger.info('👁️ Utilisation de Google Vision (Mindee non configuré)');
+        setProcessingMessage(t('receiptScanner.extractingText'));
+        result = await scanReceipt(capturedImage, ENV.googleVisionApiKey);
+      } else {
+        // Aucune clé API configurée
+        Alert.alert(
+          t('receiptScanner.configRequired'),
+          'Aucune clé API (Mindee ou Google Vision) configurée. Vérifiez votre .env'
+        );
+        setScanState('preview');
+        return;
+      }
 
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

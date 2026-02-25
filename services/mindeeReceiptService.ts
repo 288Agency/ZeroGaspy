@@ -5,7 +5,7 @@
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
-import Constants from 'expo-constants';
+import { ENV } from '../config/env';
 import { sanitizeString } from '../utils/security';
 import { withRateLimit } from '../utils/rateLimiter';
 import logger from '../utils/logger';
@@ -349,16 +349,20 @@ export async function scanReceiptWithMindee(
   try {
     logger.info('🚀 Démarrage scan Mindee');
 
-    // Récupérer la clé API depuis la config si non fournie
-    const mindeeApiKey = apiKey || Constants.expoConfig?.extra?.mindeeApiKey || '';
+    // Récupérer la clé API depuis la config centralisée si non fournie
+    const mindeeApiKey = apiKey || ENV.mindeeApiKey;
 
     if (!mindeeApiKey || mindeeApiKey.length < 10) {
+      logger.error('❌ Clé API Mindee manquante ou invalide');
+      logger.error('Clé actuelle:', mindeeApiKey ? `${mindeeApiKey.substring(0, 10)}... (${mindeeApiKey.length} chars)` : 'VIDE');
       return {
         success: false,
         items: [],
-        error: 'Clé API Mindee non configurée',
+        error: 'Clé API Mindee non configurée. Vérifiez votre .env et eas.json',
       };
     }
+
+    logger.info('✅ Clé API Mindee trouvée:', mindeeApiKey.substring(0, 10) + '...');
 
     if (!imageUri || typeof imageUri !== 'string') {
       return {

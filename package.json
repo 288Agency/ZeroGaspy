@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:env": "npx ts-node scripts/test-env.ts",
+    "test:mindee": "npx ts-node scripts/test-mindee.ts",
     "prebuild:ios": "npm run test:env",
     "prebuild:android": "npm run test:env"
   },

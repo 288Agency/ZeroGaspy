@@ -61,9 +61,43 @@ export async function testSupabaseConnection(): Promise<boolean> {
 }
 
 /**
+ * Teste la connexion à Mindee
+ */
+export async function testMindeeConnection(): Promise<boolean> {
+  try {
+    const mindeeKey = Constants.expoConfig?.extra?.mindeeApiKey;
+
+    if (!mindeeKey) {
+      logger.warn('⚠️ Clé API Mindee non configurée');
+      return false;
+    }
+
+    logger.info('🔍 Test de connexion Mindee...');
+    logger.info('🔑 Clé Mindee:', mindeeKey.substring(0, 15) + '...');
+
+    // Test simple de connexion
+    const response = await fetch('https://api.mindee.com', {
+      method: 'GET',
+    });
+
+    if (response.ok || response.status === 404) {
+      logger.info('✅ Connexion Mindee OK');
+      return true;
+    } else {
+      logger.error('❌ Erreur connexion Mindee:', response.status);
+      return false;
+    }
+  } catch (error: any) {
+    logger.error('❌ Erreur test Mindee:', error.message);
+    return false;
+  }
+}
+
+/**
  * Affiche un diagnostic complet au démarrage de l'app
  */
 export async function runStartupDiagnostics() {
   logConfigDiagnostics();
   await testSupabaseConnection();
+  await testMindeeConnection();
 }
