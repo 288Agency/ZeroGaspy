@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "ZeroGaspy",
+    "slug": "ZeroGaspyLocal",
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-7371774777716579~3489372499",
+          "iosAppId": "ca-app-pub-7371774777716579~3910128601"
+        }
+      ]
+    ]
+  }
+}
