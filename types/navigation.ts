@@ -19,6 +19,7 @@ export type RootStackParamList = {
   ThrownFoods: undefined;
   Recipes: undefined;
   Stats: undefined;
+  Challenges: undefined;
 };
 
 // Navigation racine (Auth ou App)

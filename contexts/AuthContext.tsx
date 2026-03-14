@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 import { migrateLocalDataToCloud, syncWithCloud } from '../services/supabase/syncService';
 import {
@@ -12,6 +13,8 @@ import {
   resetRateLimit,
 } from '../utils/security';
 import logger from '../utils/logger';
+
+const SKIP_AUTH_KEY = 'skip_auth_preference';
 
 interface AuthContextType {
   user: User | null;
@@ -44,12 +47,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [skippedAuth, setSkippedAuth] = useState(false);
 
   useEffect(() => {
-    // Recuperer la session existante au demarrage
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Restaurer la préférence "Passer" au démarrage
+    const initAuth = async () => {
+      try {
+        const skipAuthPref = await AsyncStorage.getItem(SKIP_AUTH_KEY);
+        if (skipAuthPref === 'true') {
+          setSkippedAuth(true);
+        }
+      } catch (error) {
+        logger.error('Erreur restauration préférence auth:', error);
+      }
+
+      // Recuperer la session existante au demarrage
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Ecouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -62,6 +78,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           try {
             await migrateLocalDataToCloud(session.user.id);
             await syncWithCloud(session.user.id);
+            // Supprimer la préférence "Passer" car l'utilisateur s'est connecté
+            await AsyncStorage.removeItem(SKIP_AUTH_KEY);
+            setSkippedAuth(false);
           } catch (error) {
             logger.error('Erreur sync au login:', error);
           }
@@ -164,6 +183,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      await AsyncStorage.removeItem(SKIP_AUTH_KEY);
       setSkippedAuth(false);
     } catch (error) {
       logger.error('Erreur deconnexion:', error);
@@ -203,8 +223,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const skipAuth = () => {
-    setSkippedAuth(true);
+  const skipAuth = async () => {
+    try {
+      await AsyncStorage.setItem(SKIP_AUTH_KEY, 'true');
+      setSkippedAuth(true);
+      logger.info('✅ Préférence "Passer" sauvegardée');
+    } catch (error) {
+      logger.error('Erreur sauvegarde préférence auth:', error);
+      setSkippedAuth(true); // Quand même activer pour cette session
+    }
   };
 
   const updateProfile = async (data: { fullName?: string }) => {

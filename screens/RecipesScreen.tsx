@@ -144,7 +144,7 @@ const DifficultyBadge = React.memo(function DifficultyBadge({ difficulty }: { di
 // Recipe card component
 const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch; onPress: () => void; onLongPress?: () => void; index: number }) {
   const { t } = useTranslation();
-  const { recipe, matchPercentage, matchingIngredients, missingIngredients } = match;
+  const { recipe, matchPercentage, matchingIngredients, missingIngredients, urgencyScore, expiringIngredients } = match;
 
   return (
     <AnimatedListItem index={index} animationType="slideUp">
@@ -152,7 +152,10 @@ const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress,
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={500}
-        style={styles.recipeCard}
+        style={[
+          styles.recipeCard,
+          urgencyScore > 0 && styles.recipeCardUrgent,
+        ]}
         hapticType="light"
         activeScale={0.98}
       >
@@ -161,6 +164,14 @@ const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress,
           <View style={styles.userBadge}>
             <Ionicons name="person" size={scaleSize(10)} color={COLORS.neutral.white} />
             <Text style={styles.userBadgeText}>{t('recipes.myRecipe')}</Text>
+          </View>
+        )}
+
+        {/* Anti-gaspi badge */}
+        {urgencyScore > 0 && (
+          <View style={[styles.antiWasteBadge, recipe.isUserRecipe ? { top: scaleSpacing(32) } : undefined]}>
+            <Ionicons name="flame" size={scaleSize(10)} color={COLORS.neutral.white} />
+            <Text style={styles.antiWasteBadgeText}>{t('recipes.antiWasteBadge')}</Text>
           </View>
         )}
 
@@ -201,6 +212,11 @@ const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress,
             {missingIngredients.length > 0 && missingIngredients.length <= 3 && (
               <Text style={styles.missingText} numberOfLines={1}>
                 {t('recipes.missing')} {missingIngredients.join(', ')}
+              </Text>
+            )}
+            {expiringIngredients.length > 0 && (
+              <Text style={styles.expiringText} numberOfLines={1}>
+                {t('recipes.expiringCount', { count: expiringIngredients.length })} : {expiringIngredients.join(', ')}
               </Text>
             )}
           </View>
@@ -378,6 +394,7 @@ export default function RecipesScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'user' | Recipe['category']>('all');
+  const [sortMode, setSortMode] = useState<'antiWaste' | 'bestMatch'>('antiWaste');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -457,13 +474,21 @@ export default function RecipesScreen() {
   // Pour les utilisateurs Premium, montrer toutes les recettes
   const availableMatches = isPremium ? recipeMatches : userRecipes;
 
-  const filteredMatches = selectedFilter === 'all'
+  const categoryFiltered = selectedFilter === 'all'
     ? availableMatches
     : selectedFilter === 'user'
     ? userRecipes
     : isPremium
     ? availableMatches.filter(m => m.recipe.category === selectedFilter)
     : userRecipes.filter(m => m.recipe.category === selectedFilter);
+
+  // Appliquer le tri selon le mode sélectionné
+  const filteredMatches = [...categoryFiltered].sort((a, b) => {
+    if (sortMode === 'antiWaste') {
+      return b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage;
+    }
+    return b.matchPercentage - a.matchPercentage;
+  });
 
   const totalIngredients = lists.reduce((sum, list) => {
     return sum + list.items.filter(item => item.status !== 'consumed' && item.status !== 'thrown').length;
@@ -534,6 +559,38 @@ export default function RecipesScreen() {
             </PressableScale>
           ))}
         </ScrollView>
+
+        {/* Sort toggle */}
+        <View style={styles.sortContainer}>
+          <PressableScale
+            onPress={() => setSortMode('antiWaste')}
+            style={[styles.sortButton, sortMode === 'antiWaste' && styles.sortButtonActive]}
+            hapticType="light"
+          >
+            <Ionicons
+              name="flame"
+              size={scaleSize(14)}
+              color={sortMode === 'antiWaste' ? COLORS.neutral.white : COLORS.semantic.warning}
+            />
+            <Text style={[styles.sortButtonText, sortMode === 'antiWaste' && styles.sortButtonTextActive]}>
+              {t('recipes.sortAntiWaste')}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => setSortMode('bestMatch')}
+            style={[styles.sortButton, sortMode === 'bestMatch' && styles.sortButtonActive]}
+            hapticType="light"
+          >
+            <Ionicons
+              name="checkmark-circle"
+              size={scaleSize(14)}
+              color={sortMode === 'bestMatch' ? COLORS.neutral.white : COLORS.primary[500]}
+            />
+            <Text style={[styles.sortButtonText, sortMode === 'bestMatch' && styles.sortButtonTextActive]}>
+              {t('recipes.sortBestMatch')}
+            </Text>
+          </PressableScale>
+        </View>
 
         {/* Recipe list */}
         <ScrollView
@@ -693,6 +750,35 @@ const styles = StyleSheet.create({
     marginLeft: scaleSpacing(6),
   },
   filterChipTextActive: {
+    color: COLORS.neutral.white,
+  },
+  sortContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: scaleSpacing(isSmallScreen ? 14 : 20),
+    marginTop: scaleSpacing(10),
+    gap: scaleSpacing(8),
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scaleSpacing(6),
+    paddingHorizontal: scaleSpacing(12),
+    borderRadius: scaleSize(16),
+    backgroundColor: hexToRgba(COLORS.semantic.warning, 0.1),
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.semantic.warning, 0.2),
+  },
+  sortButtonActive: {
+    backgroundColor: COLORS.semantic.warning,
+    borderColor: COLORS.semantic.warning,
+  },
+  sortButtonText: {
+    fontSize: scaleFontSize(isSmallScreen ? 11 : 13),
+    fontWeight: '600',
+    color: COLORS.semantic.warning,
+    marginLeft: scaleSpacing(4),
+  },
+  sortButtonTextActive: {
     color: COLORS.neutral.white,
   },
   scrollView: {
@@ -1018,6 +1104,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.neutral.white,
     marginLeft: scaleSpacing(3),
+  },
+  recipeCardUrgent: {
+    borderColor: hexToRgba(COLORS.semantic.warning, 0.3),
+    borderWidth: 1.5,
+  },
+  antiWasteBadge: {
+    position: 'absolute',
+    top: scaleSpacing(-8),
+    right: scaleSpacing(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.semantic.warning,
+    paddingHorizontal: scaleSpacing(8),
+    paddingVertical: scaleSpacing(3),
+    borderRadius: scaleSize(10),
+    zIndex: 1,
+  },
+  antiWasteBadgeText: {
+    fontSize: scaleFontSize(9),
+    fontWeight: '600',
+    color: COLORS.neutral.white,
+    marginLeft: scaleSpacing(3),
+  },
+  expiringText: {
+    fontSize: scaleFontSize(10),
+    color: COLORS.semantic.warning,
+    fontWeight: '600',
+    marginTop: scaleSpacing(2),
   },
   fab: {
     position: 'absolute',

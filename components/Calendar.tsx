@@ -11,7 +11,7 @@ interface CalendarProps {
 export default function Calendar({
   selectedDate,
   onDateSelect,
-  minimumDate = new Date(),
+  minimumDate,
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -39,11 +39,13 @@ export default function Calendar({
   };
 
   const isDateDisabled = (date: Date): boolean => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!minimumDate) return false; // Pas de restriction si minimumDate n'est pas défini
+
+    const minDate = new Date(minimumDate);
+    minDate.setHours(0, 0, 0, 0);
     const checkDate = new Date(date);
     checkDate.setHours(0, 0, 0, 0);
-    return checkDate < today;
+    return checkDate < minDate;
   };
 
   const goToPreviousMonth = () => {

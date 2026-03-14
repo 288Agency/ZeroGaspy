@@ -24,6 +24,8 @@ import CategorySelector from '../components/CategorySelector';
 import UnitSelector from '../components/UnitSelector';
 import BarcodeButton from '../components/BarcodeButton';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
+import DateScannerButton from '../components/DateScannerButton';
+import DateScannerModal from '../components/DateScannerModal';
 import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING, hexToRgba } from '../utils/designSystem';
 import { useGamification } from '../contexts/GamificationContext';
@@ -70,6 +72,7 @@ export default function AddFoodScreen() {
   const [price, setPrice] = useState(editItem?.price?.toString() || '');
   const [isAdding, setIsAdding] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
+  const [dateScannerVisible, setDateScannerVisible] = useState(false);
 
   // Entry animations
   const formFade = useRef(new Animated.Value(0)).current;
@@ -138,7 +141,7 @@ export default function AddFoodScreen() {
         };
         await addItemToList(listId, newItem);
         // Tracker pour la gamification
-        trackFoodAdded();
+        trackFoodAdded(listId);
         // Compteur pour les pubs interstitielles
         incrementActionCount();
       }
@@ -267,6 +270,15 @@ export default function AddFoodScreen() {
     );
   };
 
+  const handleDateScanned = (scannedDate: string) => {
+    setExpirationDate(scannedDate);
+    Alert.alert(
+      'Date détectée',
+      `Date de péremption : ${scannedDate}`,
+      [{ text: t('common.ok') }]
+    );
+  };
+
   const isFormValid = foodName.trim().length > 0;
 
   return (
@@ -356,11 +368,15 @@ export default function AddFoodScreen() {
             />
 
             {!isOpened && (
-              <DatePickerField
-                label={t('addFood.expirationDate')}
-                value={expirationDate}
-                onDateChange={setExpirationDate}
-              />
+              <>
+                <DateScannerButton onPress={() => setDateScannerVisible(true)} />
+                <DatePickerField
+                  label={t('addFood.expirationDate')}
+                  value={expirationDate}
+                  onDateChange={setExpirationDate}
+                  minimumDate={new Date()} // Bloquer les dates passées pour la date de péremption
+                />
+              </>
             )}
           </View>
 
@@ -454,11 +470,18 @@ export default function AddFoodScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Modal de scan */}
+      {/* Modal de scan code-barres */}
       <BarcodeScannerModal
         visible={scannerVisible}
         onClose={() => setScannerVisible(false)}
         onProductFound={handleProductFound}
+      />
+
+      {/* Modal de scan date */}
+      <DateScannerModal
+        visible={dateScannerVisible}
+        onClose={() => setDateScannerVisible(false)}
+        onDateScanned={handleDateScanned}
       />
     </View>
   );

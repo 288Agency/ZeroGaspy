@@ -326,7 +326,12 @@
     "ingredientsOf": "{{matched}}/{{total}} ingrédients",
     "ingredientsAvailable": "{{count}} ingrédients disponibles sur {{total}}",
     "addRecipe": "Ajouter une recette",
-    "loadError": "Impossible de charger les recettes. Veuillez réessayer."
+    "loadError": "Impossible de charger les recettes. Veuillez réessayer.",
+    "sortAntiWaste": "Anti-gaspi",
+    "sortBestMatch": "Meilleur match",
+    "antiWasteBadge": "Anti-gaspi",
+    "expiringCount": "{{count}} aliment expire bientôt",
+    "expiringCount_plural": "{{count}} aliments expirent bientôt"
   },
   "stats": {
     "title": "Statistiques",
@@ -874,10 +879,97 @@
   "achievementToast": {
     "levelUp": "Niveau supérieur !",
     "nowLevel": "Vous êtes maintenant niveau {{level}}",
-    "newBadge": "Nouveau badge !"
+    "newBadge": "Nouveau badge !",
+    "challengeCompleted": "Défi complété !"
+  },
+  "challenges": {
+    "screenTitle": "Défis de la Semaine",
+    "weeklyChallenge": "Défi de la semaine",
+    "dateRange": "Du {{start}} au {{end}}",
+    "completed": "Complétés",
+    "completedOf": "{{count}}/{{total}} complétés",
+    "allCompleted": "Tous les défis complétés !",
+    "allCompletedTitle": "Bravo, semaine parfaite !",
+    "allCompletedSubtitle": "Vous avez gagné +{{xp}} XP cette semaine",
+    "challengeCompleted": "Complété !",
+    "history": "Historique",
+    "seeAll": "Voir tous",
+    "difficulty": {
+      "easy": "Facile",
+      "medium": "Moyen",
+      "hard": "Difficile"
+    },
+    "names": {
+      "zeroWasteWeek": "Zéro Gaspillage",
+      "save20": "Sauveur Parfait",
+      "save5": "Petit Sauveur",
+      "add15": "Super Organisé",
+      "add5": "Premiers Pas",
+      "recipes10": "Chef Curieux",
+      "recipes3": "Apprenti Cuisinier",
+      "daily5": "Assidu",
+      "daily7": "Marathonien",
+      "consume10": "Anti-Gaspi",
+      "consume25": "Machine Anti-Gaspi",
+      "addVaried3": "Multi-Espaces",
+      "streak5": "Série en Cours",
+      "noThrow3": "Début Prometteur",
+      "allActions": "Touche-à-tout"
+    },
+    "descriptions": {
+      "zeroWasteWeek": "Ne jetez aucun aliment cette semaine",
+      "save20": "Consommez 20 aliments avant leur date d'expiration",
+      "save5": "Consommez 5 aliments avant leur date d'expiration",
+      "add15": "Ajoutez 15 aliments à vos listes",
+      "add5": "Ajoutez 5 aliments à vos listes",
+      "recipes10": "Consultez 10 recettes",
+      "recipes3": "Consultez 3 recettes",
+      "daily5": "Ouvrez l'app 5 jours cette semaine",
+      "daily7": "Ouvrez l'app tous les jours de la semaine",
+      "consume10": "Consommez 10 aliments (avant ou après expiration)",
+      "consume25": "Consommez 25 aliments",
+      "addVaried3": "Ajoutez des aliments dans 3 listes différentes",
+      "streak5": "Maintenez une série de 5 jours consécutifs",
+      "noThrow3": "3 jours consécutifs sans gaspillage",
+      "allActions": "Faites les 4 actions (ajouter, consommer, recette, lister) cette semaine"
+    }
   },
   "loadingOverlay": {
     "loading": "Chargement..."
+  },
+  "sharing": {
+    "shareTitle": "Partager la liste",
+    "joinTitle": "Rejoindre une liste",
+    "membersTitle": "Membres",
+    "permissionLabel": "Permissions",
+    "canEdit": "Peut modifier",
+    "canView": "Lecture seule",
+    "generateCode": "Générer un code d'invitation",
+    "invitationCode": "Code d'invitation",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "share": "Partager",
+    "codeHint": "Ce code est à usage unique. Partagez-le avec la personne que vous souhaitez inviter.",
+    "generateError": "Impossible de générer le code d'invitation. Réessayez.",
+    "shareMessage": "Rejoins ma liste \"{{title}}\" sur ZeroGaspy ! Code d'invitation : {{code}}",
+    "joinDescription": "Entrez le code d'invitation à 6 caractères pour rejoindre une liste partagée.",
+    "lookupCode": "Vérifier le code",
+    "joinList": "Rejoindre la liste",
+    "sharedBy": "Partagée par {{name}}",
+    "invalidCode": "Code invalide ou expiré",
+    "joinedSuccess": "Vous avez rejoint la liste \"{{title}}\" !",
+    "noMembers": "Aucun membre partagé",
+    "pending": "En attente",
+    "unknownUser": "Utilisateur inconnu",
+    "removeMemberTitle": "Retirer le membre",
+    "removeMemberConfirm": "Êtes-vous sûr de vouloir retirer {{name}} de cette liste ?",
+    "errors": {
+      "invalid_code": "Ce code d'invitation est invalide ou a expiré",
+      "own_list": "Vous ne pouvez pas rejoindre votre propre liste",
+      "already_member": "Vous êtes déjà membre de cette liste",
+      "accept_failed": "Impossible de rejoindre la liste",
+      "unknown": "Une erreur est survenue"
+    }
   },
   "barcodeScanner": {
     "loading": "Chargement...",

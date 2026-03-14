@@ -60,65 +60,92 @@ const FOOD_ICON_MAPPINGS: FoodIconMapping[] = [
   { keywords: ['céleri'], icon: 'leaf', color: '#22C55E', category: 'légumes' },
   { keywords: ['asperge', 'asperges'], icon: 'trending-up', color: '#84CC16', category: 'légumes' },
 
-  // Viandes & Poissons 🍖
-  { keywords: ['poulet', 'volaille'], icon: 'restaurant', color: '#F59E0B', category: 'viande' },
+  // Viandes 🍖
+  { keywords: ['poulet', 'volaille', 'dinde'], icon: 'restaurant', color: '#F59E0B', category: 'viande' },
   { keywords: ['boeuf', 'steak', 'viande'], icon: 'restaurant-outline', color: '#DC2626', category: 'viande' },
-  { keywords: ['porc', 'jambon'], icon: 'restaurant', color: '#FB923C', category: 'viande' },
-  { keywords: ['poisson', 'saumon', 'thon'], icon: 'fish', color: '#3B82F6', category: 'poisson' },
-  { keywords: ['crevette', 'crevettes'], icon: 'bug', color: '#F472B6', category: 'poisson' },
-  { keywords: ['moule', 'moules', 'fruits de mer'], icon: 'water', color: '#475569', category: 'poisson' },
-  { keywords: ['saucisse', 'saucisses', 'merguez'], icon: 'remove', color: '#B91C1C', category: 'viande' },
-  { keywords: ['bacon', 'lardons'], icon: 'remove-outline', color: '#DC2626', category: 'viande' },
+  { keywords: ['porc'], icon: 'restaurant', color: '#FB923C', category: 'viande' },
+  { keywords: ['agneau', 'veau'], icon: 'restaurant-outline', color: '#DC2626', category: 'viande' },
+  { keywords: ['saucisse', 'saucisses', 'merguez', 'boudin', 'andouillette'], icon: 'remove', color: '#B91C1C', category: 'viande' },
+
+  // Charcuterie 🥓
+  { keywords: ['jambon'], icon: 'restaurant', color: '#FB923C', category: 'charcuterie' },
+  { keywords: ['saucisson', 'salami', 'chorizo', 'rosette', 'coppa'], icon: 'remove', color: '#B91C1C', category: 'charcuterie' },
+  { keywords: ['pâté', 'rillettes', 'terrine'], icon: 'square', color: '#A16207', category: 'charcuterie' },
+  { keywords: ['bacon', 'lardons'], icon: 'remove-outline', color: '#DC2626', category: 'charcuterie' },
+
+  // Poisson & Fruits de mer 🐟
+  { keywords: ['poisson', 'saumon', 'thon', 'cabillaud', 'sole', 'truite', 'sardine', 'maquereau'], icon: 'fish', color: '#3B82F6', category: 'poisson & fruits de mer' },
+  { keywords: ['crevette', 'crevettes', 'langouste', 'homard'], icon: 'bug', color: '#F472B6', category: 'poisson & fruits de mer' },
+  { keywords: ['moule', 'moules', 'fruits de mer', 'huître', 'calamar'], icon: 'water', color: '#475569', category: 'poisson & fruits de mer' },
 
   // Produits laitiers 🥛
-  { keywords: ['lait'], icon: 'water', color: '#F3F4F6', category: 'produits laitiers' },
-  { keywords: ['yaourt', 'yogurt', 'yogourt'], icon: 'cafe', color: '#F3F4F6', category: 'produits laitiers' },
-  { keywords: ['fromage', 'gruyère', 'emmental', 'comté'], icon: 'stop', color: '#FBBF24', category: 'produits laitiers' },
+  { keywords: ['lait'], icon: 'water', color: '#60A5FA', category: 'produits laitiers' },
+  { keywords: ['yaourt', 'yogurt', 'yogourt', 'skyr'], icon: 'cafe', color: '#F3F4F6', category: 'produits laitiers' },
   { keywords: ['beurre'], icon: 'square', color: '#FDE68A', category: 'produits laitiers' },
   { keywords: ['crème'], icon: 'water-outline', color: '#F9FAFB', category: 'produits laitiers' },
-  { keywords: ['mozzarella'], icon: 'ellipse', color: '#F9FAFB', category: 'produits laitiers' },
+
+  // Fromages 🧀
+  { keywords: ['fromage', 'gruyère', 'emmental', 'comté', 'camembert', 'brie', 'roquefort', 'raclette', 'reblochon'], icon: 'stop', color: '#FBBF24', category: 'fromages' },
+  { keywords: ['mozzarella', 'feta', 'parmesan', 'chèvre', 'cheddar'], icon: 'ellipse', color: '#FBBF24', category: 'fromages' },
 
   // Œufs 🥚
   { keywords: ['oeuf', 'oeufs', 'œuf', 'œufs'], icon: 'egg', color: '#FEF3C7', category: 'oeufs' },
 
-  // Pain & Céréales 🍞
-  { keywords: ['pain', 'baguette'], icon: 'remove', color: '#D97706', category: 'boulangerie' },
+  // Boulangerie 🍞
+  { keywords: ['pain', 'baguette', 'pain de mie'], icon: 'remove', color: '#D97706', category: 'boulangerie' },
+  { keywords: ['croissant', 'viennoiserie', 'brioche', 'pain au chocolat'], icon: 'moon', color: '#F59E0B', category: 'boulangerie' },
+
+  // Plats préparés 🍕
+  { keywords: ['pizza'], icon: 'pizza', color: '#F97316', category: 'plats préparés' },
+  { keywords: ['sandwich', 'wrap', 'croque'], icon: 'fast-food', color: '#F97316', category: 'plats préparés' },
+  { keywords: ['plat préparé', 'lasagne', 'gratin', 'quiche'], icon: 'restaurant', color: '#F97316', category: 'plats préparés' },
+  { keywords: ['sushi', 'nems', 'samoussa'], icon: 'restaurant-outline', color: '#F97316', category: 'plats préparés' },
+
+  // Épicerie 🏪
   { keywords: ['pâtes', 'spaghetti', 'penne'], icon: 'git-branch', color: '#FDE68A', category: 'épicerie' },
-  { keywords: ['riz'], icon: 'apps', color: '#F9FAFB', category: 'épicerie' },
-  { keywords: ['céréales'], icon: 'apps-outline', color: '#D97706', category: 'épicerie' },
+  { keywords: ['riz', 'quinoa', 'semoule', 'boulgour'], icon: 'apps', color: '#F9FAFB', category: 'épicerie' },
   { keywords: ['farine'], icon: 'square-outline', color: '#F9FAFB', category: 'épicerie' },
-  { keywords: ['croissant', 'viennoiserie'], icon: 'moon', color: '#F59E0B', category: 'boulangerie' },
+  { keywords: ['huile'], icon: 'water', color: '#FDE68A', category: 'épicerie' },
+  { keywords: ['conserve', 'tomate pelée'], icon: 'cube', color: '#78350F', category: 'épicerie' },
+  { keywords: ['lentille', 'pois chiche', 'haricot sec'], icon: 'ellipse', color: '#78350F', category: 'épicerie' },
+
+  // Snacks & Biscuits 🍪
+  { keywords: ['biscuit', 'biscuits', 'gâteau', 'cookies', 'madeleine'], icon: 'ellipse', color: '#D97706', category: 'snacks & biscuits' },
+  { keywords: ['chips', 'crackers', 'bretzel'], icon: 'layers', color: '#FBBF24', category: 'snacks & biscuits' },
+  { keywords: ['barre de céréales', 'barre énergétique'], icon: 'remove', color: '#F59E0B', category: 'snacks & biscuits' },
+
+  // Confiseries 🍬
+  { keywords: ['chocolat', 'tablette de chocolat'], icon: 'square', color: '#78350F', category: 'confiseries' },
+  { keywords: ['bonbon', 'bonbons', 'guimauve'], icon: 'star', color: '#F472B6', category: 'confiseries' },
+  { keywords: ['glace', 'crème glacée', 'sorbet'], icon: 'snow', color: '#FDE68A', category: 'confiseries' },
+
+  // Condiments & Sauces 🥫
+  { keywords: ['moutarde'], icon: 'ellipse', color: '#FACC15', category: 'condiments & sauces' },
+  { keywords: ['ketchup'], icon: 'water', color: '#DC2626', category: 'condiments & sauces' },
+  { keywords: ['mayonnaise', 'mayo'], icon: 'water-outline', color: '#FEF3C7', category: 'condiments & sauces' },
+  { keywords: ['sauce', 'pesto', 'harissa'], icon: 'water', color: '#EF4444', category: 'condiments & sauces' },
+  { keywords: ['vinaigre', 'vinaigrette'], icon: 'water-outline', color: '#78350F', category: 'condiments & sauces' },
+
+  // Petit-déjeuner & Céréales 🥣
+  { keywords: ['céréales', 'muesli', 'granola', 'corn flakes', 'flocons'], icon: 'apps-outline', color: '#D97706', category: 'petit-déjeuner & céréales' },
+  { keywords: ['confiture', 'marmelade'], icon: 'water', color: '#F43F5E', category: 'petit-déjeuner & céréales' },
+  { keywords: ['miel'], icon: 'water', color: '#FBBF24', category: 'petit-déjeuner & céréales' },
+  { keywords: ['nutella', 'pâte à tartiner'], icon: 'water', color: '#78350F', category: 'petit-déjeuner & céréales' },
 
   // Boissons 🥤
   { keywords: ['eau', 'bouteille'], icon: 'water', color: '#3B82F6', category: 'boissons' },
-  { keywords: ['jus', 'juice'], icon: 'beer', color: '#FB923C', category: 'boissons' },
-  { keywords: ['soda', 'coca'], icon: 'beer-outline', color: '#EF4444', category: 'boissons' },
+  { keywords: ['jus', 'juice', 'nectar', 'smoothie'], icon: 'beer', color: '#FB923C', category: 'boissons' },
+  { keywords: ['soda', 'coca', 'limonade'], icon: 'beer-outline', color: '#EF4444', category: 'boissons' },
   { keywords: ['café'], icon: 'cafe', color: '#78350F', category: 'boissons' },
   { keywords: ['thé'], icon: 'cafe-outline', color: '#16A34A', category: 'boissons' },
   { keywords: ['vin'], icon: 'wine', color: '#7C2D12', category: 'boissons' },
   { keywords: ['bière'], icon: 'beer', color: '#FBBF24', category: 'boissons' },
 
-  // Snacks & Sucreries 🍫
-  { keywords: ['chocolat'], icon: 'square', color: '#78350F', category: 'snacks' },
-  { keywords: ['biscuit', 'biscuits', 'gâteau'], icon: 'ellipse', color: '#D97706', category: 'snacks' },
-  { keywords: ['chips'], icon: 'layers', color: '#FBBF24', category: 'snacks' },
-  { keywords: ['bonbon', 'bonbons'], icon: 'star', color: '#F472B6', category: 'snacks' },
-  { keywords: ['glace', 'crème glacée'], icon: 'snow', color: '#FDE68A', category: 'snacks' },
-
-  // Condiments & Épices 🧂
-  { keywords: ['sel'], icon: 'apps', color: '#F3F4F6', category: 'épices' },
-  { keywords: ['poivre'], icon: 'apps-outline', color: '#1F2937', category: 'épices' },
-  { keywords: ['sucre'], icon: 'square-outline', color: '#F3F4F6', category: 'épices' },
-  { keywords: ['huile'], icon: 'water', color: '#FDE68A', category: 'épices' },
-  { keywords: ['vinaigre'], icon: 'water-outline', color: '#78350F', category: 'épices' },
-  { keywords: ['moutarde'], icon: 'ellipse', color: '#FACC15', category: 'épices' },
-  { keywords: ['ketchup'], icon: 'water', color: '#DC2626', category: 'épices' },
-  { keywords: ['mayonnaise', 'mayo'], icon: 'water-outline', color: '#FEF3C7', category: 'épices' },
-
-  // Autres
-  { keywords: ['miel'], icon: 'water', color: '#FBBF24', category: 'épices' },
-  { keywords: ['confiture'], icon: 'water', color: '#F43F5E', category: 'épices' },
-  { keywords: ['nutella', 'pâte à tartiner'], icon: 'water', color: '#78350F', category: 'snacks' },
+  // Épices & Assaisonnements 🧂
+  { keywords: ['sel'], icon: 'apps', color: '#F3F4F6', category: 'épicerie' },
+  { keywords: ['poivre'], icon: 'apps-outline', color: '#1F2937', category: 'épicerie' },
+  { keywords: ['sucre'], icon: 'square-outline', color: '#F3F4F6', category: 'épicerie' },
+  { keywords: ['épice', 'épices', 'cumin', 'curry', 'paprika'], icon: 'flame-outline', color: '#D97706', category: 'épicerie' },
 ];
 
 const DEFAULT_FOOD_ICON: IoniconsName = 'nutrition-outline';
@@ -277,21 +304,37 @@ export function getListIcon(listName: string): {
  * Obtient une couleur basée sur la catégorie
  */
 export function getCategoryColor(category?: string): string {
+  if (!category) return DEFAULT_FOOD_COLOR;
+
+  const normalized = category.toLowerCase().trim();
+
   const categoryColors: Record<string, string> = {
-    fruits: '#FB923C',
-    légumes: '#22C55E',
-    viande: '#DC2626',
-    poisson: '#3B82F6',
-    'produits laitiers': '#F3F4F6',
-    oeufs: '#FEF3C7',
-    boulangerie: '#D97706',
-    épicerie: '#78350F',
-    boissons: '#3B82F6',
-    snacks: '#F59E0B',
-    épices: '#D97706',
+    'fruits': '#FB923C',
+    'légumes': '#22C55E',
+    'viande': '#DC2626',
+    'charcuterie': '#B91C1C',
+    'poisson & fruits de mer': '#3B82F6',
+    'poisson': '#3B82F6',
+    'produits laitiers': '#60A5FA',
+    'laitiers': '#60A5FA',
+    'fromages': '#FBBF24',
+    'oeufs': '#FEF3C7',
+    'boulangerie': '#D97706',
+    'pain': '#D97706',
+    'plats préparés': '#F97316',
+    'épicerie': '#78350F',
+    'snacks & biscuits': '#F59E0B',
+    'snacks': '#F59E0B',
+    'confiseries': '#A855F7',
+    'condiments & sauces': '#EF4444',
+    'petit-déjeuner & céréales': '#FBBF24',
+    'surgelés': '#06B6D4',
+    'boissons': '#3B82F6',
+    'épices': '#D97706',
+    'autre': '#6B7280',
   };
 
-  return categoryColors[category || ''] || DEFAULT_FOOD_COLOR;
+  return categoryColors[normalized] || DEFAULT_FOOD_COLOR;
 }
 
 /**

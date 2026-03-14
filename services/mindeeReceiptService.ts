@@ -5,7 +5,6 @@
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { ENV } from '../config/env';
 import { sanitizeString } from '../utils/security';
 import { withRateLimit } from '../utils/rateLimiter';
 import logger from '../utils/logger';
@@ -349,8 +348,8 @@ export async function scanReceiptWithMindee(
   try {
     logger.info('🚀 Démarrage scan Mindee');
 
-    // Récupérer la clé API depuis la config centralisée si non fournie
-    const mindeeApiKey = apiKey || ENV.mindeeApiKey;
+    // La clé API doit être fournie (côté serveur via Edge Function)
+    const mindeeApiKey = apiKey;
 
     if (!mindeeApiKey || mindeeApiKey.length < 10) {
       logger.error('❌ Clé API Mindee manquante ou invalide');

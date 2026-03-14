@@ -10,9 +10,8 @@ import Constants from 'expo-constants';
 interface EnvConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
-  mindeeApiKey: string;
-  googleVisionApiKey: string;
   feedbackEmail: string;
+  // Note: mindeeApiKey et googleVisionApiKey sont maintenant côté serveur (Edge Function)
 }
 
 /**
@@ -25,8 +24,6 @@ function loadEnvConfig(): EnvConfig {
   const config: EnvConfig = {
     supabaseUrl: extra?.supabaseUrl || '',
     supabaseAnonKey: extra?.supabaseAnonKey || '',
-    mindeeApiKey: extra?.mindeeApiKey || '',
-    googleVisionApiKey: extra?.googleVisionApiKey || '',
     feedbackEmail: extra?.feedbackEmail || 'contact@288agency.com',
   };
 
@@ -36,12 +33,6 @@ function loadEnvConfig(): EnvConfig {
   }
   if (!config.supabaseAnonKey && typeof process !== 'undefined' && process.env) {
     config.supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-  }
-  if (!config.mindeeApiKey && typeof process !== 'undefined' && process.env) {
-    config.mindeeApiKey = process.env.EXPO_PUBLIC_MINDEE_API_KEY || '';
-  }
-  if (!config.googleVisionApiKey && typeof process !== 'undefined' && process.env) {
-    config.googleVisionApiKey = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || '';
   }
 
   return config;

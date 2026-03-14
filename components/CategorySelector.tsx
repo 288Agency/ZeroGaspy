@@ -21,15 +21,23 @@ interface CategorySelectorProps {
 }
 
 const DEFAULT_CATEGORIES = [
-  'Légumes',
   'Fruits',
+  'Légumes',
   'Viande',
-  'Poisson',
-  'Laitiers',
+  'Charcuterie',
+  'Poisson & Fruits de mer',
+  'Produits laitiers',
+  'Fromages',
+  'Oeufs',
+  'Boulangerie',
+  'Plats préparés',
   'Épicerie',
+  'Snacks & Biscuits',
+  'Confiseries',
+  'Condiments & Sauces',
+  'Petit-déjeuner & Céréales',
   'Surgelés',
   'Boissons',
-  'Pain',
   'Autre',
 ];
 

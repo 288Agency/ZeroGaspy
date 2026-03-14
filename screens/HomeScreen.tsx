@@ -19,6 +19,7 @@ import { RootStackParamList } from '../types/navigation';
 import { loadLists } from '../utils/localStorage';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import StatsCardsRow from '../components/StatsCardsRow';
+import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import SpacesGrid from '../components/SpacesGrid';
 import FeedbackModal from '../components/FeedbackModal';
 import PressableScale from '../components/PressableScale';
@@ -26,6 +27,7 @@ import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { useTheme } from '../contexts/ThemeContext';
+import { useGamification } from '../contexts/GamificationContext';
 import logger from '../utils/logger';
 
 const { width } = Dimensions.get('window');
@@ -149,6 +151,7 @@ const LogoSection = React.memo(function LogoSection({ colors }: { colors: typeof
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
+  const { challengesState } = useGamification();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
@@ -275,6 +278,9 @@ export default function HomeScreen() {
             onExpiringSoonPress={useCallback(() => navigation.navigate('ExpiringSoon'), [navigation])}
             onThrownPress={useCallback(() => navigation.navigate('ThrownFoods'), [navigation])}
           />
+
+          {/* Weekly challenge */}
+          <WeeklyChallengeCard challengesState={challengesState} />
 
           {/* Spaces grid */}
           <SpacesGrid

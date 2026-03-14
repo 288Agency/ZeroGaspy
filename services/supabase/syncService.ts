@@ -270,7 +270,34 @@ async function pullFromCloud(userId: string): Promise<void> {
     throw error;
   }
 
-  const allCloudLists = cloudLists || [];
+  // 1b. Recuperer les listes partagees avec l'utilisateur
+  const { data: sharedListIds } = await supabase
+    .from('list_shares')
+    .select('list_id')
+    .eq('shared_with_user_id', userId)
+    .eq('status', 'accepted');
+
+  let sharedLists: typeof cloudLists = [];
+  if (sharedListIds && sharedListIds.length > 0) {
+    const ids = sharedListIds.map(s => s.list_id);
+    const { data: sharedData, error: sharedError } = await supabase
+      .from('lists')
+      .select(`
+        *,
+        food_items (*)
+      `)
+      .in('id', ids)
+      .eq('is_deleted', false);
+
+    if (sharedError) {
+      logger.error('[SYNC] Erreur récupération listes partagées:', sharedError);
+    } else {
+      sharedLists = sharedData || [];
+      logger.debug(`[SYNC] Listes partagées récupérées: ${sharedLists.length}`);
+    }
+  }
+
+  const allCloudLists = [...(cloudLists || []), ...sharedLists];
 
   logger.debug(`[SYNC] Total listes à synchroniser: ${allCloudLists.length}`);
 

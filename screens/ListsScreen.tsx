@@ -24,8 +24,12 @@ import {
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { Ionicons } from '@expo/vector-icons';
 import PaywallModal from '../components/PaywallModal';
+import JoinListModal from '../components/JoinListModal';
+import PressableScale from '../components/PressableScale';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useAuth } from '../contexts/AuthContext';
 import { FREE_LIMITS } from '../constants/subscription';
 import logger from '../utils/logger';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
@@ -36,10 +40,12 @@ export default function ListsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { isPremium } = useSubscription();
+  const { user, isLocalMode } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
   const [newListTitle, setNewListTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   // Charger les listes au démarrage
   useEffect(() => {
@@ -218,6 +224,19 @@ export default function ListsScreen() {
         }
       />
 
+      {/* Bouton "Rejoindre une liste" (seulement si connecte) */}
+      {!isLocalMode && user && (
+        <PressableScale
+          onPress={() => setJoinModalVisible(true)}
+          style={styles.joinFab}
+          hapticType="light"
+          accessibilityLabel={t('sharing.joinTitle')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="enter-outline" size={22} color={COLORS.primary[500]} />
+        </PressableScale>
+      )}
+
       {/* Bouton flottant pour créer une liste */}
       <Pressable
         onPress={handlePressCreate}
@@ -240,6 +259,13 @@ export default function ListsScreen() {
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
         feature="lists"
+      />
+
+      {/* Join List Modal */}
+      <JoinListModal
+        visible={joinModalVisible}
+        onClose={() => setJoinModalVisible(false)}
+        onJoined={() => loadListsData()}
       />
 
       {/* Modal pour créer une nouvelle liste */}
@@ -378,6 +404,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.neutral.gray400,
     textAlign: 'center',
+  },
+  joinFab: {
+    position: 'absolute',
+    bottom: SPACING['2xl'],
+    right: SPACING['2xl'] + 64 + SPACING.md,
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.neutral.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary[500],
+    ...SHADOWS.sm,
+    elevation: 6,
   },
   fab: {
     position: 'absolute',

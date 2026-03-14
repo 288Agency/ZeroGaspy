@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FoodItem } from '../types';
+import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
 
 const USER_RECIPES_KEY = 'user_recipes';
@@ -34,6 +35,8 @@ export interface RecipeMatch {
   matchingIngredients: string[];
   missingIngredients: string[];
   matchPercentage: number;
+  urgencyScore: number;
+  expiringIngredients: string[];
 }
 
 // Base de données de recettes
@@ -1163,6 +1166,751 @@ const RECIPES_DATABASE: Recipe[] = [
     ],
     tags: ['été', 'rafraîchissant']
   },
+
+  // ============================================
+  // PETIT-DÉJEUNER (suite)
+  // ============================================
+  {
+    id: '61',
+    name: 'Granola maison',
+    description: 'Céréales croustillantes au miel et noix',
+    ingredients: ['flocons d\'avoine', 'miel', 'amandes', 'noix', 'huile de coco'],
+    preparationTime: 35,
+    difficulty: 'facile',
+    category: 'petit-déjeuner',
+    imageEmoji: '🥣',
+    instructions: [
+      'Mélanger les flocons avec le miel et l\'huile',
+      'Ajouter les noix concassées',
+      'Étaler sur une plaque de four',
+      'Cuire 20 min à 160°C en remuant',
+      'Laisser refroidir et conserver en bocal'
+    ],
+    tags: ['healthy', 'végétarien', 'batch cooking']
+  },
+  {
+    id: '62',
+    name: 'Açaí bowl',
+    description: 'Bowl brésilien aux superfruits',
+    ingredients: ['açaí', 'banane', 'fruits rouges', 'granola', 'noix de coco'],
+    preparationTime: 10,
+    difficulty: 'facile',
+    category: 'petit-déjeuner',
+    imageEmoji: '🫐',
+    instructions: [
+      'Mixer l\'açaí congelé avec la banane',
+      'Verser dans un bol',
+      'Garnir de fruits rouges et granola',
+      'Parsemer de noix de coco râpée',
+      'Servir immédiatement'
+    ],
+    tags: ['healthy', 'vegan', 'superfood']
+  },
+  {
+    id: '63',
+    name: 'Croque madame',
+    description: 'Croque-monsieur avec un oeuf sur le dessus',
+    ingredients: ['pain de mie', 'jambon', 'fromage', 'oeufs', 'beurre', 'béchamel'],
+    preparationTime: 15,
+    difficulty: 'facile',
+    category: 'petit-déjeuner',
+    imageEmoji: '🥪',
+    instructions: [
+      'Préparer le croque-monsieur classique',
+      'Griller au four avec la béchamel',
+      'Faire cuire un oeuf au plat',
+      'Poser l\'oeuf sur le croque',
+      'Servir chaud'
+    ],
+    tags: ['français', 'brunch']
+  },
+  {
+    id: '64',
+    name: 'Overnight oats',
+    description: 'Flocons d\'avoine préparés la veille',
+    ingredients: ['flocons d\'avoine', 'lait', 'yaourt', 'fruits rouges', 'miel'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'petit-déjeuner',
+    imageEmoji: '🥣',
+    instructions: [
+      'Mélanger les flocons avec le lait et le yaourt',
+      'Ajouter le miel',
+      'Couvrir et réfrigérer toute la nuit',
+      'Le matin, garnir de fruits frais',
+      'Déguster froid'
+    ],
+    tags: ['healthy', 'sans cuisson', 'rapide']
+  },
+
+  // ============================================
+  // ENTRÉES (suite)
+  // ============================================
+  {
+    id: '65',
+    name: 'Tabboulé libanais',
+    description: 'Salade de boulgour aux herbes fraîches',
+    ingredients: ['boulgour', 'persil', 'tomate', 'oignon', 'citron', 'menthe'],
+    preparationTime: 20,
+    difficulty: 'facile',
+    category: 'entrée',
+    imageEmoji: '🥗',
+    instructions: [
+      'Faire gonfler le boulgour dans l\'eau',
+      'Hacher finement le persil et la menthe',
+      'Couper les tomates en dés',
+      'Mélanger le tout',
+      'Assaisonner avec le jus de citron et l\'huile'
+    ],
+    tags: ['libanais', 'végétarien', 'été']
+  },
+  {
+    id: '66',
+    name: 'Soupe à l\'oignon',
+    description: 'Soupe gratinée à la française',
+    ingredients: ['oignon', 'beurre', 'vin blanc', 'pain', 'fromage'],
+    preparationTime: 45,
+    difficulty: 'moyen',
+    category: 'entrée',
+    imageEmoji: '🧅',
+    instructions: [
+      'Émincer finement les oignons',
+      'Les faire caraméliser dans le beurre',
+      'Déglacer au vin blanc',
+      'Ajouter le bouillon et cuire 20 min',
+      'Servir avec pain et fromage gratiné'
+    ],
+    tags: ['français', 'hiver', 'réconfortant']
+  },
+  {
+    id: '67',
+    name: 'Salade de chèvre chaud',
+    description: 'Salade avec toasts de chèvre fondant',
+    ingredients: ['salade', 'chèvre', 'pain', 'miel', 'noix', 'tomate'],
+    preparationTime: 15,
+    difficulty: 'facile',
+    category: 'entrée',
+    imageEmoji: '🥗',
+    instructions: [
+      'Déposer le chèvre sur des toasts',
+      'Passer au four 5 min',
+      'Préparer la salade',
+      'Disposer les toasts chauds',
+      'Arroser de miel et ajouter les noix'
+    ],
+    tags: ['français', 'végétarien']
+  },
+  {
+    id: '68',
+    name: 'Tzatziki',
+    description: 'Dip grec au concombre et yaourt',
+    ingredients: ['yaourt', 'concombre', 'ail', 'menthe', 'huile d\'olive', 'citron'],
+    preparationTime: 10,
+    difficulty: 'facile',
+    category: 'entrée',
+    imageEmoji: '🥒',
+    instructions: [
+      'Râper le concombre et l\'égoutter',
+      'Mélanger avec le yaourt',
+      'Ajouter l\'ail haché et la menthe',
+      'Arroser d\'huile d\'olive et de citron',
+      'Réfrigérer 30 min avant de servir'
+    ],
+    tags: ['grec', 'végétarien', 'rapide']
+  },
+  {
+    id: '69',
+    name: 'Velouté de carottes',
+    description: 'Soupe douce et orangée',
+    ingredients: ['carotte', 'oignon', 'pomme de terre', 'crème', 'cumin'],
+    preparationTime: 30,
+    difficulty: 'facile',
+    category: 'entrée',
+    imageEmoji: '🥕',
+    instructions: [
+      'Faire revenir l\'oignon',
+      'Ajouter carottes et pomme de terre en morceaux',
+      'Couvrir d\'eau et cuire 20 min',
+      'Mixer finement',
+      'Ajouter la crème et le cumin'
+    ],
+    tags: ['végétarien', 'hiver', 'réconfortant']
+  },
+
+  // ============================================
+  // PLATS PRINCIPAUX (suite)
+  // ============================================
+  {
+    id: '70',
+    name: 'Blanquette de veau',
+    description: 'Ragoût de veau à la crème',
+    ingredients: ['veau', 'carotte', 'poireau', 'champignons', 'crème', 'citron'],
+    preparationTime: 90,
+    difficulty: 'moyen',
+    category: 'plat',
+    imageEmoji: '🥘',
+    instructions: [
+      'Couper le veau en morceaux',
+      'Le faire pocher dans l\'eau',
+      'Ajouter les légumes coupés',
+      'Cuire 1h à feu doux',
+      'Préparer la sauce avec la crème et le citron',
+      'Servir avec du riz'
+    ],
+    tags: ['français', 'classique', 'mijoté']
+  },
+  {
+    id: '71',
+    name: 'Hachis parmentier',
+    description: 'Gratin de viande hachée et purée',
+    ingredients: ['viande hachée', 'pomme de terre', 'oignon', 'fromage', 'crème'],
+    preparationTime: 50,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🥔',
+    instructions: [
+      'Préparer une purée de pommes de terre',
+      'Faire revenir la viande avec l\'oignon',
+      'Disposer la viande dans un plat à gratin',
+      'Recouvrir de purée',
+      'Parsemer de fromage et gratiner 20 min'
+    ],
+    tags: ['français', 'familial', 'réconfortant']
+  },
+  {
+    id: '72',
+    name: 'Gratin de pâtes',
+    description: 'Pâtes gratinées au fromage',
+    ingredients: ['pâtes', 'béchamel', 'fromage', 'jambon', 'muscade'],
+    preparationTime: 35,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍝',
+    instructions: [
+      'Cuire les pâtes al dente',
+      'Préparer la béchamel',
+      'Mélanger pâtes, béchamel et jambon',
+      'Verser dans un plat, couvrir de fromage',
+      'Gratiner 15 min au four'
+    ],
+    tags: ['familial', 'réconfortant']
+  },
+  {
+    id: '73',
+    name: 'Poulet basquaise',
+    description: 'Poulet mijoté aux poivrons et tomates',
+    ingredients: ['poulet', 'poivron', 'tomate', 'oignon', 'ail', 'piment'],
+    preparationTime: 55,
+    difficulty: 'moyen',
+    category: 'plat',
+    imageEmoji: '🍗',
+    instructions: [
+      'Faire dorer les morceaux de poulet',
+      'Réserver et faire revenir les poivrons',
+      'Ajouter les tomates et l\'oignon',
+      'Remettre le poulet',
+      'Laisser mijoter 40 min'
+    ],
+    tags: ['français', 'basque']
+  },
+  {
+    id: '74',
+    name: 'Tajine d\'agneau',
+    description: 'Tajine aux pruneaux et amandes',
+    ingredients: ['agneau', 'pruneaux', 'amandes', 'oignon', 'miel', 'épices'],
+    preparationTime: 90,
+    difficulty: 'moyen',
+    category: 'plat',
+    imageEmoji: '🥘',
+    instructions: [
+      'Faire revenir l\'agneau',
+      'Ajouter les oignons et épices',
+      'Couvrir d\'eau et mijoter 1h',
+      'Ajouter pruneaux et miel',
+      'Cuire encore 20 min',
+      'Garnir d\'amandes grillées'
+    ],
+    tags: ['marocain', 'mijoté']
+  },
+  {
+    id: '75',
+    name: 'Galette bretonne complète',
+    description: 'Crêpe de sarrasin garnie',
+    ingredients: ['farine de sarrasin', 'oeufs', 'jambon', 'fromage', 'beurre'],
+    preparationTime: 20,
+    difficulty: 'moyen',
+    category: 'plat',
+    imageEmoji: '🥞',
+    instructions: [
+      'Préparer la pâte à galette',
+      'Cuire la galette sur une crêpière',
+      'Garnir de jambon et fromage',
+      'Casser un oeuf au centre',
+      'Replier les bords et servir'
+    ],
+    tags: ['français', 'breton']
+  },
+  {
+    id: '76',
+    name: 'Poulet au citron',
+    description: 'Poulet rôti parfumé au citron et herbes',
+    ingredients: ['poulet', 'citron', 'ail', 'romarin', 'huile d\'olive', 'pomme de terre'],
+    preparationTime: 50,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍋',
+    instructions: [
+      'Mariner le poulet avec citron et romarin',
+      'Disposer dans un plat avec les pommes de terre',
+      'Arroser d\'huile d\'olive',
+      'Enfourner à 200°C pendant 40 min',
+      'Arroser régulièrement du jus'
+    ],
+    tags: ['méditerranéen', 'familial']
+  },
+  {
+    id: '77',
+    name: 'Moules marinières',
+    description: 'Moules au vin blanc classiques',
+    ingredients: ['moules', 'vin blanc', 'oignon', 'ail', 'persil', 'beurre'],
+    preparationTime: 25,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🦪',
+    instructions: [
+      'Nettoyer les moules',
+      'Faire revenir l\'oignon et l\'ail dans le beurre',
+      'Déglacer au vin blanc',
+      'Ajouter les moules et couvrir',
+      'Cuire 5-7 min jusqu\'à ouverture',
+      'Parsemer de persil et servir avec des frites'
+    ],
+    tags: ['français', 'fruits de mer']
+  },
+  {
+    id: '78',
+    name: 'Tarte flambée',
+    description: 'Flammekueche alsacienne',
+    ingredients: ['pâte à pizza', 'crème fraîche', 'oignon', 'lardons', 'fromage blanc'],
+    preparationTime: 20,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍕',
+    instructions: [
+      'Préchauffer le four à 250°C',
+      'Étaler finement la pâte',
+      'Mélanger crème et fromage blanc',
+      'Étaler sur la pâte',
+      'Ajouter oignons émincés et lardons',
+      'Cuire 10-12 min'
+    ],
+    tags: ['alsacien', 'français', 'rapide']
+  },
+  {
+    id: '79',
+    name: 'Pot-au-feu',
+    description: 'Bouilli de boeuf aux légumes d\'hiver',
+    ingredients: ['boeuf', 'carotte', 'poireau', 'navet', 'pomme de terre', 'oignon'],
+    preparationTime: 180,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍲',
+    instructions: [
+      'Mettre le boeuf dans l\'eau froide',
+      'Porter à ébullition et écumer',
+      'Ajouter les légumes par étapes',
+      'Laisser mijoter 2h30 à feu doux',
+      'Servir la viande avec les légumes et le bouillon'
+    ],
+    tags: ['français', 'classique', 'hiver', 'mijoté']
+  },
+  {
+    id: '80',
+    name: 'Escalope milanaise',
+    description: 'Escalope panée à l\'italienne',
+    ingredients: ['escalope de poulet', 'chapelure', 'oeufs', 'parmesan', 'citron'],
+    preparationTime: 20,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍗',
+    instructions: [
+      'Aplatir les escalopes',
+      'Paner: farine, oeuf, chapelure-parmesan',
+      'Faire frire dans l\'huile chaude',
+      'Égoutter sur du papier absorbant',
+      'Servir avec du citron et des pâtes'
+    ],
+    tags: ['italien', 'rapide']
+  },
+  {
+    id: '81',
+    name: 'Dahl de lentilles',
+    description: 'Curry de lentilles indien',
+    ingredients: ['lentilles corail', 'oignon', 'tomate', 'lait de coco', 'curry', 'ail'],
+    preparationTime: 35,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍛',
+    instructions: [
+      'Faire revenir l\'oignon et l\'ail',
+      'Ajouter le curry et les tomates',
+      'Incorporer les lentilles et le lait de coco',
+      'Cuire 20-25 min',
+      'Servir avec du riz et de la coriandre'
+    ],
+    tags: ['indien', 'végétarien', 'vegan', 'healthy']
+  },
+  {
+    id: '82',
+    name: 'Pâtes au pesto',
+    description: 'Pâtes fraîches au pesto basilic',
+    ingredients: ['pâtes', 'pesto', 'parmesan', 'tomates cerises', 'pignons de pin'],
+    preparationTime: 15,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍝',
+    instructions: [
+      'Cuire les pâtes al dente',
+      'Couper les tomates cerises en deux',
+      'Égoutter les pâtes, mélanger avec le pesto',
+      'Ajouter les tomates et les pignons',
+      'Servir avec du parmesan râpé'
+    ],
+    tags: ['italien', 'rapide', 'végétarien']
+  },
+  {
+    id: '83',
+    name: 'Bibimbap',
+    description: 'Bol coréen au riz et légumes',
+    ingredients: ['riz', 'boeuf', 'carotte', 'courgette', 'oeufs', 'sauce soja'],
+    preparationTime: 35,
+    difficulty: 'moyen',
+    category: 'plat',
+    imageEmoji: '🍚',
+    instructions: [
+      'Cuire le riz',
+      'Mariner et cuire le boeuf émincé',
+      'Sauter chaque légume séparément',
+      'Assembler dans un bol sur le riz',
+      'Ajouter un oeuf au plat et la sauce'
+    ],
+    tags: ['coréen', 'asiatique']
+  },
+  {
+    id: '84',
+    name: 'Pâtes alla norma',
+    description: 'Pâtes siciliennes aux aubergines',
+    ingredients: ['pâtes', 'aubergine', 'tomate', 'ricotta', 'basilic', 'ail'],
+    preparationTime: 30,
+    difficulty: 'facile',
+    category: 'plat',
+    imageEmoji: '🍆',
+    instructions: [
+      'Couper l\'aubergine en cubes et la faire frire',
+      'Préparer la sauce tomate avec l\'ail',
+      'Cuire les pâtes al dente',
+      'Mélanger pâtes, sauce et aubergines',
+      'Garnir de ricotta et basilic'
+    ],
+    tags: ['italien', 'végétarien', 'sicilien']
+  },
+
+  // ============================================
+  // SNACKS (suite)
+  // ============================================
+  {
+    id: '85',
+    name: 'Cake salé',
+    description: 'Cake aux olives et jambon',
+    ingredients: ['farine', 'oeufs', 'huile', 'jambon', 'olives', 'fromage'],
+    preparationTime: 50,
+    difficulty: 'facile',
+    category: 'snack',
+    imageEmoji: '🧁',
+    instructions: [
+      'Mélanger farine, oeufs, huile et lait',
+      'Couper le jambon et les olives',
+      'Incorporer à la pâte avec le fromage',
+      'Verser dans un moule à cake',
+      'Cuire 40 min à 180°C'
+    ],
+    tags: ['français', 'pique-nique', 'apéritif']
+  },
+  {
+    id: '86',
+    name: 'Mini quiches',
+    description: 'Petites quiches pour l\'apéritif',
+    ingredients: ['pâte brisée', 'oeufs', 'crème', 'lardons', 'fromage'],
+    preparationTime: 30,
+    difficulty: 'facile',
+    category: 'snack',
+    imageEmoji: '🥧',
+    instructions: [
+      'Découper des ronds de pâte',
+      'Les disposer dans des moules à muffins',
+      'Mélanger oeufs, crème et lardons',
+      'Remplir les fonds de tarte',
+      'Cuire 15 min à 180°C'
+    ],
+    tags: ['français', 'apéritif']
+  },
+  {
+    id: '87',
+    name: 'Bâtonnets de légumes & houmous',
+    description: 'Crudités avec trempette',
+    ingredients: ['carotte', 'concombre', 'céleri', 'pois chiches', 'citron'],
+    preparationTime: 15,
+    difficulty: 'facile',
+    category: 'snack',
+    imageEmoji: '🥕',
+    instructions: [
+      'Couper les légumes en bâtonnets',
+      'Préparer le houmous maison',
+      'Disposer les crudités autour du dip',
+      'Servir frais'
+    ],
+    tags: ['healthy', 'végétarien', 'vegan']
+  },
+  {
+    id: '88',
+    name: 'Pan con tomate',
+    description: 'Toast espagnol à la tomate',
+    ingredients: ['pain', 'tomate', 'ail', 'huile d\'olive', 'sel'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'snack',
+    imageEmoji: '🍅',
+    instructions: [
+      'Griller le pain',
+      'Frotter avec une gousse d\'ail',
+      'Frotter avec une demi-tomate',
+      'Arroser d\'huile d\'olive',
+      'Saler et servir'
+    ],
+    tags: ['espagnol', 'rapide', 'végétarien']
+  },
+
+  // ============================================
+  // DESSERTS (suite)
+  // ============================================
+  {
+    id: '89',
+    name: 'Gâteau au yaourt',
+    description: 'Le gâteau le plus simple du monde',
+    ingredients: ['yaourt', 'farine', 'sucre', 'oeufs', 'huile', 'levure'],
+    preparationTime: 40,
+    difficulty: 'facile',
+    category: 'dessert',
+    imageEmoji: '🍰',
+    instructions: [
+      'Verser le yaourt dans un saladier',
+      'Utiliser le pot comme mesure',
+      'Mélanger 3 pots de farine, 2 de sucre, 1 d\'huile',
+      'Ajouter les oeufs et la levure',
+      'Cuire 30 min à 180°C'
+    ],
+    tips: 'Le pot de yaourt sert de mesure pour tout !',
+    tags: ['français', 'familial', 'classique']
+  },
+  {
+    id: '90',
+    name: 'Riz au lait',
+    description: 'Dessert crémeux à la vanille',
+    ingredients: ['riz', 'lait', 'sucre', 'vanille', 'cannelle'],
+    preparationTime: 40,
+    difficulty: 'facile',
+    category: 'dessert',
+    imageEmoji: '🍚',
+    instructions: [
+      'Rincer le riz',
+      'Chauffer le lait avec la vanille',
+      'Ajouter le riz et cuire à feu doux',
+      'Remuer régulièrement pendant 30 min',
+      'Sucrer et servir tiède ou froid'
+    ],
+    tags: ['français', 'réconfortant', 'classique']
+  },
+  {
+    id: '91',
+    name: 'Brownie',
+    description: 'Gâteau au chocolat dense et fondant',
+    ingredients: ['chocolat', 'beurre', 'sucre', 'oeufs', 'farine', 'noix'],
+    preparationTime: 35,
+    difficulty: 'facile',
+    category: 'dessert',
+    imageEmoji: '🍫',
+    instructions: [
+      'Faire fondre le chocolat et le beurre',
+      'Battre les oeufs avec le sucre',
+      'Mélanger les deux préparations',
+      'Ajouter farine et noix',
+      'Cuire 20-25 min à 180°C (le centre doit rester fondant)'
+    ],
+    tags: ['américain', 'chocolat']
+  },
+  {
+    id: '92',
+    name: 'Tarte au citron meringuée',
+    description: 'Tarte acidulée couverte de meringue',
+    ingredients: ['pâte sablée', 'citron', 'oeufs', 'sucre', 'beurre', 'maïzena'],
+    preparationTime: 50,
+    difficulty: 'difficile',
+    category: 'dessert',
+    imageEmoji: '🍋',
+    instructions: [
+      'Cuire le fond de tarte à blanc',
+      'Préparer la crème au citron (curd)',
+      'Verser sur le fond de tarte',
+      'Monter les blancs en meringue',
+      'Déposer la meringue et caraméliser au chalumeau'
+    ],
+    tags: ['français', 'pâtisserie', 'élégant']
+  },
+  {
+    id: '93',
+    name: 'Compote de pommes',
+    description: 'Compote maison toute simple',
+    ingredients: ['pomme', 'sucre', 'cannelle', 'citron'],
+    preparationTime: 25,
+    difficulty: 'facile',
+    category: 'dessert',
+    imageEmoji: '🍎',
+    instructions: [
+      'Éplucher et couper les pommes',
+      'Les cuire à feu doux avec un peu d\'eau',
+      'Ajouter le sucre et la cannelle',
+      'Écraser ou mixer selon la texture voulue',
+      'Arroser d\'un filet de citron'
+    ],
+    tags: ['français', 'healthy', 'enfant']
+  },
+  {
+    id: '94',
+    name: 'Île flottante',
+    description: 'Blancs en neige sur crème anglaise',
+    ingredients: ['oeufs', 'lait', 'sucre', 'vanille'],
+    preparationTime: 30,
+    difficulty: 'moyen',
+    category: 'dessert',
+    imageEmoji: '🍮',
+    instructions: [
+      'Préparer la crème anglaise avec jaunes, lait et sucre',
+      'Monter les blancs en neige ferme',
+      'Les pocher dans du lait chaud',
+      'Déposer sur la crème anglaise',
+      'Napper de caramel'
+    ],
+    tags: ['français', 'classique', 'élégant']
+  },
+  {
+    id: '95',
+    name: 'Mug cake chocolat',
+    description: 'Gâteau express au micro-ondes',
+    ingredients: ['farine', 'chocolat', 'oeufs', 'sucre', 'beurre'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'dessert',
+    imageEmoji: '☕',
+    instructions: [
+      'Mélanger tous les ingrédients dans un mug',
+      'Cuire 1 min 30 au micro-ondes',
+      'Laisser tiédir 1 min',
+      'Déguster directement dans le mug'
+    ],
+    tags: ['rapide', 'chocolat', 'express']
+  },
+
+  // ============================================
+  // BOISSONS (suite)
+  // ============================================
+  {
+    id: '96',
+    name: 'Thé glacé pêche',
+    description: 'Thé glacé rafraîchissant aux pêches',
+    ingredients: ['thé', 'pêche', 'sucre', 'citron', 'menthe'],
+    preparationTime: 15,
+    difficulty: 'facile',
+    category: 'boisson',
+    imageEmoji: '🍑',
+    instructions: [
+      'Infuser le thé et le laisser refroidir',
+      'Mixer les pêches',
+      'Mélanger le thé, la purée de pêche et le sucre',
+      'Ajouter le jus de citron',
+      'Servir avec des glaçons et de la menthe'
+    ],
+    tags: ['été', 'rafraîchissant']
+  },
+  {
+    id: '97',
+    name: 'Milkshake vanille',
+    description: 'Milkshake crémeux à la vanille',
+    ingredients: ['glace', 'lait', 'vanille', 'crème chantilly'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'boisson',
+    imageEmoji: '🥛',
+    instructions: [
+      'Mixer la glace avec le lait',
+      'Ajouter la vanille',
+      'Mixer jusqu\'à consistance lisse',
+      'Servir avec de la chantilly'
+    ],
+    tags: ['sucré', 'rapide', 'américain']
+  },
+  {
+    id: '98',
+    name: 'Lassi à la mangue',
+    description: 'Boisson indienne au yaourt et mangue',
+    ingredients: ['mangue', 'yaourt', 'lait', 'sucre', 'cardamome'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'boisson',
+    imageEmoji: '🥭',
+    instructions: [
+      'Mixer la mangue avec le yaourt',
+      'Ajouter le lait et le sucre',
+      'Parfumer à la cardamome',
+      'Servir très frais'
+    ],
+    tags: ['indien', 'rafraîchissant']
+  },
+  {
+    id: '99',
+    name: 'Eau aromatisée concombre-menthe',
+    description: 'Eau infusée détox et rafraîchissante',
+    ingredients: ['concombre', 'menthe', 'citron', 'gingembre'],
+    preparationTime: 5,
+    difficulty: 'facile',
+    category: 'boisson',
+    imageEmoji: '💧',
+    instructions: [
+      'Couper le concombre en rondelles',
+      'Ajouter les feuilles de menthe',
+      'Presser le citron et râper le gingembre',
+      'Verser de l\'eau fraîche',
+      'Laisser infuser 30 min au frigo'
+    ],
+    tags: ['détox', 'healthy', 'été']
+  },
+  {
+    id: '100',
+    name: 'Chaï latte',
+    description: 'Thé épicé indien au lait',
+    ingredients: ['thé noir', 'lait', 'cannelle', 'gingembre', 'cardamome', 'miel'],
+    preparationTime: 10,
+    difficulty: 'facile',
+    category: 'boisson',
+    imageEmoji: '☕',
+    instructions: [
+      'Faire infuser le thé avec les épices',
+      'Chauffer le lait',
+      'Mélanger thé épicé et lait chaud',
+      'Sucrer avec le miel',
+      'Saupoudrer de cannelle'
+    ],
+    tags: ['indien', 'hiver', 'réconfortant']
+  },
 ];
 
 // Synonymes et variantes pour améliorer le matching
@@ -1360,19 +2108,26 @@ function ingredientMatches(foodName: string, recipeIngredient: string): boolean 
 export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
   // Filtrer les aliments actifs uniquement
   const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
-  const availableFoods = activeItems.map(item => item.name);
 
   const matches: RecipeMatch[] = [];
 
   for (const recipe of RECIPES_DATABASE) {
     const matchingIngredients: string[] = [];
     const missingIngredients: string[] = [];
+    let urgencyScore = 0;
+    const expiringIngredients: string[] = [];
 
     for (const ingredient of recipe.ingredients) {
-      const found = availableFoods.some(food => ingredientMatches(food, ingredient));
+      const matchedItem = activeItems.find(item => ingredientMatches(item.name, ingredient));
 
-      if (found) {
+      if (matchedItem) {
         matchingIngredients.push(ingredient);
+        // Calculer l'urgence pour cet ingrédient
+        const daysLeft = getDaysUntilExpiration(matchedItem.expirationDate);
+        if (daysLeft !== null && daysLeft <= 7) {
+          expiringIngredients.push(matchedItem.name);
+          urgencyScore += daysLeft <= 0 ? 10 : (8 - daysLeft);
+        }
       } else {
         missingIngredients.push(ingredient);
       }
@@ -1388,12 +2143,14 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
         matchingIngredients,
         missingIngredients,
         matchPercentage,
+        urgencyScore,
+        expiringIngredients,
       });
     }
   }
 
-  // Trier par pourcentage de correspondance décroissant
-  return matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  // Trier par urgencyScore décroissant, puis matchPercentage en cas d'égalité
+  return matches.sort((a, b) => b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage);
 }
 
 /**
@@ -1516,7 +2273,6 @@ export async function getAllRecipesWithUser(): Promise<Recipe[]> {
 export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promise<RecipeMatch[]> {
   // Filtrer les aliments actifs uniquement
   const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
-  const availableFoods = activeItems.map(item => item.name);
 
   // Récupérer toutes les recettes (intégrées + utilisateur)
   const allRecipes = await getAllRecipesWithUser();
@@ -1525,12 +2281,20 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
   for (const recipe of allRecipes) {
     const matchingIngredients: string[] = [];
     const missingIngredients: string[] = [];
+    let urgencyScore = 0;
+    const expiringIngredients: string[] = [];
 
     for (const ingredient of recipe.ingredients) {
-      const found = availableFoods.some(food => ingredientMatches(food, ingredient));
+      const matchedItem = activeItems.find(item => ingredientMatches(item.name, ingredient));
 
-      if (found) {
+      if (matchedItem) {
         matchingIngredients.push(ingredient);
+        // Calculer l'urgence pour cet ingrédient
+        const daysLeft = getDaysUntilExpiration(matchedItem.expirationDate);
+        if (daysLeft !== null && daysLeft <= 7) {
+          expiringIngredients.push(matchedItem.name);
+          urgencyScore += daysLeft <= 0 ? 10 : (8 - daysLeft);
+        }
       } else {
         missingIngredients.push(ingredient);
       }
@@ -1546,12 +2310,14 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
         matchingIngredients,
         missingIngredients,
         matchPercentage,
+        urgencyScore,
+        expiringIngredients,
       });
     }
   }
 
-  // Trier par pourcentage de correspondance décroissant
-  return matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+  // Trier par urgencyScore décroissant, puis matchPercentage en cas d'égalité
+  return matches.sort((a, b) => b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage);
 }
 
 // Liste des emojis disponibles pour les recettes

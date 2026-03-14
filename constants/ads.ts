@@ -8,10 +8,12 @@ const PRODUCTION_IDS = {
   ios: {
     banner: null, // Pas de banniere configuree
     interstitial: 'ca-app-pub-7371774777716579/2445384562',
+    rewarded: 'ca-app-pub-7371774777716579/4447313856',
   },
   android: {
     banner: null, // Pas de banniere configuree
     interstitial: 'ca-app-pub-7371774777716579/8330575565',
+    rewarded: 'ca-app-pub-7371774777716579/1290908868',
   },
 };
 
@@ -28,6 +30,11 @@ const TEST_IDS = {
     android: 'ca-app-pub-3940256099942544/1033173712',
     default: 'ca-app-pub-3940256099942544/1033173712',
   }),
+  rewarded: Platform.select({
+    ios: 'ca-app-pub-3940256099942544/1712485313',
+    android: 'ca-app-pub-3940256099942544/5224354917',
+    default: 'ca-app-pub-3940256099942544/5224354917',
+  }),
 };
 
 // Export des IDs selon la plateforme et le mode
@@ -40,6 +47,13 @@ export const AD_UNIT_IDS = {
         ios: PRODUCTION_IDS.ios.interstitial,
         android: PRODUCTION_IDS.android.interstitial,
         default: TEST_IDS.interstitial,
+      }),
+  rewarded: USE_TEST_ADS
+    ? TEST_IDS.rewarded
+    : Platform.select({
+        ios: PRODUCTION_IDS.ios.rewarded,
+        android: PRODUCTION_IDS.android.rewarded,
+        default: TEST_IDS.rewarded,
       }),
 };
 

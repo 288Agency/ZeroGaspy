@@ -326,7 +326,12 @@
     "ingredientsOf": "{{matched}}/{{total}} ingredients",
     "ingredientsAvailable": "{{count}} ingredients available out of {{total}}",
     "addRecipe": "Add a recipe",
-    "loadError": "Unable to load recipes. Please try again."
+    "loadError": "Unable to load recipes. Please try again.",
+    "sortAntiWaste": "Anti-waste",
+    "sortBestMatch": "Best match",
+    "antiWasteBadge": "Anti-waste",
+    "expiringCount": "{{count}} item expiring soon",
+    "expiringCount_plural": "{{count}} items expiring soon"
   },
   "stats": {
     "title": "Statistics",
@@ -874,10 +879,97 @@
   "achievementToast": {
     "levelUp": "Level up!",
     "nowLevel": "You are now level {{level}}",
-    "newBadge": "New badge!"
+    "newBadge": "New badge!",
+    "challengeCompleted": "Challenge completed!"
+  },
+  "challenges": {
+    "screenTitle": "Weekly Challenges",
+    "weeklyChallenge": "Weekly challenge",
+    "dateRange": "From {{start}} to {{end}}",
+    "completed": "Completed",
+    "completedOf": "{{count}}/{{total}} completed",
+    "allCompleted": "All challenges completed!",
+    "allCompletedTitle": "Bravo, perfect week!",
+    "allCompletedSubtitle": "You earned +{{xp}} XP this week",
+    "challengeCompleted": "Completed!",
+    "history": "History",
+    "seeAll": "See all",
+    "difficulty": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "names": {
+      "zeroWasteWeek": "Zero Waste",
+      "save20": "Perfect Saver",
+      "save5": "Little Saver",
+      "add15": "Super Organized",
+      "add5": "First Steps",
+      "recipes10": "Curious Chef",
+      "recipes3": "Apprentice Cook",
+      "daily5": "Dedicated",
+      "daily7": "Marathon Runner",
+      "consume10": "Anti-Waste",
+      "consume25": "Anti-Waste Machine",
+      "addVaried3": "Multi-Space",
+      "streak5": "Streak Going",
+      "noThrow3": "Promising Start",
+      "allActions": "Jack of All Trades"
+    },
+    "descriptions": {
+      "zeroWasteWeek": "Don't throw away any food this week",
+      "save20": "Consume 20 items before their expiration date",
+      "save5": "Consume 5 items before their expiration date",
+      "add15": "Add 15 items to your lists",
+      "add5": "Add 5 items to your lists",
+      "recipes10": "View 10 recipes",
+      "recipes3": "View 3 recipes",
+      "daily5": "Open the app 5 days this week",
+      "daily7": "Open the app every day this week",
+      "consume10": "Consume 10 items (before or after expiration)",
+      "consume25": "Consume 25 items",
+      "addVaried3": "Add items to 3 different lists",
+      "streak5": "Maintain a 5-day consecutive streak",
+      "noThrow3": "3 consecutive days without waste",
+      "allActions": "Do all 4 actions (add, consume, recipe, list) this week"
+    }
   },
   "loadingOverlay": {
     "loading": "Loading..."
+  },
+  "sharing": {
+    "shareTitle": "Share list",
+    "joinTitle": "Join a list",
+    "membersTitle": "Members",
+    "permissionLabel": "Permissions",
+    "canEdit": "Can edit",
+    "canView": "View only",
+    "generateCode": "Generate invitation code",
+    "invitationCode": "Invitation code",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "share": "Share",
+    "codeHint": "This code is single-use. Share it with the person you want to invite.",
+    "generateError": "Unable to generate the invitation code. Please try again.",
+    "shareMessage": "Join my list \"{{title}}\" on ZeroGaspy! Invitation code: {{code}}",
+    "joinDescription": "Enter the 6-character invitation code to join a shared list.",
+    "lookupCode": "Verify code",
+    "joinList": "Join list",
+    "sharedBy": "Shared by {{name}}",
+    "invalidCode": "Invalid or expired code",
+    "joinedSuccess": "You joined the list \"{{title}}\"!",
+    "noMembers": "No shared members",
+    "pending": "Pending",
+    "unknownUser": "Unknown user",
+    "removeMemberTitle": "Remove member",
+    "removeMemberConfirm": "Are you sure you want to remove {{name}} from this list?",
+    "errors": {
+      "invalid_code": "This invitation code is invalid or has expired",
+      "own_list": "You cannot join your own list",
+      "already_member": "You are already a member of this list",
+      "accept_failed": "Unable to join the list",
+      "unknown": "An error occurred"
+    }
   },
   "barcodeScanner": {
     "loading": "Loading...",

@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
-  version: '2.0.1',
+  version: '2.0.6',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
@@ -52,6 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.zerogaspy.app',
+    buildNumber: '13',
     appleTeamId: 'M32LP7D76G',
     infoPlist: {
       NSCameraUsageDescription:
@@ -71,7 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   },
   android: {
     package: 'com.zerogaspy.app',
-    versionCode: 9,
+    versionCode: 13,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#F7F5E6',
@@ -171,9 +172,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // Variables d'environnement exposées à l'application
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    mindeeApiKey: process.env.EXPO_PUBLIC_MINDEE_API_KEY,
-    googleVisionApiKey: process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY, // Deprecated - utiliser Mindee
     feedbackEmail: process.env.EXPO_PUBLIC_FEEDBACK_EMAIL,
+    // Note: Les clés OCR (Mindee/Google Vision) sont maintenant côté serveur via Edge Function
   },
   owner: '288agency',
   };

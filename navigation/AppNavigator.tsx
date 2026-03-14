@@ -11,6 +11,7 @@ import ExpiringSoonScreen from '../screens/ExpiringSoonScreen';
 import ThrownFoodsScreen from '../screens/ThrownFoodsScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import StatsScreen from '../screens/StatsScreen';
+import ChallengesScreen from '../screens/ChallengesScreen';
 import GlassTabBar from '../components/GlassTabBar';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
@@ -141,6 +142,13 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Stats"
         component={StatsScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="Challenges"
+        component={ChallengesScreen}
         options={{
           headerShown: false,
         }}

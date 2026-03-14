@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Badge, getTierBackgroundColor, getTierColor } from '../services/gamificationService';
+import { ChallengeCompletionResult } from '../services/challengeService';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../utils/designSystem';
 
 interface AchievementToastProps {
@@ -9,6 +10,7 @@ interface AchievementToastProps {
   xpGained: number;
   levelUp: boolean;
   newLevel?: number;
+  challengeCompleted?: ChallengeCompletionResult;
   visible: boolean;
   onHide: () => void;
 }
@@ -20,6 +22,7 @@ export default function AchievementToast({
   xpGained,
   levelUp,
   newLevel,
+  challengeCompleted,
   visible,
   onHide,
 }: AchievementToastProps) {
@@ -95,13 +98,40 @@ export default function AchievementToast({
         style={[
           styles.toastContainer,
           {
-            backgroundColor: badge ? getTierBackgroundColor(badge.tier) : COLORS.surface.successBg,
+            backgroundColor: challengeCompleted
+              ? COLORS.surface.achievementBg
+              : badge
+                ? getTierBackgroundColor(badge.tier)
+                : COLORS.surface.successBg,
             borderWidth: 2,
-            borderColor: badge ? getTierColor(badge.tier) : COLORS.semantic.successLight,
+            borderColor: challengeCompleted
+              ? COLORS.surface.achievementBorder
+              : badge
+                ? getTierColor(badge.tier)
+                : COLORS.semantic.successLight,
           },
         ]}
       >
-        {levelUp && newLevel ? (
+        {challengeCompleted ? (
+          // Challenge Completed Toast
+          <View style={styles.row}>
+            <View style={styles.badgeIconContainer}>
+              <Text style={styles.emojiText}>{challengeCompleted.challengeIcon}</Text>
+            </View>
+            <View style={styles.contentFlex}>
+              <Text style={styles.badgeLabelText}>
+                {t('achievementToast.challengeCompleted')}
+              </Text>
+              <Text style={styles.titleText}>
+                {t(challengeCompleted.challengeName)}
+              </Text>
+              <Text style={styles.xpText}>
+                +{challengeCompleted.xpReward} XP
+              </Text>
+            </View>
+            <Text style={styles.emojiText}>🏆</Text>
+          </View>
+        ) : levelUp && newLevel ? (
           // Level Up Toast
           <View style={styles.row}>
             <View style={styles.levelCircle}>

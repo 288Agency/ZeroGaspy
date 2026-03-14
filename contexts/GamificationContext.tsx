@@ -11,17 +11,25 @@ import {
   onRecipeViewed,
   onListCreated,
 } from '../services/gamificationService';
+import {
+  WeeklyChallengesState,
+  ChallengeCompletionResult,
+  getOrInitChallenges,
+  trackChallengeProgress,
+} from '../services/challengeService';
 import AchievementToast from '../components/AchievementToast';
 import { useAuth } from './AuthContext';
 
 interface GamificationContextType {
   gamificationData: UserGamification | null;
-  trackFoodAdded: () => Promise<void>;
+  challengesState: WeeklyChallengesState | null;
+  trackFoodAdded: (listId?: string) => Promise<void>;
   trackFoodConsumed: (wasBeforeExpiration: boolean) => Promise<void>;
   trackFoodThrown: () => Promise<void>;
   trackRecipeViewed: () => Promise<void>;
   trackListCreated: () => Promise<void>;
   refreshData: () => Promise<void>;
+  refreshChallenges: () => Promise<void>;
 }
 
 const GamificationContext = createContext<GamificationContextType | undefined>(undefined);
@@ -32,6 +40,7 @@ interface ToastState {
   xpGained: number;
   levelUp: boolean;
   newLevel?: number;
+  challengeCompleted?: ChallengeCompletionResult;
 }
 
 interface GamificationProviderProps {
@@ -41,6 +50,7 @@ interface GamificationProviderProps {
 export function GamificationProvider({ children }: GamificationProviderProps) {
   const { user, isLocalMode } = useAuth();
   const [gamificationData, setGamificationData] = useState<UserGamification | null>(null);
+  const [challengesState, setChallengesState] = useState<WeeklyChallengesState | null>(null);
   const [toastQueue, setToastQueue] = useState<ToastState[]>([]);
   const [currentToast, setCurrentToast] = useState<ToastState>({
     visible: false,
@@ -55,10 +65,19 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       const data = await getGamificationData();
       setGamificationData(data);
 
+      // Init challenges
+      const challenges = await getOrInitChallenges();
+      setChallengesState(challenges);
+
       // Tracker la visite quotidienne
       if (user || isLocalMode) {
         const result = await onDailyVisit();
         handleResult(result);
+
+        // Track app opened for challenges
+        const completedChallenges = await trackChallengeProgress({ type: 'app_opened' });
+        handleChallengeCompletions(completedChallenges);
+        setChallengesState(await getOrInitChallenges());
       }
     };
 
@@ -110,33 +129,77 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     }
   };
 
+  const handleChallengeCompletions = (completions: ChallengeCompletionResult[]) => {
+    const newToasts: ToastState[] = completions.map(c => ({
+      visible: false,
+      badge: null,
+      xpGained: c.xpReward,
+      levelUp: false,
+      challengeCompleted: c,
+    }));
+    if (newToasts.length > 0) {
+      setToastQueue(prev => [...prev, ...newToasts]);
+    }
+  };
+
   const hideToast = () => {
     setCurrentToast(prev => ({ ...prev, visible: false }));
   };
 
-  const trackFoodAdded = async () => {
+  const trackFoodAdded = async (listId?: string) => {
     const result = await onFoodAdded();
     handleResult(result);
+
+    // Track challenges
+    const completions = await trackChallengeProgress({
+      type: 'food_added',
+      listId,
+    });
+    handleChallengeCompletions(completions);
+    setChallengesState(await getOrInitChallenges());
   };
 
   const trackFoodConsumed = async (wasBeforeExpiration: boolean) => {
     const result = await onFoodConsumed(wasBeforeExpiration);
     handleResult(result);
+
+    // Track challenges
+    const completions = await trackChallengeProgress({
+      type: 'food_consumed',
+      beforeExpiration: wasBeforeExpiration,
+    });
+    handleChallengeCompletions(completions);
+    setChallengesState(await getOrInitChallenges());
   };
 
   const trackFoodThrown = async () => {
     const result = await onFoodThrown();
     handleResult(result);
+
+    // Track challenges
+    const completions = await trackChallengeProgress({ type: 'food_thrown' });
+    handleChallengeCompletions(completions);
+    setChallengesState(await getOrInitChallenges());
   };
 
   const trackRecipeViewed = async () => {
     const result = await onRecipeViewed();
     handleResult(result);
+
+    // Track challenges
+    const completions = await trackChallengeProgress({ type: 'recipe_viewed' });
+    handleChallengeCompletions(completions);
+    setChallengesState(await getOrInitChallenges());
   };
 
   const trackListCreated = async () => {
     const result = await onListCreated();
     handleResult(result);
+
+    // Track challenges
+    const completions = await trackChallengeProgress({ type: 'list_created' });
+    handleChallengeCompletions(completions);
+    setChallengesState(await getOrInitChallenges());
   };
 
   const refreshData = async () => {
@@ -144,16 +207,23 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     setGamificationData(data);
   };
 
+  const refreshChallenges = async () => {
+    const state = await getOrInitChallenges();
+    setChallengesState(state);
+  };
+
   return (
     <GamificationContext.Provider
       value={{
         gamificationData,
+        challengesState,
         trackFoodAdded,
         trackFoodConsumed,
         trackFoodThrown,
         trackRecipeViewed,
         trackListCreated,
         refreshData,
+        refreshChallenges,
       }}
     >
       {children}
@@ -162,6 +232,7 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
         xpGained={currentToast.xpGained}
         levelUp={currentToast.levelUp}
         newLevel={currentToast.newLevel}
+        challengeCompleted={currentToast.challengeCompleted}
         visible={currentToast.visible}
         onHide={hideToast}
       />

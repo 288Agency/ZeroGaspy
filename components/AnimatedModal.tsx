@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   centerModal: {
     marginHorizontal: 20,
     maxWidth: 448,
-    width: '100%',
+    alignSelf: 'center',
   },
   bottomModal: {
     width: '100%',

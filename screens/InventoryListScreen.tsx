@@ -34,7 +34,9 @@ import QuantityModal from '../components/QuantityModal';
 import PressableScale from '../components/PressableScale';
 import ReceiptScannerModal from '../components/ReceiptScannerModal';
 import ReceiptReviewModal from '../components/ReceiptReviewModal';
+import ReceiptScanUnlockModal from '../components/ReceiptScanUnlockModal';
 import { ReceiptScanResult, ReceiptItem } from '../services/mindeeReceiptService';
+import { hasUsedFreeReceiptScanThisMonth, markFreeReceiptScanAsUsed } from '../services/premiumFeaturesService';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
@@ -44,6 +46,10 @@ import { useAds } from '../contexts/AdContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import PaywallModal from '../components/PaywallModal';
+import ShareListModal from '../components/ShareListModal';
+import { getUserPermission } from '../services/listSharingService';
+import ListMembersModal from '../components/ListMembersModal';
+import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
@@ -553,7 +559,7 @@ export default function InventoryListScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodConsumed, trackFoodThrown } = useGamification();
-  const { incrementActionCount } = useAds();
+  const { incrementActionCount, showRewardedAd, isRewardedAdReady, isRewardedAdLoading, retryLoadRewardedAd, needsConsent, requestConsent } = useAds();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const { listId, listTitle, listColor = colors.primary[500] } = route.params;
@@ -577,6 +583,7 @@ export default function InventoryListScreen() {
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
+  const [receiptUnlockModalVisible, setReceiptUnlockModalVisible] = useState(false);
   const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
   const [scannedStoreName, setScannedStoreName] = useState<string | undefined>();
   const [scannedDate, setScannedDate] = useState<string | undefined>();
@@ -589,6 +596,13 @@ export default function InventoryListScreen() {
   // Detail popup state
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailSelectedItem, setDetailSelectedItem] = useState<FoodItem | null>(null);
+
+  // Sharing states
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [isListOwner, setIsListOwner] = useState(true);
+
+  const { user, isLocalMode } = useAuth();
 
   const emptyFade = useRef(new Animated.Value(0)).current;
 
@@ -628,14 +642,44 @@ export default function InventoryListScreen() {
     };
   }, [listId]);
 
+  // Check ownership for sharing UI
+  useEffect(() => {
+    if (!isLocalMode && user) {
+      getUserPermission(listId).then(perm => {
+        setIsListOwner(perm === 'owner' || perm === null); // null = local list, treat as owner
+      });
+    }
+  }, [listId, user, isLocalMode]);
+
   // Set navigation header
   useEffect(() => {
     navigation.setOptions({
       headerTitle: listTitle,
       headerStyle: { backgroundColor: COLORS.secondary.cream },
       headerTintColor: listColor,
+      headerRight: () =>
+        !isLocalMode && user ? (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <PressableScale
+              onPress={() => setMembersModalVisible(true)}
+              hapticType="light"
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="people-outline" size={22} color={listColor} />
+            </PressableScale>
+            {isListOwner && (
+              <PressableScale
+                onPress={() => setShareModalVisible(true)}
+                hapticType="light"
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="share-outline" size={22} color={listColor} />
+              </PressableScale>
+            )}
+          </View>
+        ) : null,
     });
-  }, [listTitle, listColor, listId]);
+  }, [listTitle, listColor, listId, isLocalMode, user, isListOwner]);
 
   const loadListData = async () => {
     try {
@@ -864,6 +908,43 @@ export default function InventoryListScreen() {
     } catch (error) {
       logger.error('Erreur ajout produits:', error);
       Alert.alert(t('common.error'), t('inventory.productsAddError'));
+    }
+  };
+
+  // Handlers pour le modal unlock du scan de ticket
+  const handleWatchAdForReceiptScan = async () => {
+    setReceiptUnlockModalVisible(false);
+
+    try {
+      // Afficher la rewarded ad
+      const adShown = await showRewardedAd();
+
+      if (adShown) {
+        // Marquer le crédit comme utilisé
+        await markFreeReceiptScanAsUsed();
+
+        // Ouvrir le scanner de ticket
+        setReceiptScannerVisible(true);
+
+        Alert.alert(
+          t('common.success'),
+          'Vous pouvez maintenant scanner un ticket ! Ce crédit est valable jusqu\'à la fin du mois.',
+          [{ text: t('common.ok') }]
+        );
+      } else {
+        Alert.alert(
+          'Publicité non disponible',
+          'La publicité n\'a pas pu être affichée. Veuillez réessayer dans quelques instants.',
+          [{ text: t('common.ok') }]
+        );
+      }
+    } catch (error) {
+      logger.error('Erreur affichage rewarded ad:', error);
+      Alert.alert(
+        t('common.error'),
+        'Une erreur est survenue lors de l\'affichage de la publicité.',
+        [{ text: t('common.ok') }]
+      );
     }
   };
 
@@ -1215,12 +1296,21 @@ export default function InventoryListScreen() {
           <Animated.View style={styles.fabMenuItem}>
             <Text style={styles.fabMenuLabel}>{t('inventory.scanReceipt')}</Text>
             <PressableScale
-              onPress={() => {
+              onPress={async () => {
                 setFabMenuOpen(false);
-                if (!isPremium) {
-                  setPaywallVisible(true);
-                } else {
+                if (isPremium) {
+                  // Utilisateur Premium → Accès direct
                   setReceiptScannerVisible(true);
+                } else {
+                  // Utilisateur gratuit → Vérifier le crédit
+                  const hasUsedCredit = await hasUsedFreeReceiptScanThisMonth();
+                  if (hasUsedCredit) {
+                    // Crédit déjà utilisé ce mois → Paywall
+                    setPaywallVisible(true);
+                  } else {
+                    // Crédit disponible → Proposer de regarder une pub
+                    setReceiptUnlockModalVisible(true);
+                  }
                 }
               }}
               style={[styles.fabSecondary, { backgroundColor: COLORS.status.indigo }]}
@@ -1549,10 +1639,39 @@ export default function InventoryListScreen() {
       </Modal>
 
       {/* Paywall Modal */}
+      {/* Receipt Scan Unlock Modal */}
+      <ReceiptScanUnlockModal
+        visible={receiptUnlockModalVisible}
+        onClose={() => setReceiptUnlockModalVisible(false)}
+        onWatchAd={handleWatchAdForReceiptScan}
+        onUpgradeToPro={() => setPaywallVisible(true)}
+        isRewardedAdReady={isRewardedAdReady}
+        isRewardedAdLoading={isRewardedAdLoading}
+        onRetryLoadAd={retryLoadRewardedAd}
+        needsConsent={needsConsent}
+        onRequestConsent={requestConsent}
+      />
+
       <PaywallModal
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
         feature="scanner"
+      />
+
+      {/* Sharing modals */}
+      <ShareListModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        listId={listId}
+        listTitle={listTitle}
+      />
+
+      <ListMembersModal
+        visible={membersModalVisible}
+        onClose={() => setMembersModalVisible(false)}
+        listId={listId}
+        listTitle={listTitle}
+        isOwner={true}
       />
     </View>
   );
