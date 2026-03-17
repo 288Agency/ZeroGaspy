@@ -63,6 +63,6 @@ export const AD_CONFIG = {
   interstitialCooldown: 3 * 60 * 1000,
   // Nombre d'actions avant d'afficher un interstitiel
   actionsBeforeInterstitial: 3,
-  // Afficher les pubs uniquement pour les non-Premium
+  // Afficher les pubs uniquement pour les non-Premium; 
   showOnlyForFreeUsers: true,
 };

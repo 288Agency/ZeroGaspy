@@ -14,6 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,7 +27,7 @@ const PRIVACY_URL = 'https://www.zerogaspy.fr/privacy/';
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
-  const { signUp } = useAuth();
+  const { signUp, signInWithApple } = useAuth();
   const { t } = useTranslation();
 
   const [fullName, setFullName] = useState('');
@@ -36,6 +37,7 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
 
   // Validation du mot de passe en temps reel
   const passwordValidation = validatePassword(password);
@@ -66,6 +68,19 @@ export default function RegisterScreen() {
       return false;
     }
     return true;
+  };
+
+  const handleAppleSignIn = async () => {
+    setIsAppleLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        Alert.alert(t('auth.appleSignInError'), error.message);
+      }
+    } finally {
+      setIsAppleLoading(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -258,6 +273,25 @@ export default function RegisterScreen() {
             )}
           </PressableScale>
 
+          {/* Connexion Apple - iOS uniquement */}
+          {Platform.OS === 'ios' && (
+            <>
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={RADIUS.xl}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            </>
+          )}
+
           {/* Lien connexion */}
           <View style={styles.loginLink}>
             <Text style={styles.loginLinkText}>{t('auth.hasAccount')} </Text>
@@ -364,6 +398,26 @@ const styles = StyleSheet.create({
   link: {
     color: COLORS.primary[500],
     fontWeight: '600',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.primary[100],
+  },
+  dividerText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.text.muted,
+    marginHorizontal: SPACING.lg,
+  },
+  appleButton: {
+    height: 54,
+    width: '100%',
+    marginBottom: SPACING.lg,
   },
   registerButton: {
     backgroundColor: COLORS.primary[500],

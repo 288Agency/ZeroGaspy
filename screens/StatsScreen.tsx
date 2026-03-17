@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../utils/designSystem';
@@ -14,11 +14,21 @@ import PaywallModal from '../components/PaywallModal';
 export default function StatsScreen() {
   const { t } = useTranslation();
   const [showPaywall, setShowPaywall] = useState(false);
+  const shareHandlerRef = useRef<(() => void) | null>(null);
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title={t('stats.impactTitle')} showBackButton={false} />
-      <StatsDashboard onOpenPaywall={() => setShowPaywall(true)} />
+      <Header
+        title={t('stats.impactTitle')}
+        showBackButton={false}
+        showIcon
+        rightIcon="share-social-outline"
+        onRightPress={() => shareHandlerRef.current?.()}
+      />
+      <StatsDashboard
+        onOpenPaywall={() => setShowPaywall(true)}
+        shareRef={shareHandlerRef}
+      />
       <PaywallModal
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}

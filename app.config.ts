@@ -97,6 +97,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ['react-native-android-widget', widgetConfig],
     // '@bacons/apple-targets', // Désactivé temporairement - incompatible avec Expo SDK 54
     [
+      '@sentry/react-native/expo',
+      {
+        organization: process.env.SENTRY_ORG || '288-agency',
+        project: process.env.SENTRY_PROJECT || 'zerogaspy',
+      },
+    ],
+    [
       'expo-notifications',
       {
         icon: './assets/logo.png',
@@ -157,6 +164,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     'expo-web-browser',
     'expo-secure-store',
     'expo-font',
+    'expo-apple-authentication',
     [
       'expo-tracking-transparency',
       {

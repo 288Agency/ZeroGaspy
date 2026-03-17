@@ -28,6 +28,8 @@ import {
   markItemAsOpenedWithQuantity,
   addItemToList,
   removeItemFromList,
+  loadLists,
+  saveLists,
 } from '../utils/localStorage';
 import MarkAsOpenedModal from '../components/MarkAsOpenedModal';
 import QuantityModal from '../components/QuantityModal';
@@ -46,11 +48,12 @@ import { useAds } from '../contexts/AdContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import PaywallModal from '../components/PaywallModal';
-import ShareListModal from '../components/ShareListModal';
-import { getUserPermission } from '../services/listSharingService';
 import ListMembersModal from '../components/ListMembersModal';
+import ShareListModal from '../components/ShareListModal';
+import { getMyPermission, getMemberCount, loadSharedListFromCloud, resolveCloudListId } from '../services/listSharingService';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
+import { trackFoodConsumed as analyticsTrackFoodConsumed, trackFoodThrown as analyticsTrackFoodThrown } from '../services/analytics';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
@@ -562,6 +565,7 @@ export default function InventoryListScreen() {
   const { incrementActionCount, showRewardedAd, isRewardedAdReady, isRewardedAdLoading, retryLoadRewardedAd, needsConsent, requestConsent } = useAds();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
+  const { user } = useAuth();
   const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
   const [list, setList] = useState<List | null>(null);
@@ -597,12 +601,12 @@ export default function InventoryListScreen() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailSelectedItem, setDetailSelectedItem] = useState<FoodItem | null>(null);
 
-  // Sharing states
-  const [shareModalVisible, setShareModalVisible] = useState(false);
+  // Sharing state
   const [membersModalVisible, setMembersModalVisible] = useState(false);
-  const [isListOwner, setIsListOwner] = useState(true);
-
-  const { user, isLocalMode } = useAuth();
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [myPermission, setMyPermission] = useState<'owner' | 'edit' | 'view' | null>(null);
+  const [memberCount, setMemberCount] = useState(0);
+  const [cloudListId, setCloudListId] = useState<string | null>(null);
 
   const emptyFade = useRef(new Animated.Value(0)).current;
 
@@ -617,20 +621,36 @@ export default function InventoryListScreen() {
     return unsubscribe;
   }, [navigation, listId]);
 
+  // Resolve cloud list ID for Realtime + sharing
+  useEffect(() => {
+    const resolve = async () => {
+      if (!user) return;
+      const cid = await resolveCloudListId(listId);
+      setCloudListId(cid);
+      // Load sharing info
+      const perm = await getMyPermission(listId);
+      setMyPermission(perm);
+      const count = await getMemberCount(listId);
+      setMemberCount(count);
+    };
+    resolve();
+  }, [listId, user]);
+
   // Synchronisation temps réel avec Supabase Realtime
   useEffect(() => {
-    // S'abonner aux changements de la liste en temps réel
+    if (!cloudListId) return;
+
     const channel = supabase
-      .channel(`list_${listId}`)
+      .channel(`list_${cloudListId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'food_items',
-        filter: `list_id=eq.${listId}`
+        filter: `list_id=eq.${cloudListId}`
       }, (payload) => {
         logger.debug('Changement détecté:', payload);
-        // Recharger les données quand un changement est détecté
-        loadListData();
+        // Force reload from cloud to get items added by other users
+        loadListData(true);
       })
       .subscribe((status) => {
         logger.debug('Status de la souscription:', status);
@@ -640,16 +660,9 @@ export default function InventoryListScreen() {
       logger.debug('Désinscription du channel');
       supabase.removeChannel(channel);
     };
-  }, [listId]);
+  }, [cloudListId]);
 
-  // Check ownership for sharing UI
-  useEffect(() => {
-    if (!isLocalMode && user) {
-      getUserPermission(listId).then(perm => {
-        setIsListOwner(perm === 'owner' || perm === null); // null = local list, treat as owner
-      });
-    }
-  }, [listId, user, isLocalMode]);
+  const isViewOnly = myPermission === 'view';
 
   // Set navigation header
   useEffect(() => {
@@ -657,33 +670,74 @@ export default function InventoryListScreen() {
       headerTitle: listTitle,
       headerStyle: { backgroundColor: COLORS.secondary.cream },
       headerTintColor: listColor,
-      headerRight: () =>
-        !isLocalMode && user ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <PressableScale
+      headerRight: () => (
+        <View style={styles.headerRightRow}>
+          {user && myPermission === 'owner' && (
+            <TouchableOpacity
+              onPress={() => setShareModalVisible(true)}
+              style={styles.headerShareButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="person-add-outline" size={20} color={listColor} />
+            </TouchableOpacity>
+          )}
+          {memberCount > 1 && (
+            <TouchableOpacity
               onPress={() => setMembersModalVisible(true)}
-              hapticType="light"
-              style={{ padding: 4 }}
+              style={styles.headerMembersButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="people-outline" size={22} color={listColor} />
-            </PressableScale>
-            {isListOwner && (
-              <PressableScale
-                onPress={() => setShareModalVisible(true)}
-                hapticType="light"
-                style={{ padding: 4 }}
-              >
-                <Ionicons name="share-outline" size={22} color={listColor} />
-              </PressableScale>
-            )}
-          </View>
-        ) : null,
+              <View style={[styles.headerMembersBadge, { backgroundColor: listColor }]}>
+                <Text style={styles.headerMembersBadgeText}>{memberCount}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      ),
     });
-  }, [listTitle, listColor, listId, isLocalMode, user, isListOwner]);
+  }, [listTitle, listColor, memberCount, myPermission, user]);
 
-  const loadListData = async () => {
+  const loadListData = async (forceCloud = false) => {
     try {
-      const data = await getListById(listId);
+      let data: List | null = null;
+
+      // When forceCloud (realtime change), fetch directly from Supabase
+      if (forceCloud && user) {
+        data = await loadSharedListFromCloud(listId);
+        if (data) {
+          // Update AsyncStorage so local mutations stay in sync
+          const allLists = await loadLists();
+          const existingIdx = allLists.findIndex(l => l.id === data!.id);
+          if (existingIdx >= 0) {
+            allLists[existingIdx] = data;
+          } else {
+            allLists.push(data);
+          }
+          await saveLists(allLists);
+        }
+      }
+
+      // If no cloud data (or not forced), read from local
+      if (!data) {
+        data = await getListById(listId);
+      }
+
+      // Fallback: if still not found locally, try cloud (shared list first open)
+      if (!data && user) {
+        data = await loadSharedListFromCloud(listId);
+        if (data) {
+          const allLists = await loadLists();
+          const existingIdx = allLists.findIndex(l => l.id === data!.id);
+          if (existingIdx >= 0) {
+            allLists[existingIdx] = data;
+          } else {
+            allLists.push(data);
+          }
+          await saveLists(allLists);
+        }
+      }
+
       if (data) {
         setList(data);
         if (data.items.filter(i => i.status !== 'consumed' && i.status !== 'thrown').length === 0) {
@@ -824,6 +878,11 @@ export default function InventoryListScreen() {
 
       // Tracker pour la gamification
       trackFoodConsumed(wasBeforeExpiration);
+      // Analytics PostHog
+      analyticsTrackFoodConsumed({
+        category: item?.category,
+        daysBeforeExpiry: item?.expirationDate ? getDaysUntilExpiration(item.expirationDate as string) ?? undefined : undefined,
+      });
       incrementActionCount();
     } catch (error) {
       Alert.alert(t('common.error'), t('inventory.consumedError'));
@@ -832,11 +891,17 @@ export default function InventoryListScreen() {
 
   const markAsThrownDirect = async (itemId: string, quantity: number) => {
     try {
+      const thrownItem = list?.items.find(i => i.id === itemId);
       await updateItemStatusWithQuantity(listId, itemId, 'thrown', quantity);
       await loadListData();
 
       // Tracker pour la gamification (reset du streak)
       trackFoodThrown();
+      // Analytics PostHog
+      analyticsTrackFoodThrown({
+        category: thrownItem?.category,
+        daysExpired: thrownItem?.expirationDate ? Math.abs(getDaysUntilExpiration(thrownItem.expirationDate as string) ?? 0) : undefined,
+      });
       incrementActionCount();
     } catch (error) {
       Alert.alert(t('common.error'), t('inventory.thrownError'));
@@ -1160,6 +1225,14 @@ export default function InventoryListScreen() {
         />
       )}
 
+      {/* Read-only indicator */}
+      {isViewOnly && (
+        <View style={styles.readOnlyBar}>
+          <Ionicons name="eye-outline" size={16} color={COLORS.text.muted} />
+          <Text style={styles.readOnlyBarText}>{t('sharing.readOnly')}</Text>
+        </View>
+      )}
+
       {/* Counter header */}
       <View style={styles.counterHeader}>
         <View style={[styles.counterBadge, { backgroundColor: hexToRgba(listColor, 0.15) }]}>
@@ -1281,8 +1354,8 @@ export default function InventoryListScreen() {
         </View>
       )}
 
-      {/* FAB Menu - hide in selection mode */}
-      {!isSelectionMode && fabMenuOpen && (
+      {/* FAB Menu - hide in selection mode and view-only */}
+      {!isSelectionMode && !isViewOnly && fabMenuOpen && (
         <TouchableOpacity
           style={styles.fabOverlay}
           activeOpacity={1}
@@ -1290,7 +1363,7 @@ export default function InventoryListScreen() {
         />
       )}
 
-      {!isSelectionMode && fabMenuOpen && (
+      {!isSelectionMode && !isViewOnly && fabMenuOpen && (
         <View style={styles.fabMenuContainer}>
           {/* Scanner un ticket */}
           <Animated.View style={styles.fabMenuItem}>
@@ -1339,8 +1412,8 @@ export default function InventoryListScreen() {
         </View>
       )}
 
-      {/* Main FAB - hide in selection mode */}
-      {!isSelectionMode && (
+      {/* Main FAB - hide in selection mode and view-only mode */}
+      {!isSelectionMode && !isViewOnly && (
         <PressableScale
           onPress={toggleFabMenu}
           style={[
@@ -1658,21 +1731,30 @@ export default function InventoryListScreen() {
         feature="scanner"
       />
 
-      {/* Sharing modals */}
+      {/* Share List Modal */}
       <ShareListModal
         visible={shareModalVisible}
-        onClose={() => setShareModalVisible(false)}
+        onClose={() => {
+          setShareModalVisible(false);
+          // Refresh member count
+          getMemberCount(listId).then(setMemberCount);
+        }}
         listId={listId}
         listTitle={listTitle}
+        listColor={listColor}
       />
 
+      {/* List Members Modal */}
       <ListMembersModal
         visible={membersModalVisible}
         onClose={() => setMembersModalVisible(false)}
         listId={listId}
         listTitle={listTitle}
-        isOwner={true}
+        listColor={listColor}
+        isOwner={myPermission === 'owner'}
+        onLeft={() => navigation.goBack()}
       />
+
     </View>
   );
 }
@@ -1719,8 +1801,10 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...TYPOGRAPHY.body,
+    fontSize: 15,
+    fontWeight: '400' as const,
     color: COLORS.text.primary,
+    letterSpacing: 0,
     paddingVertical: 0,
   },
   clearButton: {
@@ -2356,5 +2440,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerShareButton: {
+    padding: 6,
+  },
+  headerMembersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    position: 'relative',
+  },
+  headerMembersBadge: {
+    position: 'absolute',
+    top: -6,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  headerMembersBadgeText: {
+    color: COLORS.neutral.white,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  readOnlyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    backgroundColor: hexToRgba(COLORS.neutral.gray300, 0.3),
+  },
+  readOnlyBarText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text.muted,
   },
 });

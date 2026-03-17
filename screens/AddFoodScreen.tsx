@@ -31,6 +31,7 @@ import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING, hexToRgba } from '../util
 import { useGamification } from '../contexts/GamificationContext';
 import { useAds } from '../contexts/AdContext';
 import logger from '../utils/logger';
+import { trackFoodAdded as analyticsTrackFoodAdded } from '../services/analytics';
 
 type RoutePropType = RouteProp<RootStackParamList, 'AddFood'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFood'>;
@@ -142,6 +143,13 @@ export default function AddFoodScreen() {
         await addItemToList(listId, newItem);
         // Tracker pour la gamification
         trackFoodAdded(listId);
+        // Analytics PostHog
+        analyticsTrackFoodAdded({
+          category: category || undefined,
+          hasExpiryDate: !!expirationDate,
+          hasPrice: !!price.trim(),
+          source: isEditMode ? 'edit' : 'manual',
+        });
         // Compteur pour les pubs interstitielles
         incrementActionCount();
       }
@@ -284,7 +292,12 @@ export default function AddFoodScreen() {
   return (
     <View style={styles.container}>
       <BackgroundDecoration />
-      <Header title={isEditMode ? t('addFood.editTitle') : t('addFood.title')} showIcon={false} />
+      <Header
+        title={isEditMode ? t('addFood.editTitle') : t('addFood.title')}
+        showIcon={isFormValid && !isAdding}
+        rightIcon="checkmark-circle"
+        onRightPress={handleAddFood}
+      />
 
       <ScrollView
         style={styles.scrollView}

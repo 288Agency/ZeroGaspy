@@ -19,6 +19,7 @@ import {
 } from '../services/challengeService';
 import AchievementToast from '../components/AchievementToast';
 import { useAuth } from './AuthContext';
+import { maybeRequestReview } from '../services/reviewService';
 
 interface GamificationContextType {
   gamificationData: UserGamification | null;
@@ -73,6 +74,15 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       if (user || isLocalMode) {
         const result = await onDailyVisit();
         handleResult(result);
+
+        const updatedData = await getGamificationData();
+        if (updatedData.streaks.currentDaily === 3) {
+          maybeRequestReview(updatedData.stats.daysActive);
+        }
+
+        if (result.newBadges.length > 0) {
+          maybeRequestReview(updatedData.stats.daysActive);
+        }
 
         // Track app opened for challenges
         const completedChallenges = await trackChallengeProgress({ type: 'app_opened' });
@@ -150,6 +160,11 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     const result = await onFoodAdded();
     handleResult(result);
 
+    const data = await getGamificationData();
+    if (data.stats.totalFoodsAdded === 5 || result.newBadges.length > 0) {
+      maybeRequestReview(data.stats.daysActive);
+    }
+
     // Track challenges
     const completions = await trackChallengeProgress({
       type: 'food_added',
@@ -162,6 +177,11 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
   const trackFoodConsumed = async (wasBeforeExpiration: boolean) => {
     const result = await onFoodConsumed(wasBeforeExpiration);
     handleResult(result);
+
+    if (wasBeforeExpiration || result.newBadges.length > 0) {
+      const data = await getGamificationData();
+      maybeRequestReview(data.stats.daysActive);
+    }
 
     // Track challenges
     const completions = await trackChallengeProgress({

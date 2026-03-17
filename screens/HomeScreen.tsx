@@ -16,7 +16,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { List } from '../types';
 import { RootStackParamList } from '../types/navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadLists } from '../utils/localStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { forceSyncAllItems } from '../services/supabase/syncService';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import StatsCardsRow from '../components/StatsCardsRow';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
@@ -152,9 +155,31 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useTheme();
   const { challengesState } = useGamification();
+  const { user } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+
+  // One-time force sync of local items to cloud
+  useEffect(() => {
+    if (!user) return;
+    const syncKey = `force_sync_v2_done_${user.id}`;
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem(syncKey);
+        console.log('[FORCE SYNC] key:', syncKey, 'done:', done);
+        if (done) return;
+        console.log('[FORCE SYNC] Starting...');
+        const { synced, errors } = await forceSyncAllItems(user.id);
+        console.log(`[FORCE SYNC] Result: ${synced} synced, ${errors} errors`);
+        if (errors === 0) {
+          await AsyncStorage.setItem(syncKey, 'true');
+        }
+      } catch (err) {
+        console.error('[FORCE SYNC] Error:', err);
+      }
+    })();
+  }, [user]);
 
   // Animations
   const headerFade = useRef(new Animated.Value(0)).current;

@@ -1,8 +1,8 @@
 import './i18n'; // Initialize i18n
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Alert } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { Alert, AppState } from 'react-native';
+import { NavigationContainer, NavigationState } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
@@ -25,6 +25,19 @@ import {
 } from './services/notificationService';
 import logger from './utils/logger';
 import { runStartupDiagnostics } from './utils/diagnostics';
+import { initSentry, Sentry } from './config/sentry';
+import {
+  initAnalytics,
+  trackAppOpened,
+  trackScreen,
+  trackOnboardingCompleted,
+  identifyUser,
+  shutdownAnalytics,
+} from './services/analytics';
+
+// Initialiser Sentry et PostHog au démarrage
+initSentry();
+initAnalytics();
 
 // Exécuter les diagnostics au démarrage
 runStartupDiagnostics();
@@ -69,6 +82,16 @@ function extractAuthParams(url: string): { accessToken?: string; refreshToken?: 
   }
 }
 
+// Extraire le nom de l'écran actif depuis le state de navigation
+function getActiveRouteName(state: NavigationState | undefined): string | undefined {
+  if (!state) return undefined;
+  const route = state.routes[state.index];
+  if (route.state) {
+    return getActiveRouteName(route.state as NavigationState);
+  }
+  return route.name;
+}
+
 // Composant interne qui gère la navigation basée sur l'auth
 function RootNavigator() {
   const { user, isLoading: authLoading, isLocalMode } = useAuth();
@@ -76,6 +99,32 @@ function RootNavigator() {
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const routeNameRef = useRef<string | undefined>(undefined);
+
+  // Track app_opened au montage
+  useEffect(() => {
+    trackAppOpened();
+  }, []);
+
+  // Identifier l'user PostHog quand il se connecte
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id, { email: user.email ?? null });
+    }
+  }, [user?.id]);
+
+  // Cleanup PostHog quand l'app passe en background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        shutdownAnalytics();
+      }
+      if (state === 'active') {
+        initAnalytics();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -169,7 +218,17 @@ function RootNavigator() {
   };
 
   const handleOnboardingComplete = () => {
+    trackOnboardingCompleted();
     setShowOnboarding(false);
+  };
+
+  // Screen tracking callback pour NavigationContainer
+  const onNavigationStateChange = (state: NavigationState | undefined) => {
+    const currentRouteName = getActiveRouteName(state);
+    if (currentRouteName && currentRouteName !== routeNameRef.current) {
+      trackScreen(currentRouteName);
+    }
+    routeNameRef.current = currentRouteName;
   };
 
   const statusBarStyle = 'dark' as const;
@@ -200,7 +259,7 @@ function RootNavigator() {
   // Si pas authentifié, afficher l'écran de connexion
   if (!isAuthenticated) {
     return (
-      <NavigationContainer linking={linking}>
+      <NavigationContainer linking={linking} onStateChange={onNavigationStateChange}>
         <AuthNavigator />
         <StatusBar style={statusBarStyle} />
       </NavigationContainer>
@@ -209,14 +268,14 @@ function RootNavigator() {
 
   // Utilisateur authentifié ou en mode local, afficher l'app principale
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer linking={linking} onStateChange={onNavigationStateChange}>
       <AppNavigator />
       <StatusBar style={statusBarStyle} />
     </NavigationContainer>
   );
 }
 
-export default function App() {
+function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -235,3 +294,5 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(App);

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 import { migrateLocalDataToCloud, syncWithCloud } from '../services/supabase/syncService';
@@ -13,6 +15,12 @@ import {
   resetRateLimit,
 } from '../utils/security';
 import logger from '../utils/logger';
+import {
+  trackAccountCreated as analyticsTrackAccountCreated,
+  trackSignIn as analyticsTrackSignIn,
+  trackAuthSkipped as analyticsTrackAuthSkipped,
+  resetAnalytics,
+} from '../services/analytics';
 
 const SKIP_AUTH_KEY = 'skip_auth_preference';
 
@@ -24,6 +32,7 @@ interface AuthContextType {
   isLocalMode: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signInWithApple: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   skipAuth: () => void;
@@ -122,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Reset rate limit on success
       resetRateLimit('login');
+      analyticsTrackSignIn('email');
       return { error: null };
     } catch (error: any) {
       return { error: new Error(error.message || 'Erreur de connexion') };
@@ -174,9 +184,65 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Reset rate limit on success
       resetRateLimit('signup');
+      analyticsTrackAccountCreated('email');
       return { error: null };
     } catch (error: any) {
       return { error: new Error(error.message || 'Erreur lors de l\'inscription') };
+    }
+  };
+
+  const signInWithApple = async () => {
+    try {
+      if (Platform.OS !== 'ios') {
+        return { error: new Error('Connexion Apple disponible uniquement sur iOS') };
+      }
+
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        return { error: new Error('La connexion Apple n\'est pas disponible sur cet appareil') };
+      }
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        return { error: new Error('Impossible de recuperer le token Apple. Veuillez reessayer.') };
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+
+      if (error) {
+        return { error: new Error(translateError(error.message)) };
+      }
+
+      // Apple ne fournit le nom que lors de la première connexion
+      if (credential.fullName) {
+        const fullName = [credential.fullName.givenName, credential.fullName.familyName]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+
+        if (fullName && data.user) {
+          await supabase.auth.updateUser({
+            data: { full_name: fullName },
+          });
+        }
+      }
+
+      analyticsTrackSignIn('apple');
+      return { error: null };
+    } catch (error: any) {
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        return { error: null };
+      }
+      return { error: new Error(error.message || 'Erreur lors de la connexion Apple') };
     }
   };
 
@@ -185,6 +251,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await supabase.auth.signOut();
       await AsyncStorage.removeItem(SKIP_AUTH_KEY);
       setSkippedAuth(false);
+      resetAnalytics();
     } catch (error) {
       logger.error('Erreur deconnexion:', error);
     }
@@ -227,6 +294,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await AsyncStorage.setItem(SKIP_AUTH_KEY, 'true');
       setSkippedAuth(true);
+      analyticsTrackAuthSkipped();
       logger.info('✅ Préférence "Passer" sauvegardée');
     } catch (error) {
       logger.error('Erreur sauvegarde préférence auth:', error);
@@ -330,6 +398,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLocalMode: skippedAuth && !user,
         signIn,
         signUp,
+        signInWithApple,
         signOut,
         resetPassword,
         skipAuth,

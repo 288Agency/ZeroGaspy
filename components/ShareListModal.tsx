@@ -1,28 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   Modal,
-  StyleSheet,
-  ActivityIndicator,
-  Share,
+  TouchableOpacity,
+  TextInput,
   Alert,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import * as Clipboard from 'expo-clipboard';
+import {
+  inviteByEmail,
+  getSharedMembers,
+  removeMember,
+  updateMemberPermission,
+  ShareMember,
+} from '../services/listSharingService';
+import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
-import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import PressableScale from './PressableScale';
-import { generateInvitationCode } from '../services/listSharingService';
+import { trackListShared } from '../services/analytics';
 
 interface ShareListModalProps {
   visible: boolean;
   onClose: () => void;
   listId: string;
   listTitle: string;
-  onShareCreated?: () => void;
+  listColor?: string;
 }
 
 export default function ShareListModal({
@@ -30,186 +38,258 @@ export default function ShareListModal({
   onClose,
   listId,
   listTitle,
-  onShareCreated,
+  listColor = COLORS.primary[500],
 }: ShareListModalProps) {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
   const [permission, setPermission] = useState<'view' | 'edit'>('edit');
-  const [copied, setCopied] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [members, setMembers] = useState<ShareMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
-  const handleGenerateCode = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (visible) {
+      loadMembers();
+    } else {
+      setEmail('');
+      setPermission('edit');
+    }
+  }, [visible]);
+
+  const loadMembers = async () => {
+    setIsLoadingMembers(true);
     try {
-      const result = await generateInvitationCode(listId, permission);
-      if (result) {
-        setCode(result.code);
-        onShareCreated?.();
+      const data = await getSharedMembers(listId);
+      setMembers(data);
+    } catch {}
+    setIsLoadingMembers(false);
+  };
+
+  const handleInvite = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      Alert.alert(t('common.error'), t('sharing.invalidEmail'));
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      const { error } = await inviteByEmail(listId, trimmedEmail, permission);
+      if (error) {
+        Alert.alert(t('common.error'), getErrorMessage(error));
       } else {
-        Alert.alert(t('common.error'), t('sharing.generateError'));
+        Alert.alert(t('common.success'), t('sharing.inviteSuccess'));
+        setEmail('');
+        await loadMembers();
+        // Analytics PostHog
+        trackListShared();
       }
-    } finally {
-      setLoading(false);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message || t('sharing.errorGeneric'));
+    }
+    setIsInviting(false);
+  };
+
+  const getErrorMessage = (err: string): string => {
+    switch (err) {
+      case 'USER_NOT_FOUND': return t('sharing.userNotFound');
+      case 'ALREADY_MEMBER': return t('sharing.errorAlreadyMember');
+      case 'OWN_LIST': return t('sharing.errorOwnList');
+      case 'LIST_NOT_FOUND': return t('sharing.errorGeneric');
+      case 'NOT_OWNER': return t('sharing.errorGeneric');
+      default: return err;
     }
   };
 
-  const handleCopy = async () => {
-    if (!code) return;
-    await Clipboard.setStringAsync(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleRemoveMember = (member: ShareMember) => {
+    const name = member.fullName || member.email || t('sharing.member');
+    Alert.alert(
+      t('sharing.removeMember'),
+      t('sharing.removeMemberConfirm', { name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await removeMember(member.id);
+            if (!error) await loadMembers();
+          },
+        },
+      ]
+    );
   };
 
-  const handleShare = async () => {
-    if (!code) return;
-    try {
-      await Share.share({
-        message: t('sharing.shareMessage', { code, title: listTitle }),
-      });
-    } catch {
-      // User cancelled
-    }
+  const handleTogglePermission = async (member: ShareMember) => {
+    const newPerm = member.permission === 'edit' ? 'view' : 'edit';
+    const { error } = await updateMemberPermission(member.id, newPerm);
+    if (!error) await loadMembers();
   };
 
-  const handleClose = () => {
-    setCode(null);
-    setCopied(false);
-    setPermission('edit');
-    onClose();
+  const renderMember = ({ item }: { item: ShareMember }) => {
+    const isCurrentUser = item.userId === user?.id;
+    const displayName = item.fullName || item.email || t('sharing.member');
+
+    return (
+      <View style={styles.memberRow}>
+        <View style={[styles.avatar, { backgroundColor: hexToRgba(listColor, 0.15) }]}>
+          <Text style={[styles.avatarText, { color: listColor }]}>
+            {displayName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName} numberOfLines={1}>{displayName}</Text>
+          <Text style={[styles.permissionLabel, { color: listColor }]}>
+            {item.permission === 'edit' ? t('sharing.permissionEdit') : t('sharing.permissionView')}
+          </Text>
+        </View>
+        {!isCurrentUser && (
+          <View style={styles.memberActions}>
+            <TouchableOpacity
+              onPress={() => handleTogglePermission(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.actionIcon}
+            >
+              <Ionicons
+                name={item.permission === 'edit' ? 'eye-outline' : 'pencil-outline'}
+                size={20}
+                color={COLORS.text.secondary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleRemoveMember(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.actionIcon}
+            >
+              <Ionicons name="close-circle-outline" size={20} color={COLORS.semantic.dangerLight} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>{t('sharing.shareTitle')}</Text>
-            <PressableScale onPress={handleClose} hapticType="light">
-              <Ionicons name="close" size={24} color={COLORS.text.secondary} />
-            </PressableScale>
-          </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+          <View style={styles.container} onStartShouldSetResponder={() => true}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('sharing.shareList')}</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.listName}>{listTitle}</Text>
+            <Text style={styles.listName}>{listTitle}</Text>
 
-          {!code ? (
-            <>
-              {/* Permission selector */}
-              <Text style={styles.sectionLabel}>{t('sharing.permissionLabel')}</Text>
+            {/* Email invite section */}
+            <View style={styles.inviteSection}>
+              <Text style={styles.sectionTitle}>{t('sharing.inviteByEmail')}</Text>
+              <TextInput
+                style={styles.emailInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder={t('sharing.emailPlaceholder')}
+                placeholderTextColor={COLORS.neutral.grayDisabled}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              {/* Permission toggle */}
               <View style={styles.permissionRow}>
-                <PressableScale
-                  onPress={() => setPermission('edit')}
+                <TouchableOpacity
                   style={[
-                    styles.permissionOption,
-                    permission === 'edit' && styles.permissionOptionActive,
+                    styles.permissionChip,
+                    permission === 'edit' && { borderColor: listColor, backgroundColor: hexToRgba(listColor, 0.08) },
                   ]}
-                  hapticType="light"
+                  onPress={() => setPermission('edit')}
                 >
                   <Ionicons
-                    name="create-outline"
-                    size={20}
-                    color={permission === 'edit' ? COLORS.primary[500] : COLORS.text.secondary}
+                    name="pencil-outline"
+                    size={16}
+                    color={permission === 'edit' ? listColor : COLORS.text.secondary}
                   />
-                  <Text
-                    style={[
-                      styles.permissionText,
-                      permission === 'edit' && styles.permissionTextActive,
-                    ]}
-                  >
-                    {t('sharing.canEdit')}
+                  <Text style={[
+                    styles.permissionChipText,
+                    permission === 'edit' && { color: listColor, fontWeight: '600' },
+                  ]}>
+                    {t('sharing.viewAndEdit')}
                   </Text>
-                </PressableScale>
+                </TouchableOpacity>
 
-                <PressableScale
-                  onPress={() => setPermission('view')}
+                <TouchableOpacity
                   style={[
-                    styles.permissionOption,
-                    permission === 'view' && styles.permissionOptionActive,
+                    styles.permissionChip,
+                    permission === 'view' && { borderColor: listColor, backgroundColor: hexToRgba(listColor, 0.08) },
                   ]}
-                  hapticType="light"
+                  onPress={() => setPermission('view')}
                 >
                   <Ionicons
                     name="eye-outline"
-                    size={20}
-                    color={permission === 'view' ? COLORS.primary[500] : COLORS.text.secondary}
+                    size={16}
+                    color={permission === 'view' ? listColor : COLORS.text.secondary}
                   />
-                  <Text
-                    style={[
-                      styles.permissionText,
-                      permission === 'view' && styles.permissionTextActive,
-                    ]}
-                  >
-                    {t('sharing.canView')}
+                  <Text style={[
+                    styles.permissionChipText,
+                    permission === 'view' && { color: listColor, fontWeight: '600' },
+                  ]}>
+                    {t('sharing.viewOnly')}
                   </Text>
-                </PressableScale>
+                </TouchableOpacity>
               </View>
 
-              {/* Generate button */}
-              <PressableScale
-                onPress={handleGenerateCode}
-                style={styles.generateButton}
-                hapticType="medium"
-                disabled={loading}
+              <TouchableOpacity
+                style={[
+                  styles.inviteButton,
+                  { backgroundColor: listColor },
+                  (!email.trim().includes('@') || isInviting) && { opacity: 0.5 },
+                ]}
+                onPress={handleInvite}
+                disabled={!email.trim().includes('@') || isInviting}
+                activeOpacity={0.8}
               >
-                {loading ? (
+                {isInviting ? (
                   <ActivityIndicator color={COLORS.neutral.white} />
                 ) : (
                   <>
-                    <Ionicons name="link-outline" size={20} color={COLORS.neutral.white} />
-                    <Text style={styles.generateButtonText}>
-                      {t('sharing.generateCode')}
-                    </Text>
+                    <Ionicons name="person-add-outline" size={20} color={COLORS.neutral.white} />
+                    <Text style={styles.inviteButtonText}>{t('sharing.invite')}</Text>
                   </>
                 )}
-              </PressableScale>
-            </>
-          ) : (
-            <>
-              {/* Code display */}
-              <View style={styles.codeContainer}>
-                <Text style={styles.codeLabel}>{t('sharing.invitationCode')}</Text>
-                <Text style={styles.codeText}>{code}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Current members */}
+            {members.length > 0 && (
+              <View style={styles.membersSection}>
+                <Text style={styles.sectionTitle}>
+                  {t('sharing.members')} ({members.length})
+                </Text>
+                <FlatList
+                  data={members}
+                  renderItem={renderMember}
+                  keyExtractor={(item) => item.id}
+                  style={styles.membersList}
+                  scrollEnabled={members.length > 3}
+                />
               </View>
+            )}
 
-              {/* Actions */}
-              <View style={styles.actionsRow}>
-                <PressableScale
-                  onPress={handleCopy}
-                  style={styles.actionButton}
-                  hapticType="light"
-                >
-                  <Ionicons
-                    name={copied ? 'checkmark' : 'copy-outline'}
-                    size={20}
-                    color={COLORS.primary[500]}
-                  />
-                  <Text style={styles.actionButtonText}>
-                    {copied ? t('sharing.copied') : t('sharing.copy')}
-                  </Text>
-                </PressableScale>
-
-                <PressableScale
-                  onPress={handleShare}
-                  style={[styles.actionButton, styles.actionButtonPrimary]}
-                  hapticType="medium"
-                >
-                  <Ionicons name="share-outline" size={20} color={COLORS.neutral.white} />
-                  <Text style={styles.actionButtonPrimaryText}>
-                    {t('sharing.share')}
-                  </Text>
-                </PressableScale>
+            {isLoadingMembers && members.length === 0 && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={listColor} />
               </View>
-
-              <Text style={styles.hint}>{t('sharing.codeHint')}</Text>
-            </>
-          )}
-        </View>
-      </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -217,142 +297,138 @@ export default function ShareListModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.surface.overlay,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
   },
   container: {
-    backgroundColor: COLORS.surface.card,
-    borderTopLeftRadius: RADIUS['2xl'],
-    borderTopRightRadius: RADIUS['2xl'],
-    padding: scaleSpacing(24),
-    paddingBottom: scaleSpacing(40),
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.xl,
+    padding: SPACING['2xl'],
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '85%',
+    ...SHADOWS.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   title: {
-    fontSize: scaleFontSize(20),
+    fontSize: 22,
     fontWeight: '700',
-    color: COLORS.primary[500],
+    color: COLORS.text.primary,
+  },
+  closeButton: {
+    padding: 4,
   },
   listName: {
-    fontSize: scaleFontSize(14),
+    fontSize: 16,
     color: COLORS.text.secondary,
     marginBottom: SPACING.xl,
   },
-  sectionLabel: {
-    fontSize: scaleFontSize(13),
+  inviteSection: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.text.secondary,
-    marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: SPACING.md,
+  },
+  emailInput: {
+    backgroundColor: COLORS.neutral.gray100,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    fontSize: 16,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
   },
   permissionRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
-    marginBottom: SPACING['2xl'],
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
-  permissionOption: {
+  permissionChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.sm,
-    paddingVertical: SPACING.md,
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
     borderRadius: RADIUS.lg,
     borderWidth: 1.5,
     borderColor: COLORS.neutral.gray200,
-    backgroundColor: COLORS.neutral.white,
   },
-  permissionOptionActive: {
-    borderColor: COLORS.primary[500],
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.05),
+  permissionChipText: {
+    fontSize: 13,
+    color: COLORS.text.primary,
   },
-  permissionText: {
-    fontSize: scaleFontSize(14),
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-  },
-  permissionTextActive: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-  },
-  generateButton: {
+  inviteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.primary[500],
-    borderRadius: RADIUS.lg,
     paddingVertical: SPACING.lg,
-    ...SHADOWS.sm,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.md,
   },
-  generateButtonText: {
-    fontSize: scaleFontSize(16),
-    fontWeight: '600',
+  inviteButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.neutral.white,
   },
-  codeContainer: {
+  membersSection: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral.gray100,
+    paddingTop: SPACING.lg,
+  },
+  membersList: {
+    maxHeight: 200,
+  },
+  memberRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.05),
-    borderRadius: RADIUS.xl,
-    padding: SPACING['2xl'],
-    marginBottom: SPACING.xl,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.15),
+    paddingVertical: SPACING.sm,
   },
-  codeLabel: {
-    fontSize: scaleFontSize(12),
-    color: COLORS.text.tertiary,
-    fontWeight: '500',
-    marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  codeText: {
-    fontSize: scaleFontSize(36),
-    fontWeight: '800',
-    color: COLORS.primary[500],
-    letterSpacing: 6,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  permissionLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  memberActions: {
+    flexDirection: 'row',
     gap: SPACING.sm,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary[500],
   },
-  actionButtonPrimary: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
+  actionIcon: {
+    padding: SPACING.xs,
   },
-  actionButtonText: {
-    fontSize: scaleFontSize(14),
-    fontWeight: '600',
-    color: COLORS.primary[500],
-  },
-  actionButtonPrimaryText: {
-    fontSize: scaleFontSize(14),
-    fontWeight: '600',
-    color: COLORS.neutral.white,
-  },
-  hint: {
-    fontSize: scaleFontSize(12),
-    color: COLORS.text.muted,
-    textAlign: 'center',
-    lineHeight: scaleFontSize(16),
+  loadingContainer: {
+    padding: SPACING.xl,
+    alignItems: 'center',
   },
 });

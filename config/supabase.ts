@@ -114,7 +114,6 @@ export interface CloudFoodItem {
   expiration_date: string;
   quantity: number;
   weight: number | null;
-  unit: string | null;
   category: string | null;
   image_uri: string | null;
   price: number | null;

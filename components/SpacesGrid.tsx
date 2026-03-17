@@ -1,5 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Alert, ActionSheetIOS, Platform, StyleSheet, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  Alert,
+  ActionSheetIOS,
+  Platform,
+  StyleSheet,
+  Animated,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -10,9 +18,14 @@ import { deleteList } from '../utils/localStorage';
 import PressableScale from './PressableScale';
 import AnimatedListItem from './AnimatedListItem';
 import EditListModal from './EditListModal';
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, getContrastText } from '../utils/designSystem';
+import { COLORS, SHADOWS, RADIUS, hexToRgba } from '../utils/designSystem';
 import { FridgeIllustration } from './icons';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  getSharedListsWithMe,
+  SharedListWithMe,
+} from '../services/listSharingService';
 
 interface SpacesGridProps {
   lists: List[];
@@ -61,8 +74,34 @@ function EmptyStateIllustration() {
 export default function SpacesGrid({ lists, onCreateList, onListDeleted }: SpacesGridProps) {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
+
+  // Sharing state
+  const [sharedLists, setSharedLists] = useState<SharedListWithMe[]>([]);
+
+  // Load shared lists
+  useEffect(() => {
+    if (user) {
+      loadSharedLists();
+    }
+  }, [user, lists]);
+
+  const loadSharedLists = async () => {
+    try {
+      const shared = await getSharedListsWithMe();
+      setSharedLists(shared);
+    } catch {}
+  };
+
+  const handleSelectSharedList = (sl: SharedListWithMe) => {
+    navigation.navigate('InventoryList', {
+      listId: sl.listId,
+      listTitle: sl.listTitle,
+      listColor: sl.listColor || undefined,
+    });
+  };
 
   const handleListPress = (list: List) => {
     navigation.navigate('InventoryList', {
@@ -178,11 +217,11 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   accessibilityLabel={list.title}
                   accessibilityRole="button"
                 >
-                  {/* Icon container */}
+                  {/* Icon */}
                   <View
                     style={[
                       styles.iconContainer,
-                      { backgroundColor: hexToRgba(listColor, 0.2) },
+                      { backgroundColor: hexToRgba(listColor, 0.2), marginBottom: scaleSpacing(isSmallScreen ? 8 : 12) },
                     ]}
                   >
                     <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={listColor} />
@@ -247,6 +286,62 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         </View>
       )}
 
+      {/* Shared lists section */}
+      {user && sharedLists.length > 0 && (
+        <View style={styles.sharedSection}>
+          <Text style={styles.sharedSectionTitle}>{t('sharing.sharedWithMe')}</Text>
+          <View style={styles.grid}>
+            {sharedLists.map((sl, index) => {
+              const slColor = sl.listColor || COLORS.primary[500];
+              const icon = (sl.listIcon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
+              return (
+                <AnimatedListItem
+                  key={sl.shareId}
+                  index={index}
+                  animationType="scale"
+                  style={styles.cardWrapper}
+                >
+                  <PressableScale
+                    onPress={() => handleSelectSharedList(sl)}
+                    style={[
+                      styles.card,
+                      {
+                        backgroundColor: hexToRgba(slColor, 0.12),
+                        borderColor: hexToRgba(slColor, 0.25),
+                      },
+                    ]}
+                    hapticType="selection"
+                    activeScale={0.97}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: hexToRgba(slColor, 0.2) }]}>
+                      <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
+                    </View>
+                    <Text style={[styles.cardTitle, { color: slColor }]} numberOfLines={2}>
+                      {sl.listTitle}
+                    </Text>
+                    <View style={styles.cardFooter}>
+                      <View style={styles.countBadge}>
+                        {sl.ownerName && (
+                          <Text style={[styles.countLabel, { color: hexToRgba(slColor, 0.7) }]}>
+                            {t('sharing.sharedBy', { name: sl.ownerName })}
+                          </Text>
+                        )}
+                      </View>
+                      {sl.permission === 'view' && (
+                        <View style={styles.readOnlyBadge}>
+                          <Ionicons name="eye-outline" size={10} color={COLORS.text.muted} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={[styles.decorativeDot, { backgroundColor: hexToRgba(slColor, 0.3) }]} />
+                  </PressableScale>
+                </AnimatedListItem>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
       {/* Edit Modal */}
       <EditListModal
         visible={editModalVisible}
@@ -257,6 +352,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         }}
         onListUpdated={() => onListDeleted?.()}
       />
+
     </View>
   );
 }
@@ -322,7 +418,6 @@ const styles = StyleSheet.create({
     borderRadius: scaleSize(isSmallScreen ? 12 : 16),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: scaleSpacing(isSmallScreen ? 8 : 12),
   },
   cardTitle: {
     fontSize: scaleFontSize(isSmallScreen ? 15 : 18),
@@ -402,5 +497,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.neutral.white,
     marginLeft: scaleSpacing(6),
+  },
+  // Shared lists section
+  sharedSection: {
+    marginTop: scaleSpacing(isSmallScreen ? 16 : 24),
+  },
+  sharedSectionTitle: {
+    fontSize: scaleFontSize(isSmallScreen ? 18 : 22),
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    marginBottom: scaleSpacing(isSmallScreen ? 10 : 14),
+  },
+  readOnlyBadge: {
+    backgroundColor: COLORS.neutral.gray100,
+    borderRadius: 10,
+    padding: 4,
   },
 });

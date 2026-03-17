@@ -10,14 +10,18 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop, Path, G } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import ViewShot from 'react-native-view-shot';
 import { UserStats } from '../types';
 import { calculateUserStats } from '../services/statsService';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba, SPACING } from '../utils/designSystem';
 import PressableScale from './PressableScale';
+import ShareRecapCard from './ShareRecapCard';
+import { shareRecapImage } from '../services/shareRecapService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import logger from '../utils/logger';
 import { FlameIcon, LeafIcon, EarthIcon, ProgressRing } from './icons';
@@ -429,14 +433,17 @@ function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
 
 interface StatsDashboardProps {
   onOpenPaywall?: () => void;
+  shareRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
+export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboardProps) {
   const { t } = useTranslation();
   const { isPremium } = useSubscription();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const viewShotRef = useRef<ViewShot>(null);
 
   // Animations
   const heroScale = useRef(new Animated.Value(0.95)).current;
@@ -489,6 +496,27 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
     setRefreshing(true);
     loadStats();
   };
+
+  const handleShare = async () => {
+    if (sharing || !stats) return;
+    setSharing(true);
+    try {
+      await shareRecapImage(viewShotRef);
+    } catch (error: any) {
+      if (!error.message?.includes('User did not share')) {
+        Alert.alert('Erreur', 'Impossible de partager le récap');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // Expose share function to parent (StatsScreen header)
+  useEffect(() => {
+    if (shareRef) {
+      shareRef.current = handleShare;
+    }
+  }, [stats, sharing]);
 
   if (loading && !stats) {
     return (
@@ -565,6 +593,20 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
           ))}
         </View>
       </Animated.View>
+
+      {/* Share Recap Button - Non-premium: after badges */}
+      {!isPremium && (
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <PressableScale onPress={handleShare} style={styles.shareButton} activeScale={0.97}>
+            <Ionicons name="share-social" size={20} color={COLORS.neutral.white} />
+            <View style={styles.shareButtonTextContainer}>
+              <Text style={styles.shareButtonTitle}>{t('stats.shareRecap')}</Text>
+              <Text style={styles.shareButtonSubtitle}>{t('stats.shareRecapSubtitle')}</Text>
+            </View>
+            {sharing && <ActivityIndicator size="small" color={COLORS.neutral.white} />}
+          </PressableScale>
+        </Animated.View>
+      )}
 
       {/* Premium Teaser - Visible uniquement pour les non-abonnés */}
       {!isPremium && (
@@ -708,8 +750,31 @@ export default function StatsDashboard({ onOpenPaywall }: StatsDashboardProps) {
               </PressableScale>
             </Animated.View>
           )}
+
+          {/* Share Recap Button - Premium: at the bottom */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <PressableScale onPress={handleShare} style={styles.shareButton} activeScale={0.97}>
+              <Ionicons name="share-social" size={20} color={COLORS.neutral.white} />
+              <View style={styles.shareButtonTextContainer}>
+                <Text style={styles.shareButtonTitle}>{t('stats.shareRecap')}</Text>
+                <Text style={styles.shareButtonSubtitle}>{t('stats.shareRecapSubtitle')}</Text>
+              </View>
+              {sharing && <ActivityIndicator size="small" color={COLORS.neutral.white} />}
+            </PressableScale>
+          </Animated.View>
         </>
       )}
+
+      {/* Off-screen ShareRecapCard for capture */}
+      <ShareRecapCard
+        ref={viewShotRef}
+        itemsConsumed={stats.itemsConsumed}
+        itemsThrown={stats.itemsThrown}
+        netSavings={stats.netSavings}
+        co2AvoidedKg={stats.co2AvoidedKg}
+        currentStreak={stats.currentStreak}
+        isPremium={isPremium}
+      />
 
       {/* Bottom spacing for tab bar */}
       <View style={{ height: 100 }} />
@@ -1237,6 +1302,30 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodySm,
     color: COLORS.text.secondary,
     lineHeight: 20,
+  },
+
+  // Share Button
+  shareButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.xl,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    ...SHADOWS.colored(COLORS.primary[500], 0.3),
+  },
+  shareButtonTextContainer: {
+    flex: 1,
+  },
+  shareButtonTitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+  },
+  shareButtonSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: hexToRgba(COLORS.neutral.white, 0.8),
+    marginTop: 2,
   },
 
   // Premium Teaser

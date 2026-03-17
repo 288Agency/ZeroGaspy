@@ -35,6 +35,7 @@ import { PREMIUM_FEATURES, FALLBACK_PRICES } from '../constants/subscription';
 import * as Linking from 'expo-linking';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import { trackPaywallViewed, trackPaywallDismissed, trackPurchaseCompleted } from '../services/analytics';
 
 // URLs légales requises par Apple
 const PRIVACY_POLICY_URL = 'https://www.zerogaspy.fr/privacy/';
@@ -205,6 +206,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
 
   useEffect(() => {
     if (visible) {
+      trackPaywallViewed(feature);
       headerScale.value = withSpring(1, { damping: 12 });
       ctaGlow.value = withRepeat(
         withSequence(
@@ -269,6 +271,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
 
     const success = await purchasePackage(pkg);
     if (success) {
+      trackPurchaseCompleted(selectedPackage);
       onClose();
     }
   };
@@ -278,6 +281,11 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
     if (success) {
       onClose();
     }
+  };
+
+  const handleClose = () => {
+    trackPaywallDismissed(feature);
+    onClose();
   };
 
   const features = [
@@ -292,7 +300,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.container}>
         {/* Background décoratif */}
@@ -306,7 +314,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <View style={styles.closeButtonInner}>
               <Ionicons name="close" size={22} color={COLORS.primary[500]} />
             </View>

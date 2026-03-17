@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
@@ -30,13 +31,14 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { signIn, skipAuth } = useAuth();
+  const { signIn, signInWithApple, skipAuth } = useAuth();
   const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -58,6 +60,19 @@ export default function LoginScreen() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setIsAppleLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        Alert.alert(t('auth.appleSignInError'), error.message);
+      }
+    } finally {
+      setIsAppleLoading(false);
     }
   };
 
@@ -159,6 +174,25 @@ export default function LoginScreen() {
             )}
           </PressableScale>
 
+          {/* Connexion Apple - iOS uniquement */}
+          {Platform.OS === 'ios' && (
+            <>
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={RADIUS.xl}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            </>
+          )}
+
           {/* Lien inscription */}
           <View style={styles.registerLink}>
             <Text style={styles.registerLinkText}>{t('auth.noAccount')} </Text>
@@ -250,6 +284,25 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodySm,
     color: COLORS.primary[500],
     fontWeight: '600',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.primary[100],
+  },
+  dividerText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.text.muted,
+    marginHorizontal: SPACING.lg,
+  },
+  appleButton: {
+    height: 54,
+    width: '100%',
   },
   loginButton: {
     backgroundColor: COLORS.primary[500],

@@ -1,6 +1,7 @@
 // Limites pour les utilisateurs gratuits
 export const FREE_LIMITS = {
   MAX_LISTS: 3,
+  MAX_SHARED_LISTS: 1,
 } as const;
 
 // Clés API RevenueCat (à remplacer par vos clés)
@@ -38,5 +39,10 @@ export const PREMIUM_FEATURES = [
     icon: 'eye-off-outline' as const,
     title: 'Sans publicite',
     description: 'Profitez de l\'app sans aucune pub',
+  },
+  {
+    icon: 'people-outline' as const,
+    title: 'Partage illimite',
+    description: 'Partagez toutes vos listes avec votre famille',
   },
 ] as const;

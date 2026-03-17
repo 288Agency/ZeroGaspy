@@ -21,18 +21,23 @@ import {
   createList,
   deleteList,
 } from '../utils/localStorage';
+import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { Ionicons } from '@expo/vector-icons';
 import PaywallModal from '../components/PaywallModal';
-import JoinListModal from '../components/JoinListModal';
-import PressableScale from '../components/PressableScale';
+import ShareListModal from '../components/ShareListModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_LIMITS } from '../constants/subscription';
+import {
+  getSharedListsWithMe,
+  getMemberCount,
+  SharedListWithMe,
+} from '../services/listSharingService';
 import logger from '../utils/logger';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import { trackListCreated as analyticsTrackListCreated } from '../services/analytics';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
 
@@ -42,10 +47,15 @@ export default function ListsScreen() {
   const { isPremium } = useSubscription();
   const { user, isLocalMode } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
+  const [sharedLists, setSharedLists] = useState<SharedListWithMe[]>([]);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [newListTitle, setNewListTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [joinModalVisible, setJoinModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareListId, setShareListId] = useState('');
+  const [shareListTitle, setShareListTitle] = useState('');
+  const [shareListColor, setShareListColor] = useState<string | undefined>();
 
   // Charger les listes au démarrage
   useEffect(() => {
@@ -64,9 +74,38 @@ export default function ListsScreen() {
     try {
       const data = await loadLists();
       setLists(data);
+
+      // Load shared lists in background (only for authenticated users)
+      if (user && !isLocalMode) {
+        // Don't block the main render — load sharing data async
+        loadSharingData(data);
+      }
     } catch (error) {
       logger.error('Error loading lists:', error);
       Alert.alert(t('common.error'), t('lists.loadError'));
+    }
+  };
+
+  const loadSharingData = async (data: List[]) => {
+    try {
+      const shared = await getSharedListsWithMe();
+      setSharedLists(shared);
+
+      // Load member counts in parallel
+      const countPromises = data.map(async (list) => {
+        const count = await getMemberCount(list.id);
+        return { id: list.id, count };
+      });
+      const results = await Promise.all(countPromises);
+      const counts: Record<string, number> = {};
+      for (const { id, count } of results) {
+        if (count > 1) {
+          counts[id] = count;
+        }
+      }
+      setMemberCounts(counts);
+    } catch (error) {
+      logger.error('Error loading sharing data:', error);
     }
   };
 
@@ -81,6 +120,8 @@ export default function ListsScreen() {
       setNewListTitle('');
       setIsCreating(false);
       await loadListsData();
+      // Analytics PostHog
+      analyticsTrackListCreated();
     } catch (error) {
       logger.error('Error creating list:', error);
       Alert.alert(t('common.error'), t('lists.createError'));
@@ -115,6 +156,21 @@ export default function ListsScreen() {
       listId: list.id,
       listTitle: list.title,
       listColor: list.color,
+    });
+  };
+
+  const handleShareList = (list: List) => {
+    setShareListId(list.id);
+    setShareListTitle(list.title);
+    setShareListColor(list.color);
+    setShareModalVisible(true);
+  };
+
+  const handleSelectSharedList = (sharedList: SharedListWithMe) => {
+    navigation.navigate('InventoryList', {
+      listId: sharedList.listId,
+      listTitle: sharedList.listTitle,
+      listColor: sharedList.listColor || undefined,
     });
   };
 
@@ -179,21 +235,43 @@ export default function ListsScreen() {
               <Text style={styles.listItemCount}>
                 {t('lists.itemsCount', { count: item.items.length })}
               </Text>
+              {memberCounts[item.id] > 1 && (
+                <View style={styles.sharedBadge}>
+                  <Ionicons name="people" size={12} color={listColor} />
+                  <Text style={[styles.sharedBadgeText, { color: listColor }]}>
+                    {memberCounts[item.id]}
+                  </Text>
+                </View>
+              )}
               <Text style={styles.listDate}>
                 • {t('lists.createdOn')} {formatDate(item.createdAt)}
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              handleDeleteList(item.id, item.title);
-            }}
-            style={[styles.deleteCircle, { backgroundColor: listColor }]}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.deleteCircleText}>✕</Text>
-          </TouchableOpacity>
+          <View style={styles.listActions}>
+            {user && !isLocalMode && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleShareList(item);
+                }}
+                style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-social-outline" size={18} color={listColor} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteList(item.id, item.title);
+              }}
+              style={[styles.deleteCircle, { backgroundColor: listColor }]}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteCircleText}>✕</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Card>
     );
@@ -201,12 +279,6 @@ export default function ListsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {t('lists.myInventoryLists')}
-        </Text>
-      </View>
-
       <FlatList
         data={lists}
         renderItem={renderList}
@@ -222,20 +294,77 @@ export default function ListsScreen() {
             </Text>
           </View>
         }
+        ListFooterComponent={
+          sharedLists.length > 0 ? (
+            <View style={styles.sharedSection}>
+              <Text style={styles.sharedSectionTitle}>
+                {t('sharing.sharedWithMe')}
+              </Text>
+              {sharedLists.map((sl) => {
+                const slColor = sl.listColor || COLORS.primary[500];
+                return (
+                  <Card
+                    key={sl.shareId}
+                    onPress={() => handleSelectSharedList(sl)}
+                    variant="elevated"
+                    style={[styles.cardItem, { backgroundColor: slColor + '20' }]}
+                  >
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 6,
+                        backgroundColor: slColor,
+                        borderTopLeftRadius: 16,
+                        borderBottomLeftRadius: 16,
+                      }}
+                    />
+                    <View style={styles.listRow}>
+                      <View style={styles.listContent}>
+                        <View style={styles.listTitleRow}>
+                          <View
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 6,
+                              backgroundColor: slColor,
+                              marginRight: SPACING.sm,
+                            }}
+                          />
+                          <Text style={styles.listTitle}>{sl.listTitle}</Text>
+                        </View>
+                        <View style={styles.listMeta}>
+                          {sl.ownerName && (
+                            <Text style={styles.listItemCount}>
+                              {t('sharing.sharedBy', { name: sl.ownerName })}
+                            </Text>
+                          )}
+                          <View style={styles.sharedBadge}>
+                            <Ionicons name="people" size={12} color={slColor} />
+                            <Text style={[styles.sharedBadgeText, { color: slColor }]}>
+                              {sl.memberCount}
+                            </Text>
+                          </View>
+                          {sl.permission === 'view' && (
+                            <View style={styles.readOnlyBadge}>
+                              <Ionicons name="eye-outline" size={12} color={COLORS.text.muted} />
+                              <Text style={styles.readOnlyText}>
+                                {t('sharing.readOnly')}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  </Card>
+                );
+              })}
+            </View>
+          ) : null
+        }
       />
-
-      {/* Bouton "Rejoindre une liste" (seulement si connecte) */}
-      {!isLocalMode && user && (
-        <PressableScale
-          onPress={() => setJoinModalVisible(true)}
-          style={styles.joinFab}
-          hapticType="light"
-          accessibilityLabel={t('sharing.joinTitle')}
-          accessibilityRole="button"
-        >
-          <Ionicons name="enter-outline" size={22} color={COLORS.primary[500]} />
-        </PressableScale>
-      )}
 
       {/* Bouton flottant pour créer une liste */}
       <Pressable
@@ -261,11 +390,13 @@ export default function ListsScreen() {
         feature="lists"
       />
 
-      {/* Join List Modal */}
-      <JoinListModal
-        visible={joinModalVisible}
-        onClose={() => setJoinModalVisible(false)}
-        onJoined={() => loadListsData()}
+      {/* Share List Modal */}
+      <ShareListModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        listId={shareListId}
+        listTitle={shareListTitle}
+        listColor={shareListColor}
       />
 
       {/* Modal pour créer une nouvelle liste */}
@@ -343,6 +474,53 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     overflow: 'hidden',
   },
+  listActions: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  shareCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sharedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+  },
+  sharedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  readOnlyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    backgroundColor: COLORS.neutral.gray100,
+    borderRadius: RADIUS.full,
+  },
+  readOnlyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.text.muted,
+  },
+  sharedSection: {
+    marginTop: SPACING.xl,
+  },
+  sharedSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.md,
+  },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -404,21 +582,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.neutral.gray400,
     textAlign: 'center',
-  },
-  joinFab: {
-    position: 'absolute',
-    bottom: SPACING['2xl'],
-    right: SPACING['2xl'] + 64 + SPACING.md,
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.neutral.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.primary[500],
-    ...SHADOWS.sm,
-    elevation: 6,
   },
   fab: {
     position: 'absolute',

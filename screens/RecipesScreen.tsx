@@ -14,11 +14,13 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../components/Header';
 import PressableScale from '../components/PressableScale';
 import AnimatedListItem from '../components/AnimatedListItem';
 import AddRecipeModal from '../components/AddRecipeModal';
 import PaywallModal from '../components/PaywallModal';
+import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '../components/RecipeOnboardingModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { COLORS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -28,6 +30,7 @@ import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } fr
 import { useGamification } from '../contexts/GamificationContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
+import { trackRecipeViewed as analyticsTrackRecipeViewed } from '../services/analytics';
 
 // Chef illustration for empty state
 const ChefIllustration = React.memo(function ChefIllustration() {
@@ -395,6 +398,7 @@ export default function RecipesScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'user' | Recipe['category']>('all');
   const [sortMode, setSortMode] = useState<'antiWaste' | 'bestMatch'>('antiWaste');
+  const [showRecipeOnboarding, setShowRecipeOnboarding] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -404,6 +408,14 @@ export default function RecipesScreen() {
       duration: 500,
       useNativeDriver: true,
     }).start();
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(RECIPE_ONBOARDING_KEY).then((value) => {
+      if (value !== 'true') {
+        setShowRecipeOnboarding(true);
+      }
+    });
   }, []);
 
   const loadData = async () => {
@@ -442,6 +454,8 @@ export default function RecipesScreen() {
     setModalVisible(true);
     // Tracker pour la gamification
     trackRecipeViewed();
+    // Analytics PostHog
+    analyticsTrackRecipeViewed(match.recipe.id);
   };
 
   const handleRecipeLongPress = (match: RecipeMatch) => {
@@ -470,17 +484,19 @@ export default function RecipesScreen() {
   const userRecipes = recipeMatches.filter(m => m.recipe.isUserRecipe);
   const suggestedRecipes = recipeMatches.filter(m => !m.recipe.isUserRecipe);
 
-  // Pour les utilisateurs gratuits, ne montrer que leurs propres recettes
+  // Pour les utilisateurs gratuits, montrer leurs recettes + 2 recettes du catalogue en aperçu
   // Pour les utilisateurs Premium, montrer toutes les recettes
-  const availableMatches = isPremium ? recipeMatches : userRecipes;
+  const FREE_SUGGESTED_LIMIT = 2;
+  const freeSuggestedRecipes = suggestedRecipes.slice(0, FREE_SUGGESTED_LIMIT);
+  const availableMatches = isPremium
+    ? recipeMatches
+    : [...userRecipes, ...freeSuggestedRecipes];
 
   const categoryFiltered = selectedFilter === 'all'
     ? availableMatches
     : selectedFilter === 'user'
     ? userRecipes
-    : isPremium
-    ? availableMatches.filter(m => m.recipe.category === selectedFilter)
-    : userRecipes.filter(m => m.recipe.category === selectedFilter);
+    : availableMatches.filter(m => m.recipe.category === selectedFilter);
 
   // Appliquer le tri selon le mode sélectionné
   const filteredMatches = [...categoryFiltered].sort((a, b) => {
@@ -522,7 +538,7 @@ export default function RecipesScreen() {
             <Text style={styles.statsSubtitle}>
               {isPremium
                 ? t('recipes.possibleRecipes', { count: recipeMatches.length })
-                : t('recipes.personalRecipes', { count: userRecipes.length })
+                : t('recipes.personalRecipes', { count: availableMatches.length })
               }
             </Text>
           </View>
@@ -606,9 +622,9 @@ export default function RecipesScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Premium teaser for free users with suggested recipes */}
-          {!isPremium && suggestedRecipes.length > 0 && selectedFilter !== 'user' && (
+          {!isPremium && suggestedRecipes.length > FREE_SUGGESTED_LIMIT && selectedFilter !== 'user' && (
             <PremiumRecipeTeaser
-              suggestedCount={suggestedRecipes.length}
+              suggestedCount={suggestedRecipes.length - FREE_SUGGESTED_LIMIT}
               onPress={() => setShowPaywall(true)}
             />
           )}
@@ -676,6 +692,12 @@ export default function RecipesScreen() {
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
         feature="recipes"
+      />
+
+      {/* Recipe onboarding modal */}
+      <RecipeOnboardingModal
+        visible={showRecipeOnboarding}
+        onComplete={() => setShowRecipeOnboarding(false)}
       />
     </View>
   );

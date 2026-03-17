@@ -81,7 +81,6 @@ export async function migrateLocalDataToCloud(userId: string): Promise<void> {
               expiration_date: convertDateToISO(item.expirationDate),
               quantity: item.quantity || 1,
               weight: item.weight || null,
-              unit: item.unit || null,
               category: item.category || null,
               image_uri: item.imageUri || null,
               price: item.price || null,
@@ -142,25 +141,6 @@ export async function syncWithCloud(userId: string): Promise<void> {
 }
 
 /**
- * Convertit un ID local de liste en UUID cloud
- */
-async function getCloudListId(localListId: string): Promise<string | null> {
-  // Si c'est déjà un UUID, le retourner directement
-  if (localListId.includes('-') && localListId.length === 36) {
-    return localListId;
-  }
-
-  // Chercher l'UUID cloud correspondant au local_id
-  const { data } = await supabase
-    .from('lists')
-    .select('id')
-    .or(`local_id.eq.${localListId},id.eq.${localListId}`)
-    .single();
-
-  return data?.id || null;
-}
-
-/**
  * Envoie les changements en attente vers le cloud
  */
 async function pushPendingChanges(userId: string): Promise<void> {
@@ -178,13 +158,25 @@ async function pushPendingChanges(userId: string): Promise<void> {
   )];
   const listIdCache = new Map<string, string>();
   if (localListIds.length > 0) {
-    const { data: listMappings } = await supabase
-      .from('lists')
-      .select('id, local_id')
-      .or(localListIds.map(id => `local_id.eq.${id},id.eq.${id}`).join(','));
-    for (const mapping of listMappings || []) {
-      if (mapping.local_id) listIdCache.set(mapping.local_id, mapping.id);
-      listIdCache.set(mapping.id, mapping.id);
+    // Séparer les IDs numériques (local) des UUIDs (cloud)
+    const isUUID = (id: string) => id.includes('-') && id.length === 36;
+    const numericIds = localListIds.filter(id => !isUUID(id));
+    const uuidIds = localListIds.filter(id => isUUID(id));
+
+    // Requêter par local_id pour les IDs numériques
+    if (numericIds.length > 0) {
+      const { data: localMappings } = await supabase
+        .from('lists')
+        .select('id, local_id')
+        .in('local_id', numericIds);
+      for (const mapping of localMappings || []) {
+        if (mapping.local_id) listIdCache.set(mapping.local_id, mapping.id);
+      }
+    }
+
+    // Les UUIDs sont déjà des cloud IDs
+    for (const id of uuidIds) {
+      listIdCache.set(id, id);
     }
   }
 
@@ -209,19 +201,27 @@ async function pushPendingChanges(userId: string): Promise<void> {
           }
           break;
 
-        case 'UPDATE':
-          await supabase
+        case 'UPDATE': {
+          const { error: updateError } = await supabase
             .from(item.tableName)
-            .update(item.payload)
+            .update({ ...item.payload, updated_at: new Date().toISOString() })
             .eq('local_id', item.localId);
+          if (updateError) {
+            logger.error(`[SYNC] Erreur update ${item.tableName} (local_id=${item.localId}):`, updateError);
+          }
           break;
+        }
 
-        case 'DELETE':
-          await supabase
+        case 'DELETE': {
+          const { error: deleteError } = await supabase
             .from(item.tableName)
-            .update({ is_deleted: true })
+            .update({ is_deleted: true, updated_at: new Date().toISOString() })
             .eq('local_id', item.localId);
+          if (deleteError) {
+            logger.error(`[SYNC] Erreur delete ${item.tableName} (local_id=${item.localId}):`, deleteError);
+          }
           break;
+        }
       }
     } catch (error) {
       logger.error(`Erreur sync item ${item.id}:`, error);
@@ -246,7 +246,7 @@ async function pullFromCloud(userId: string): Promise<void> {
   const lastSync = await AsyncStorage.getItem(LAST_SYNC_KEY);
 
   // 1. Recuperer les listes personnelles du cloud
-  let query = supabase
+  let ownQuery = supabase
     .from('lists')
     .select(`
       *,
@@ -257,51 +257,58 @@ async function pullFromCloud(userId: string): Promise<void> {
 
   // Si on a une derniere sync, ne recuperer que les modifications
   if (lastSync) {
-    query = query.gt('updated_at', lastSync);
+    ownQuery = ownQuery.gt('updated_at', lastSync);
   }
 
-  const { data: cloudLists, error } = await query;
+  const { data: ownLists, error: ownError } = await ownQuery;
 
-  logger.debug(`[SYNC] Listes récupérées: ${cloudLists?.length || 0}`,
-    cloudLists?.map(l => ({ id: l.id, title: l.title })));
-
-  if (error) {
-    logger.error('[SYNC] Erreur récupération listes:', error);
-    throw error;
+  if (ownError) {
+    logger.error('[SYNC] Erreur récupération listes propres:', ownError);
+    throw ownError;
   }
 
-  // 1b. Recuperer les listes partagees avec l'utilisateur
-  const { data: sharedListIds } = await supabase
-    .from('list_shares')
-    .select('list_id')
-    .eq('shared_with_user_id', userId)
-    .eq('status', 'accepted');
+  // 2. Recuperer les listes partagees avec moi
+  let sharedLists: any[] = [];
+  try {
+    // Get list IDs shared with me
+    const { data: shares } = await supabase
+      .from('list_shares')
+      .select('list_id')
+      .eq('shared_with_user_id', userId)
+      .eq('status', 'accepted');
 
-  let sharedLists: typeof cloudLists = [];
-  if (sharedListIds && sharedListIds.length > 0) {
-    const ids = sharedListIds.map(s => s.list_id);
-    const { data: sharedData, error: sharedError } = await supabase
-      .from('lists')
-      .select(`
-        *,
-        food_items (*)
-      `)
-      .in('id', ids)
-      .eq('is_deleted', false);
+    if (shares && shares.length > 0) {
+      const sharedListIds = shares.map(s => s.list_id);
+      let sharedQuery = supabase
+        .from('lists')
+        .select(`
+          *,
+          food_items (*)
+        `)
+        .in('id', sharedListIds)
+        .eq('is_deleted', false);
 
-    if (sharedError) {
-      logger.error('[SYNC] Erreur récupération listes partagées:', sharedError);
-    } else {
-      sharedLists = sharedData || [];
-      logger.debug(`[SYNC] Listes partagées récupérées: ${sharedLists.length}`);
+      if (lastSync) {
+        sharedQuery = sharedQuery.gt('updated_at', lastSync);
+      }
+
+      const { data: sharedData, error: sharedError } = await sharedQuery;
+      if (sharedError) {
+        logger.error('[SYNC] Erreur récupération listes partagées:', sharedError);
+      } else {
+        sharedLists = sharedData || [];
+      }
     }
+  } catch (err) {
+    logger.error('[SYNC] Erreur sync listes partagées:', err);
   }
 
-  const allCloudLists = [...(cloudLists || []), ...sharedLists];
+  const cloudLists = [...(ownLists || []), ...sharedLists];
 
-  logger.debug(`[SYNC] Total listes à synchroniser: ${allCloudLists.length}`);
+  logger.debug(`[SYNC] Listes récupérées: ${cloudLists.length} (${ownLists?.length || 0} propres, ${sharedLists.length} partagées)`,
+    cloudLists.map(l => ({ id: l.id, title: l.title })));
 
-  if (allCloudLists.length === 0) {
+  if (cloudLists.length === 0) {
     logger.debug('[SYNC] Aucune liste à synchroniser');
     return;
   }
@@ -311,7 +318,7 @@ async function pullFromCloud(userId: string): Promise<void> {
   const localLists: List[] = listsJson ? JSON.parse(listsJson) : [];
 
   // Fusionner les donnees cloud avec les locales
-  for (const cloudList of allCloudLists) {
+  for (const cloudList of cloudLists) {
     const listId = cloudList.local_id || cloudList.id;
 
     const localIndex = localLists.findIndex(
@@ -338,6 +345,102 @@ async function pullFromCloud(userId: string): Promise<void> {
 
   // Sauvegarder localement
   await AsyncStorage.setItem('inventory_lists', JSON.stringify(localLists));
+}
+
+// ============================================
+// FORCE RE-SYNC (push all local items to cloud)
+// ============================================
+
+/**
+ * Force push all local items to Supabase.
+ * Resolves each list's cloud ID and upserts all food items.
+ */
+export async function forceSyncAllItems(userId: string): Promise<{ synced: number; errors: number }> {
+  let synced = 0;
+  let errors = 0;
+
+  try {
+    const listsJson = await AsyncStorage.getItem('inventory_lists');
+    if (!listsJson) return { synced, errors };
+
+    const localLists: List[] = JSON.parse(listsJson);
+    logger.debug(`[FORCE SYNC] Starting for ${localLists.length} lists...`);
+
+    for (const localList of localLists) {
+      try {
+        // Resolve cloud list ID
+        const { data: cloudList } = await supabase
+          .from('lists')
+          .select('id')
+          .eq('local_id', localList.id)
+          .maybeSingle();
+
+        if (!cloudList) {
+          logger.debug(`[FORCE SYNC] List "${localList.title}" not in cloud, skipping`);
+          continue;
+        }
+
+        const activeItems = localList.items.filter(
+          (item) => item.name && item.expirationDate
+        );
+
+        if (activeItems.length === 0) continue;
+
+        for (const item of activeItems) {
+          try {
+            // Check if item already exists
+            const { data: existing } = await supabase
+              .from('food_items')
+              .select('id')
+              .eq('list_id', cloudList.id)
+              .eq('local_id', item.id)
+              .maybeSingle();
+
+            if (existing) continue; // Already synced
+
+            const { error: insertError } = await supabase
+              .from('food_items')
+              .insert({
+                list_id: cloudList.id,
+                user_id: userId,
+                name: item.name,
+                expiration_date: convertDateToISO(item.expirationDate),
+                quantity: item.quantity || 1,
+                weight: item.weight || null,
+                category: item.category || null,
+                image_uri: item.imageUri || null,
+                price: item.price || null,
+                status: item.status || 'active',
+                is_opened: item.isOpened || false,
+                opened_date: item.openedDate ? convertDateToISO(item.openedDate) : null,
+                days_after_opening: item.daysAfterOpening || null,
+                local_id: item.id,
+              });
+
+            if (insertError) {
+              logger.error(`[FORCE SYNC] Item "${item.name}" error:`, insertError);
+              errors++;
+            } else {
+              synced++;
+            }
+          } catch {
+            errors++;
+          }
+        }
+
+        logger.debug(`[FORCE SYNC] List "${localList.title}": done`);
+      } catch (err) {
+        logger.error(`[FORCE SYNC] List error:`, err);
+        errors++;
+      }
+    }
+
+    logger.debug(`[FORCE SYNC] Complete: ${synced} synced, ${errors} errors`);
+  } catch (err) {
+    logger.error('[FORCE SYNC] Fatal error:', err);
+  }
+
+  return { synced, errors };
 }
 
 // ============================================
@@ -449,7 +552,6 @@ function convertCloudItemToLocal(item: CloudFoodItem): FoodItem {
     expirationDate: convertISOToDate(item.expiration_date),
     quantity: item.quantity,
     weight: item.weight || undefined,
-    unit: item.unit || undefined,
     category: item.category || undefined,
     imageUri: item.image_uri || undefined,
     price: item.price || undefined,

@@ -85,7 +85,7 @@ export async function calculateUserStats(): Promise<UserStats> {
     const co2AvoidedKg = foodSavedKg * CO2_PER_KG;
 
     // Calculer séries (streaks)
-    const { currentStreak, longestStreak, lastActivityDate } = await calculateStreaks(thrownItems);
+    const { currentStreak, longestStreak, lastActivityDate } = await calculateStreaks(thrownItems, allItems);
 
     // Date de début = date du 1er aliment ajouté
     const periodStart = allItems.length > 0
@@ -142,7 +142,7 @@ export async function calculateUserStats(): Promise<UserStats> {
 /**
  * Calcule les séries (jours consécutifs sans gaspillage)
  */
-async function calculateStreaks(thrownItems: FoodItem[]): Promise<{
+async function calculateStreaks(thrownItems: FoodItem[], allItems: FoodItem[] = []): Promise<{
   currentStreak: number;
   longestStreak: number;
   lastActivityDate?: string;
@@ -152,9 +152,14 @@ async function calculateStreaks(thrownItems: FoodItem[]): Promise<{
     const savedStreak = await AsyncStorage.getItem(STREAK_KEY);
     let longestStreak = savedStreak ? parseInt(savedStreak) : 0;
 
-    // Si aucun item jeté, série infinie
+    // Si aucun item jeté, la série court depuis le premier aliment ajouté
     if (thrownItems.length === 0) {
-      const daysSinceStart = Math.floor((Date.now() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      // Trouver la date du premier item ajouté
+      const firstItemDate = allItems.reduce((earliest, item) => {
+        const d = new Date(item.consumedAt || item.expirationDate || Date.now());
+        return d < earliest ? d : earliest;
+      }, new Date());
+      const daysSinceStart = Math.floor((Date.now() - firstItemDate.getTime()) / (1000 * 60 * 60 * 24));
       const currentStreak = Math.max(0, daysSinceStart);
       longestStreak = Math.max(longestStreak, currentStreak);
 

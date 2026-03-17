@@ -99,7 +99,7 @@ export const COLORS = {
     background: '#F7F5E6',
     card: '#FFFFFF',
     elevated: '#FFFFFF',
-    overlay: 'rgba(0, 0, 0, 0.5)',
+    overlay: 'rgba(0, 0, 0, 0.2)',
     warningBg: '#FFF3E0',
     successBg: '#E8F5E9',
     infoBg: '#FFF8E1',

@@ -13,8 +13,8 @@ const LISTS_KEY = 'inventory_lists';
 const ALLOWED_KEYS = [LISTS_KEY, 'notification_settings', 'last_notification_check', 'supabase_'];
 
 // Convertit une date DD/MM/YYYY en ISO YYYY-MM-DD pour PostgreSQL
-function convertDateForCloud(dateStr: string | undefined): string | null {
-  if (!dateStr || dateStr.trim() === '') return null;
+function convertDateForCloud(dateStr: string | undefined): string {
+  if (!dateStr || dateStr.trim() === '') return new Date().toISOString().split('T')[0];
   // Si déjà au format ISO (YYYY-MM-DD)
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
     return dateStr.split('T')[0];
@@ -25,7 +25,7 @@ function convertDateForCloud(dateStr: string | undefined): string | null {
     const [day, month, year] = parts;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
-  return null;
+  return new Date().toISOString().split('T')[0];
 }
 
 // Récupère l'ID utilisateur connecté (null si mode local)

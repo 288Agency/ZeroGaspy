@@ -3,29 +3,36 @@ import {
   View,
   Text,
   Modal,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
+  TouchableOpacity,
   FlatList,
+  Alert,
+  TextInput,
+  ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
-import { scaleSize, scaleSpacing, scaleFontSize } from '../utils/responsive';
-import PressableScale from './PressableScale';
 import {
-  SharedMember,
   getSharedMembers,
-  updatePermission,
+  inviteByEmail,
+  updateMemberPermission,
   removeMember,
+  leaveList,
+  resolveCloudListId,
+  ShareMember,
 } from '../services/listSharingService';
+import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 
 interface ListMembersModalProps {
   visible: boolean;
   onClose: () => void;
   listId: string;
   listTitle: string;
+  listColor?: string;
   isOwner: boolean;
+  onLeft?: () => void;
 }
 
 export default function ListMembersModal({
@@ -33,166 +40,290 @@ export default function ListMembersModal({
   onClose,
   listId,
   listTitle,
+  listColor = COLORS.primary[500],
   isOwner,
+  onLeft,
 }: ListMembersModalProps) {
   const { t } = useTranslation();
-  const [members, setMembers] = useState<SharedMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [members, setMembers] = useState<ShareMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     if (visible) {
       loadMembers();
+      setInviteEmail('');
     }
   }, [visible]);
 
   const loadMembers = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
+      // Fetch the owner info
+      const cloudId = await resolveCloudListId(listId);
+      let ownerMember: ShareMember | null = null;
+      if (cloudId) {
+        const { data: listData } = await supabase
+          .from('lists')
+          .select('user_id')
+          .eq('id', cloudId)
+          .single();
+        if (listData) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('id', listData.user_id)
+            .single();
+          if (profile) {
+            ownerMember = {
+              id: 'owner',
+              userId: profile.id,
+              email: null,
+              fullName: profile.full_name,
+              permission: 'edit' as const,
+              status: 'accepted' as const,
+              createdAt: '',
+            };
+          }
+        }
+      }
+      const data = await getSharedMembers(listId);
+      setMembers(ownerMember ? [ownerMember, ...data] : data);
+    } catch {
       const data = await getSharedMembers(listId);
       setMembers(data);
-    } finally {
-      setLoading(false);
     }
+    setIsLoading(false);
   };
 
-  const handleTogglePermission = async (member: SharedMember) => {
-    if (!isOwner) return;
+  const handleInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) return;
 
-    const newPerm = member.permission === 'edit' ? 'view' : 'edit';
-    const success = await updatePermission(member.shareId, newPerm);
-    if (success) {
-      setMembers(prev =>
-        prev.map(m =>
-          m.shareId === member.shareId ? { ...m, permission: newPerm } : m
-        )
-      );
+    setIsInviting(true);
+    const { error } = await inviteByEmail(listId, email);
+    setIsInviting(false);
+
+    if (error) {
+      const msg = error === 'USER_NOT_FOUND' ? t('sharing.userNotFound')
+        : error === 'ALREADY_MEMBER' ? t('sharing.errorAlreadyMember')
+        : error === 'OWN_LIST' ? t('sharing.errorOwnList')
+        : t('sharing.errorGeneric');
+      Alert.alert(t('common.error'), msg);
+      return;
     }
+
+    Alert.alert(t('common.success'), t('sharing.inviteSuccess'));
+    setInviteEmail('');
+    await loadMembers();
   };
 
-  const handleRemoveMember = (member: SharedMember) => {
-    if (!isOwner) return;
+  const handleTogglePermission = async (member: ShareMember) => {
+    const newPermission = member.permission === 'edit' ? 'view' : 'edit';
+    const { error } = await updateMemberPermission(member.id, newPermission);
+    if (error) {
+      Alert.alert(t('common.error'), t('sharing.errorGeneric'));
+      return;
+    }
+    await loadMembers();
+  };
 
+  const handleRemoveMember = (member: ShareMember) => {
+    const name = member.fullName || member.email || t('sharing.member');
     Alert.alert(
-      t('sharing.removeMemberTitle'),
-      t('sharing.removeMemberConfirm', {
-        name: member.displayName || member.email || t('sharing.unknownUser'),
-      }),
+      t('sharing.removeMember'),
+      t('sharing.removeMemberConfirm', { name }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
-            const success = await removeMember(member.shareId);
-            if (success) {
-              setMembers(prev => prev.filter(m => m.shareId !== member.shareId));
+            const { error } = await removeMember(member.id);
+            if (error) {
+              Alert.alert(t('common.error'), t('sharing.errorGeneric'));
+              return;
             }
+            await loadMembers();
           },
         },
-      ],
+      ]
     );
   };
 
-  const renderMember = ({ item }: { item: SharedMember }) => (
-    <View style={styles.memberRow}>
-      <View style={styles.memberAvatar}>
-        <Text style={styles.memberInitial}>
-          {(item.displayName || item.email || '?')[0].toUpperCase()}
-        </Text>
-      </View>
+  const handleLeaveList = () => {
+    Alert.alert(
+      t('sharing.leaveList'),
+      t('sharing.leaveConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('sharing.leaveList'),
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await leaveList(listId);
+            if (error) {
+              Alert.alert(t('common.error'), t('sharing.errorGeneric'));
+              return;
+            }
+            Alert.alert(t('common.success'), t('sharing.leaveSuccess'));
+            onClose();
+            onLeft?.();
+          },
+        },
+      ]
+    );
+  };
 
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName} numberOfLines={1}>
-          {item.displayName || item.email || t('sharing.unknownUser')}
-        </Text>
-        <View style={styles.memberMeta}>
-          <View style={[
-            styles.permissionBadge,
-            { backgroundColor: item.permission === 'edit'
-              ? hexToRgba(COLORS.primary[500], 0.1)
-              : hexToRgba(COLORS.neutral.gray500, 0.1)
-            },
-          ]}>
-            <Ionicons
-              name={item.permission === 'edit' ? 'create-outline' : 'eye-outline'}
-              size={12}
-              color={item.permission === 'edit' ? COLORS.primary[500] : COLORS.text.secondary}
-            />
-            <Text style={[
-              styles.permissionBadgeText,
-              { color: item.permission === 'edit' ? COLORS.primary[500] : COLORS.text.secondary },
-            ]}>
-              {item.permission === 'edit' ? t('sharing.canEdit') : t('sharing.canView')}
+  const renderMember = ({ item }: { item: ShareMember }) => {
+    const isCurrentUser = item.userId === user?.id;
+    const isOwnerRow = item.id === 'owner';
+    const displayName = item.fullName || item.email || t('sharing.member');
+
+    return (
+      <View style={styles.memberRow}>
+        {/* Avatar placeholder */}
+        <View style={[styles.avatar, { backgroundColor: hexToRgba(listColor, 0.15) }]}>
+          <Text style={[styles.avatarText, { color: listColor }]}>
+            {displayName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.memberInfo}>
+          <View style={styles.memberNameRow}>
+            <Text style={styles.memberName} numberOfLines={1}>
+              {displayName}
             </Text>
+            {isCurrentUser && (
+              <Text style={styles.youBadge}>{t('sharing.you')}</Text>
+            )}
           </View>
-          {item.status === 'pending' && (
-            <Text style={styles.pendingText}>{t('sharing.pending')}</Text>
-          )}
+          <Text style={[styles.permissionBadge, { color: listColor }]}>
+            {isOwnerRow
+              ? t('sharing.owner')
+              : item.permission === 'edit'
+                ? t('sharing.permissionEdit')
+                : t('sharing.permissionView')}
+          </Text>
         </View>
-      </View>
 
-      {isOwner && (
-        <View style={styles.memberActions}>
-          <PressableScale
-            onPress={() => handleTogglePermission(item)}
-            style={styles.memberActionButton}
-            hapticType="light"
-          >
-            <Ionicons
-              name={item.permission === 'edit' ? 'eye-outline' : 'create-outline'}
-              size={18}
-              color={COLORS.text.secondary}
-            />
-          </PressableScale>
-          <PressableScale
-            onPress={() => handleRemoveMember(item)}
-            style={styles.memberActionButton}
-            hapticType="light"
-          >
-            <Ionicons name="close-circle-outline" size={18} color={COLORS.semantic.dangerLight} />
-          </PressableScale>
-        </View>
-      )}
-    </View>
-  );
+        {/* Owner actions (not on owner row or current user) */}
+        {isOwner && !isCurrentUser && !isOwnerRow && (
+          <View style={styles.memberActions}>
+            <TouchableOpacity
+              onPress={() => handleTogglePermission(item)}
+              style={styles.actionIcon}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={item.permission === 'edit' ? 'eye-outline' : 'pencil-outline'}
+                size={20}
+                color={COLORS.text.secondary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleRemoveMember(item)}
+              style={styles.actionIcon}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close-circle-outline" size={20} color={COLORS.semantic.dangerLight} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
       transparent
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={styles.modalContainer}>
         <View style={styles.container}>
+          {/* Handle bar */}
+          <View style={styles.handleBar} />
+
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>{t('sharing.membersTitle')}</Text>
-              <Text style={styles.subtitle}>{listTitle}</Text>
-            </View>
-            <PressableScale onPress={onClose} hapticType="light">
+            <Text style={styles.title}>{t('sharing.members')}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={COLORS.text.secondary} />
-            </PressableScale>
+            </TouchableOpacity>
           </View>
 
-          {loading ? (
+          <Text style={styles.listName}>{listTitle}</Text>
+
+          {/* Members list */}
+          {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary[500]} />
-            </View>
-          ) : members.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={48} color={COLORS.neutral.gray300} />
-              <Text style={styles.emptyText}>{t('sharing.noMembers')}</Text>
+              <ActivityIndicator color={listColor} />
             </View>
           ) : (
             <FlatList
               data={members}
-              keyExtractor={item => item.shareId}
               renderItem={renderMember}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              style={styles.membersList}
+              contentContainerStyle={styles.membersContent}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="people-outline" size={48} color={COLORS.text.muted} />
+                  <Text style={styles.emptyText}>{t('sharing.noMembers')}</Text>
+                </View>
+              }
             />
+          )}
+
+          {/* Invite section (owner only) */}
+          {isOwner && (
+            <View style={styles.inviteSection}>
+              <View style={styles.inviteRow}>
+                <TextInput
+                  style={styles.inviteInput}
+                  value={inviteEmail}
+                  onChangeText={setInviteEmail}
+                  placeholder={t('sharing.emailPlaceholder')}
+                  placeholderTextColor={COLORS.neutral.grayDisabled}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.inviteButton,
+                    { backgroundColor: listColor },
+                    (!inviteEmail.trim().includes('@') || isInviting) && { opacity: 0.5 },
+                  ]}
+                  onPress={handleInvite}
+                  disabled={!inviteEmail.trim().includes('@') || isInviting}
+                  activeOpacity={0.8}
+                >
+                  {isInviting ? (
+                    <ActivityIndicator color={COLORS.neutral.white} size="small" />
+                  ) : (
+                    <Ionicons name="person-add" size={20} color={COLORS.neutral.white} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Leave button (member only) */}
+          {!isOwner && (
+            <TouchableOpacity
+              style={styles.leaveButton}
+              onPress={handleLeaveList}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="exit-outline" size={20} color={COLORS.semantic.dangerLight} />
+              <Text style={styles.leaveButtonText}>{t('sharing.leaveList')}</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -201,113 +332,161 @@ export default function ListMembersModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: COLORS.surface.overlay,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   container: {
-    backgroundColor: COLORS.surface.card,
+    backgroundColor: COLORS.neutral.white,
     borderTopLeftRadius: RADIUS['2xl'],
     borderTopRightRadius: RADIUS['2xl'],
-    padding: scaleSpacing(24),
-    paddingBottom: scaleSpacing(40),
-    maxHeight: '70%',
+    maxHeight: '80%',
+    paddingBottom: 34,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.neutral.gray300,
+    alignSelf: 'center',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.xl,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
   },
   title: {
-    fontSize: scaleFontSize(20),
+    fontSize: 22,
     fontWeight: '700',
-    color: COLORS.primary[500],
+    color: COLORS.text.primary,
   },
-  subtitle: {
-    fontSize: scaleFontSize(13),
+  closeButton: {
+    padding: 4,
+  },
+  listName: {
+    fontSize: 15,
     color: COLORS.text.secondary,
-    marginTop: 2,
+    paddingHorizontal: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   loadingContainer: {
-    paddingVertical: SPACING['4xl'],
+    padding: SPACING['2xl'],
     alignItems: 'center',
   },
-  emptyContainer: {
-    paddingVertical: SPACING['4xl'],
-    alignItems: 'center',
-    gap: SPACING.md,
+  membersList: {
+    maxHeight: 300,
   },
-  emptyText: {
-    fontSize: scaleFontSize(14),
-    color: COLORS.text.muted,
-  },
-  listContent: {
-    gap: SPACING.sm,
+  membersContent: {
+    paddingHorizontal: SPACING.xl,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.gray50,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral.gray100,
   },
-  memberAvatar: {
-    width: scaleSize(40),
-    height: scaleSize(40),
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primary[500],
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
   },
-  memberInitial: {
-    fontSize: scaleFontSize(16),
+  avatarText: {
+    fontSize: 18,
     fontWeight: '700',
-    color: COLORS.neutral.white,
   },
   memberInfo: {
     flex: 1,
   },
-  memberName: {
-    fontSize: scaleFontSize(15),
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  memberMeta: {
+  memberNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
   },
-  permissionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  memberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    flexShrink: 1,
+  },
+  youBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.muted,
+    backgroundColor: COLORS.neutral.gray100,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
   },
-  permissionBadgeText: {
-    fontSize: scaleFontSize(11),
-    fontWeight: '600',
-  },
-  pendingText: {
-    fontSize: scaleFontSize(11),
-    color: COLORS.accent.gold,
+  permissionBadge: {
+    fontSize: 13,
     fontWeight: '500',
+    marginTop: 2,
   },
   memberActions: {
     flexDirection: 'row',
-    gap: SPACING.xs,
+    gap: SPACING.md,
   },
-  memberActionButton: {
-    width: scaleSize(32),
-    height: scaleSize(32),
-    borderRadius: RADIUS.md,
+  actionIcon: {
+    padding: SPACING.xs,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: SPACING['2xl'],
+  },
+  emptyText: {
+    fontSize: 15,
+    color: COLORS.text.muted,
+    marginTop: SPACING.md,
+  },
+  inviteSection: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+  },
+  inviteRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  inviteInput: {
+    flex: 1,
+    backgroundColor: COLORS.neutral.gray100,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    fontSize: 15,
+    color: COLORS.text.primary,
+  },
+  inviteButton: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.neutral.white,
+    ...SHADOWS.sm,
+  },
+  leaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.lg,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: COLORS.semantic.dangerLight,
+  },
+  leaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.semantic.dangerLight,
   },
 });
