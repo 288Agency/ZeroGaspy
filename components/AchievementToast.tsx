@@ -11,6 +11,7 @@ interface AchievementToastProps {
   levelUp: boolean;
   newLevel?: number;
   challengeCompleted?: ChallengeCompletionResult;
+  freezeUsed?: boolean;
   visible: boolean;
   onHide: () => void;
 }
@@ -23,6 +24,7 @@ export default function AchievementToast({
   levelUp,
   newLevel,
   challengeCompleted,
+  freezeUsed,
   visible,
   onHide,
 }: AchievementToastProps) {
@@ -98,21 +100,40 @@ export default function AchievementToast({
         style={[
           styles.toastContainer,
           {
-            backgroundColor: challengeCompleted
-              ? COLORS.surface.achievementBg
-              : badge
-                ? getTierBackgroundColor(badge.tier)
-                : COLORS.surface.successBg,
+            backgroundColor: freezeUsed
+              ? '#E8F4FD'
+              : challengeCompleted
+                ? COLORS.surface.achievementBg
+                : badge
+                  ? getTierBackgroundColor(badge.tier)
+                  : COLORS.surface.successBg,
             borderWidth: 2,
-            borderColor: challengeCompleted
-              ? COLORS.surface.achievementBorder
-              : badge
-                ? getTierColor(badge.tier)
-                : COLORS.semantic.successLight,
+            borderColor: freezeUsed
+              ? '#64B5F6'
+              : challengeCompleted
+                ? COLORS.surface.achievementBorder
+                : badge
+                  ? getTierColor(badge.tier)
+                  : COLORS.semantic.successLight,
           },
         ]}
       >
-        {challengeCompleted ? (
+        {freezeUsed ? (
+          <View style={styles.row}>
+            <View style={[styles.badgeIconContainer, { backgroundColor: '#E8F4FD' }]}>
+              <Text style={styles.emojiText}>🛡️</Text>
+            </View>
+            <View style={styles.contentFlex}>
+              <Text style={[styles.badgeLabelText, { color: '#2196F3' }]}>
+                Streak Freeze
+              </Text>
+              <Text style={styles.titleText}>
+                {t('gamification.streakFreezeUsed')}
+              </Text>
+            </View>
+            <Text style={styles.emojiText}>❄️</Text>
+          </View>
+        ) : challengeCompleted ? (
           // Challenge Completed Toast
           <View style={styles.row}>
             <View style={styles.badgeIconContainer}>

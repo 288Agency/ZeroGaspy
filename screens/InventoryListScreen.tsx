@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,9 +36,11 @@ import QuantityModal from '../components/QuantityModal';
 import PressableScale from '../components/PressableScale';
 import ReceiptScannerModal from '../components/ReceiptScannerModal';
 import ReceiptReviewModal from '../components/ReceiptReviewModal';
-import ReceiptScanUnlockModal from '../components/ReceiptScanUnlockModal';
 import { ReceiptScanResult, ReceiptItem } from '../services/mindeeReceiptService';
-import { hasUsedFreeReceiptScanThisMonth, markFreeReceiptScanAsUsed } from '../services/premiumFeaturesService';
+import { markFreeReceiptScanAsUsed, canScanReceipt } from '../services/premiumFeaturesService';
+import { useBonusScan } from '../services/referralService';
+import { trackBonusScanUsed } from '../services/analytics';
+import SavedFoodPulse from '../components/SavedFoodPulse';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
@@ -59,7 +61,7 @@ type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
 
 // Background decoration
-function BackgroundDecoration() {
+const BackgroundDecoration = React.memo(function BackgroundDecoration() {
   return (
     <View style={styles.decorationContainer}>
       <Svg width={200} height={200} viewBox="0 0 200 200">
@@ -69,10 +71,9 @@ function BackgroundDecoration() {
       </Svg>
     </View>
   );
-}
+});
 
-// Empty state illustration
-function EmptyIllustration() {
+const EmptyIllustration = React.memo(function EmptyIllustration() {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -109,10 +110,9 @@ function EmptyIllustration() {
       </Svg>
     </Animated.View>
   );
-}
+});
 
-// Search bar component
-function SearchBar({
+const SearchBar = React.memo(function SearchBar({
   value,
   onChangeText,
   listColor,
@@ -164,10 +164,9 @@ function SearchBar({
       </View>
     </View>
   );
-}
+});
 
-// Filter menu component
-function FilterMenu({
+const FilterMenu = React.memo(function FilterMenu({
   categories,
   selectedCategory,
   onCategorySelect,
@@ -380,10 +379,9 @@ function FilterMenu({
       )}
     </View>
   );
-}
+});
 
-// Food Card with image placeholder and status indicator
-function FoodItemCard({
+const FoodItemCard = React.memo(function FoodItemCard({
   item,
   onConsumed,
   onThrown,
@@ -555,14 +553,14 @@ function FoodItemCard({
       )}
     </View>
   );
-}
+});
 
 export default function InventoryListScreen() {
   const { t } = useTranslation();
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodConsumed, trackFoodThrown } = useGamification();
-  const { incrementActionCount, showRewardedAd, isRewardedAdReady, isRewardedAdLoading, retryLoadRewardedAd, needsConsent, requestConsent } = useAds();
+  const { incrementActionCount } = useAds();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const { user } = useAuth();
@@ -578,6 +576,7 @@ export default function InventoryListScreen() {
   const [selectedItemQuantity, setSelectedItemQuantity] = useState<number>(1);
   const [quantityModalVisible, setQuantityModalVisible] = useState(false);
   const [quantityActionType, setQuantityActionType] = useState<'consumed' | 'thrown' | 'opened'>('consumed');
+  const [showSavedPulse, setShowSavedPulse] = useState(false);
 
   // Multi-selection states
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -587,7 +586,7 @@ export default function InventoryListScreen() {
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [receiptUnlockModalVisible, setReceiptUnlockModalVisible] = useState(false);
+
   const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
   const [scannedStoreName, setScannedStoreName] = useState<string | undefined>();
   const [scannedDate, setScannedDate] = useState<string | undefined>();
@@ -640,6 +639,8 @@ export default function InventoryListScreen() {
   useEffect(() => {
     if (!cloudListId) return;
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel(`list_${cloudListId}`)
       .on('postgres_changes', {
@@ -649,14 +650,15 @@ export default function InventoryListScreen() {
         filter: `list_id=eq.${cloudListId}`
       }, (payload) => {
         logger.debug('Changement détecté:', payload);
-        // Force reload from cloud to get items added by other users
-        loadListData(true);
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => loadListData(true), 500);
       })
       .subscribe((status) => {
         logger.debug('Status de la souscription:', status);
       });
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       logger.debug('Désinscription du channel');
       supabase.removeChannel(channel);
     };
@@ -875,6 +877,7 @@ export default function InventoryListScreen() {
 
       await updateItemStatusWithQuantity(listId, itemId, 'consumed', quantity);
       await loadListData();
+      setShowSavedPulse(true);
 
       // Tracker pour la gamification
       trackFoodConsumed(wasBeforeExpiration);
@@ -917,6 +920,7 @@ export default function InventoryListScreen() {
     } else if (quantityActionType === 'thrown') {
       markAsThrownDirect(selectedItemId, quantity);
     } else if (quantityActionType === 'opened') {
+      setSelectedItemQuantity(quantity);
       setMarkAsOpenedModalVisible(true);
     }
   };
@@ -925,7 +929,8 @@ export default function InventoryListScreen() {
     if (!selectedItemId) return;
 
     try {
-      if (selectedItemQuantity > 1) {
+      const totalQuantity = list?.items.find(i => i.id === selectedItemId)?.quantity || 1;
+      if (selectedItemQuantity < totalQuantity) {
         await markItemAsOpenedWithQuantity(listId, selectedItemId, openedDate, daysAfterOpening, selectedItemQuantity);
       } else {
         await markItemAsOpened(listId, selectedItemId, openedDate, daysAfterOpening);
@@ -976,42 +981,6 @@ export default function InventoryListScreen() {
     }
   };
 
-  // Handlers pour le modal unlock du scan de ticket
-  const handleWatchAdForReceiptScan = async () => {
-    setReceiptUnlockModalVisible(false);
-
-    try {
-      // Afficher la rewarded ad
-      const adShown = await showRewardedAd();
-
-      if (adShown) {
-        // Marquer le crédit comme utilisé
-        await markFreeReceiptScanAsUsed();
-
-        // Ouvrir le scanner de ticket
-        setReceiptScannerVisible(true);
-
-        Alert.alert(
-          t('common.success'),
-          'Vous pouvez maintenant scanner un ticket ! Ce crédit est valable jusqu\'à la fin du mois.',
-          [{ text: t('common.ok') }]
-        );
-      } else {
-        Alert.alert(
-          'Publicité non disponible',
-          'La publicité n\'a pas pu être affichée. Veuillez réessayer dans quelques instants.',
-          [{ text: t('common.ok') }]
-        );
-      }
-    } catch (error) {
-      logger.error('Erreur affichage rewarded ad:', error);
-      Alert.alert(
-        t('common.error'),
-        'Une erreur est survenue lors de l\'affichage de la publicité.',
-        [{ text: t('common.ok') }]
-      );
-    }
-  };
 
   const toggleFabMenu = () => {
     setFabMenuOpen(!fabMenuOpen);
@@ -1060,9 +1029,22 @@ export default function InventoryListScreen() {
         const item = activeItems.find(i => i.id === itemId);
         const quantity = item?.quantity || 1;
         await updateItemStatusWithQuantity(listId, itemId, 'consumed', quantity);
+
+        let wasBeforeExpiration = true;
+        if (item?.expirationDate) {
+          const days = getDaysUntilExpiration(item.expirationDate as string);
+          wasBeforeExpiration = days !== null && days >= 0;
+        }
+        trackFoodConsumed(wasBeforeExpiration);
+        analyticsTrackFoodConsumed({
+          category: item?.category,
+          daysBeforeExpiry: item?.expirationDate ? getDaysUntilExpiration(item.expirationDate as string) ?? undefined : undefined,
+        });
       }
+      incrementActionCount();
       exitSelectionMode();
       await loadListData();
+      setShowSavedPulse(true);
     } catch (error) {
       Alert.alert(t('common.error'), t('inventory.bulkConsumedError'));
     }
@@ -1074,7 +1056,14 @@ export default function InventoryListScreen() {
         const item = activeItems.find(i => i.id === itemId);
         const quantity = item?.quantity || 1;
         await updateItemStatusWithQuantity(listId, itemId, 'thrown', quantity);
+
+        trackFoodThrown();
+        analyticsTrackFoodThrown({
+          category: item?.category,
+          daysExpired: item?.expirationDate ? Math.abs(getDaysUntilExpiration(item.expirationDate as string) ?? 0) : undefined,
+        });
       }
+      incrementActionCount();
       exitSelectionMode();
       await loadListData();
     } catch (error) {
@@ -1175,21 +1164,31 @@ export default function InventoryListScreen() {
     setDetailModalVisible(true);
   };
 
-  const renderItem = ({ item }: { item: FoodItem }) => (
+  const stableHandleConsumed = useCallback((item: FoodItem) => handleMarkAsConsumed(item), [list]);
+  const stableHandleThrown = useCallback((item: FoodItem) => handleMarkAsThrown(item), [list]);
+  const stableHandleOpened = useCallback((item: FoodItem) => handleOpenMarkAsOpenedModal(item), []);
+  const stableHandleMenu = useCallback((item: FoodItem) => handleOpenMenu(item), []);
+  const stableHandleCardPress = useCallback((item: FoodItem) => handleCardPress(item), []);
+  const stableToggleSelect = useCallback((id: string) => toggleItemSelection(id), []);
+  const stableEnterSelect = useCallback((id: string) => enterSelectionMode(id), []);
+
+  const renderItem = useCallback(({ item }: { item: FoodItem }) => (
     <FoodItemCard
       item={item}
-      onConsumed={() => handleMarkAsConsumed(item)}
-      onThrown={() => handleMarkAsThrown(item)}
-      onMarkAsOpened={() => handleOpenMarkAsOpenedModal(item)}
-      onMenuPress={() => handleOpenMenu(item)}
-      onCardPress={() => handleCardPress(item)}
+      onConsumed={() => stableHandleConsumed(item)}
+      onThrown={() => stableHandleThrown(item)}
+      onMarkAsOpened={() => stableHandleOpened(item)}
+      onMenuPress={() => stableHandleMenu(item)}
+      onCardPress={() => stableHandleCardPress(item)}
       listColor={listColor}
       isSelectionMode={isSelectionMode}
       isSelected={selectedItems.has(item.id)}
-      onToggleSelect={() => toggleItemSelection(item.id)}
-      onLongPress={() => enterSelectionMode(item.id)}
+      onToggleSelect={() => stableToggleSelect(item.id)}
+      onLongPress={() => stableEnterSelect(item.id)}
     />
-  );
+  ), [listColor, isSelectionMode, selectedItems, stableHandleConsumed, stableHandleThrown, stableHandleOpened, stableHandleMenu, stableHandleCardPress, stableToggleSelect, stableEnterSelect]);
+
+  const keyExtractor = useCallback((item: FoodItem) => item.id, []);
 
   if (!list) {
     return (
@@ -1249,10 +1248,14 @@ export default function InventoryListScreen() {
       <FlatList
         data={filteredItems}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
         ListEmptyComponent={
           <Animated.View style={[styles.emptyState, { opacity: searchQuery ? 1 : emptyFade }]}>
             {searchQuery ? (
@@ -1371,20 +1374,22 @@ export default function InventoryListScreen() {
             <PressableScale
               onPress={async () => {
                 setFabMenuOpen(false);
-                if (isPremium) {
-                  // Utilisateur Premium → Accès direct
-                  setReceiptScannerVisible(true);
-                } else {
-                  // Utilisateur gratuit → Vérifier le crédit
-                  const hasUsedCredit = await hasUsedFreeReceiptScanThisMonth();
-                  if (hasUsedCredit) {
-                    // Crédit déjà utilisé ce mois → Paywall
-                    setPaywallVisible(true);
-                  } else {
-                    // Crédit disponible → Proposer de regarder une pub
-                    setReceiptUnlockModalVisible(true);
-                  }
+                if (!user) {
+                  setPaywallVisible(true);
+                  return;
                 }
+                const { allowed, source } = await canScanReceipt(user.id, isPremium);
+                if (!allowed) {
+                  setPaywallVisible(true);
+                  return;
+                }
+                if (source === 'monthly_free') {
+                  await markFreeReceiptScanAsUsed(user?.id ?? null);
+                } else if (source === 'bonus') {
+                  await useBonusScan(user.id);
+                  trackBonusScanUsed();
+                }
+                setReceiptScannerVisible(true);
               }}
               style={[styles.fabSecondary, { backgroundColor: COLORS.status.indigo }]}
               hapticType="medium"
@@ -1613,12 +1618,25 @@ export default function InventoryListScreen() {
                       <Text style={styles.detailInfoValue}>x{detailSelectedItem.quantity || 1}</Text>
                     </View>
 
+                    {/* Weight / Unit */}
+                    {detailSelectedItem.weight != null && detailSelectedItem.weight > 0 && (
+                      <View style={styles.detailInfoRow}>
+                        <View style={styles.detailInfoLabel}>
+                          <Ionicons name="scale-outline" size={20} color={COLORS.text.secondary} />
+                          <Text style={styles.detailInfoLabelText}>{t('addFood.volume')}</Text>
+                        </View>
+                        <Text style={styles.detailInfoValue}>
+                          {detailSelectedItem.weight} {detailSelectedItem.unit || 'g'}
+                        </Text>
+                      </View>
+                    )}
+
                     {/* Price */}
                     {detailSelectedItem.price !== undefined && detailSelectedItem.price > 0 && (
                       <View style={styles.detailInfoRow}>
                         <View style={styles.detailInfoLabel}>
                           <Ionicons name="pricetag-outline" size={20} color={COLORS.text.secondary} />
-                          <Text style={styles.detailInfoLabelText}>Prix</Text>
+                          <Text style={styles.detailInfoLabelText}>{t('addFood.totalPrice')}</Text>
                         </View>
                         <Text style={styles.detailInfoValue}>
                           {detailSelectedItem.price.toFixed(2).replace('.', ',')} €
@@ -1631,7 +1649,7 @@ export default function InventoryListScreen() {
                       <View style={styles.detailInfoRow}>
                         <View style={styles.detailInfoLabel}>
                           <Ionicons name="calendar-outline" size={20} color={COLORS.text.secondary} />
-                          <Text style={styles.detailInfoLabelText}>Date de péremption</Text>
+                          <Text style={styles.detailInfoLabelText}>{t('addFood.expirationDate')}</Text>
                         </View>
                         <Text style={[styles.detailInfoValue, { color: statusColor, fontWeight: '700' }]}>
                           {detailSelectedItem.expirationDate}
@@ -1645,16 +1663,16 @@ export default function InventoryListScreen() {
                         <View style={styles.detailInfoRow}>
                           <View style={styles.detailInfoLabel}>
                             <Ionicons name="open-outline" size={20} color={COLORS.text.secondary} />
-                            <Text style={styles.detailInfoLabelText}>Statut</Text>
+                            <Text style={styles.detailInfoLabelText}>{t('inventory.status')}</Text>
                           </View>
-                          <Text style={styles.detailInfoValue}>Ouvert</Text>
+                          <Text style={styles.detailInfoValue}>{t('inventory.opened')}</Text>
                         </View>
 
                         {detailSelectedItem.openedDate && (
                           <View style={styles.detailInfoRow}>
                             <View style={styles.detailInfoLabel}>
                               <Ionicons name="time-outline" size={20} color={COLORS.text.secondary} />
-                              <Text style={styles.detailInfoLabelText}>Date d'ouverture</Text>
+                              <Text style={styles.detailInfoLabelText}>{t('addFood.openDate')}</Text>
                             </View>
                             <Text style={styles.detailInfoValue}>{detailSelectedItem.openedDate}</Text>
                           </View>
@@ -1664,10 +1682,10 @@ export default function InventoryListScreen() {
                           <View style={styles.detailInfoRow}>
                             <View style={styles.detailInfoLabel}>
                               <Ionicons name="hourglass-outline" size={20} color={COLORS.text.secondary} />
-                              <Text style={styles.detailInfoLabelText}>Durée après ouverture</Text>
+                              <Text style={styles.detailInfoLabelText}>{t('addFood.consumeWithin')}</Text>
                             </View>
                             <Text style={styles.detailInfoValue}>
-                              {detailSelectedItem.daysAfterOpening} jour{detailSelectedItem.daysAfterOpening > 1 ? 's' : ''}
+                              {detailSelectedItem.daysAfterOpening} {t('common.days')}
                             </Text>
                           </View>
                         )}
@@ -1687,7 +1705,7 @@ export default function InventoryListScreen() {
                       activeScale={0.96}
                     >
                       <Ionicons name="checkmark-circle" size={22} color={COLORS.neutral.white} />
-                      <Text style={styles.detailActionButtonText}>Consommé</Text>
+                      <Text style={styles.detailActionButtonText}>{t('inventory.consumed')}</Text>
                     </PressableScale>
 
                     <PressableScale
@@ -1700,7 +1718,7 @@ export default function InventoryListScreen() {
                       activeScale={0.96}
                     >
                       <Ionicons name="trash" size={20} color={COLORS.neutral.white} />
-                      <Text style={styles.detailActionButtonText}>Jeter</Text>
+                      <Text style={styles.detailActionButtonText}>{t('inventory.throw')}</Text>
                     </PressableScale>
                   </View>
                 </>
@@ -1710,20 +1728,6 @@ export default function InventoryListScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* Paywall Modal */}
-      {/* Receipt Scan Unlock Modal */}
-      <ReceiptScanUnlockModal
-        visible={receiptUnlockModalVisible}
-        onClose={() => setReceiptUnlockModalVisible(false)}
-        onWatchAd={handleWatchAdForReceiptScan}
-        onUpgradeToPro={() => setPaywallVisible(true)}
-        isRewardedAdReady={isRewardedAdReady}
-        isRewardedAdLoading={isRewardedAdLoading}
-        onRetryLoadAd={retryLoadRewardedAd}
-        needsConsent={needsConsent}
-        onRequestConsent={requestConsent}
-      />
 
       <PaywallModal
         visible={paywallVisible}
@@ -1753,6 +1757,11 @@ export default function InventoryListScreen() {
         listColor={listColor}
         isOwner={myPermission === 'owner'}
         onLeft={() => navigation.goBack()}
+      />
+
+      <SavedFoodPulse
+        visible={showSavedPulse}
+        onDone={() => setShowSavedPulse(false)}
       />
 
     </View>

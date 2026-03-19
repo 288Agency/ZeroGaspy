@@ -13,8 +13,8 @@ const LISTS_KEY = 'inventory_lists';
 const ALLOWED_KEYS = [LISTS_KEY, 'notification_settings', 'last_notification_check', 'supabase_'];
 
 // Convertit une date DD/MM/YYYY en ISO YYYY-MM-DD pour PostgreSQL
-function convertDateForCloud(dateStr: string | undefined): string {
-  if (!dateStr || dateStr.trim() === '') return new Date().toISOString().split('T')[0];
+function convertDateForCloud(dateStr: string | undefined): string | null {
+  if (!dateStr || dateStr.trim() === '') return null;
   // Si déjà au format ISO (YYYY-MM-DD)
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
     return dateStr.split('T')[0];
@@ -25,7 +25,7 @@ function convertDateForCloud(dateStr: string | undefined): string {
     const [day, month, year] = parts;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
-  return new Date().toISOString().split('T')[0];
+  return null;
 }
 
 // Récupère l'ID utilisateur connecté (null si mode local)
@@ -216,14 +216,16 @@ export async function addItemToList(listId: string, item: FoodItem): Promise<voi
     list_id: listId,
     name: item.name,
     expiration_date: convertDateForCloud(item.expirationDate),
-    quantity: item.quantity || 1,
-    category: item.category || null,
-    image_uri: item.imageUri || null,
-    price: item.price || null,
+    quantity: item.quantity ?? 1,
+    weight: item.weight ?? null,
+    unit: item.unit ?? null,
+    category: item.category ?? null,
+    image_uri: item.imageUri ?? null,
+    price: item.price ?? null,
     status: item.status || 'active',
     is_opened: item.isOpened || false,
     opened_date: convertDateForCloud(item.openedDate),
-    days_after_opening: item.daysAfterOpening || null,
+    days_after_opening: item.daysAfterOpening ?? null,
     local_id: item.id,
   });
 }
@@ -241,14 +243,16 @@ export async function updateItem(listId: string, itemId: string, updates: Partia
   // Convertir les updates pour le cloud
   const cloudUpdates: Record<string, any> = {};
   if (updates.name !== undefined) cloudUpdates.name = updates.name;
-  if (updates.expirationDate !== undefined) cloudUpdates.expiration_date = updates.expirationDate;
+  if (updates.expirationDate !== undefined) cloudUpdates.expiration_date = convertDateForCloud(updates.expirationDate);
   if (updates.quantity !== undefined) cloudUpdates.quantity = updates.quantity;
+  if (updates.weight !== undefined) cloudUpdates.weight = updates.weight ?? null;
+  if (updates.unit !== undefined) cloudUpdates.unit = updates.unit ?? null;
   if (updates.category !== undefined) cloudUpdates.category = updates.category;
   if (updates.imageUri !== undefined) cloudUpdates.image_uri = updates.imageUri;
   if (updates.price !== undefined) cloudUpdates.price = updates.price;
   if (updates.status !== undefined) cloudUpdates.status = updates.status;
   if (updates.isOpened !== undefined) cloudUpdates.is_opened = updates.isOpened;
-  if (updates.openedDate !== undefined) cloudUpdates.opened_date = updates.openedDate;
+  if (updates.openedDate !== undefined) cloudUpdates.opened_date = convertDateForCloud(updates.openedDate);
   if (updates.daysAfterOpening !== undefined) cloudUpdates.days_after_opening = updates.daysAfterOpening;
 
   // Sync avec le cloud
@@ -280,9 +284,10 @@ export async function updateItemStatus(
   const item = lists[listIndex].items[itemIndex!];
   item.status = status;
 
-  // Ajouter timestamp quand l'item est consommé ou jeté (pour calcul économies)
   if (status === 'consumed' || status === 'thrown') {
     item.consumedAt = new Date().toISOString();
+  } else {
+    item.consumedAt = undefined;
   }
 
   await saveLists(lists);
@@ -290,7 +295,7 @@ export async function updateItemStatus(
   // Sync avec le cloud
   await triggerCloudSync('UPDATE', 'food_items', itemId, {
     status,
-    consumed_at: item.consumedAt,
+    consumed_at: item.consumedAt ?? null,
   });
 }
 
@@ -342,12 +347,23 @@ export async function updateItemStatusWithQuantity(
       consumed_at: timestamp,
     });
   } else {
+    const originalPrice = item.price;
+    const splitPrice = originalPrice != null
+      ? Math.round((originalPrice / currentQuantity) * quantityToMark * 100) / 100
+      : undefined;
+    const remainingPrice = originalPrice != null
+      ? Math.round((originalPrice - (splitPrice ?? 0)) * 100) / 100
+      : undefined;
+
     item.quantity = currentQuantity - quantityToMark;
+    if (remainingPrice != null) item.price = remainingPrice;
+
     const newItemId = `${item.id}-${status}-${Date.now()}`;
     const newItem = {
       ...item,
       id: newItemId,
       quantity: quantityToMark,
+      price: splitPrice,
       status,
       consumedAt: timestamp,
     };
@@ -355,9 +371,10 @@ export async function updateItemStatusWithQuantity(
 
     await saveLists(lists);
 
-    // Sync la mise à jour de quantité de l'item original
+    // Sync la mise à jour de quantité et prix de l'item original
     await triggerCloudSync('UPDATE', 'food_items', itemId, {
       quantity: item.quantity,
+      price: item.price ?? null,
     });
 
     // Sync le nouvel item créé
@@ -366,13 +383,15 @@ export async function updateItemStatusWithQuantity(
       name: newItem.name,
       expiration_date: convertDateForCloud(newItem.expirationDate),
       quantity: quantityToMark,
-      category: newItem.category || null,
-      image_uri: newItem.imageUri || null,
-      price: newItem.price || null,
+      weight: newItem.weight ?? null,
+      unit: newItem.unit ?? null,
+      category: newItem.category ?? null,
+      image_uri: newItem.imageUri ?? null,
+      price: newItem.price ?? null,
       status,
       is_opened: newItem.isOpened || false,
       opened_date: convertDateForCloud(newItem.openedDate),
-      days_after_opening: newItem.daysAfterOpening || null,
+      days_after_opening: newItem.daysAfterOpening ?? null,
       local_id: newItemId,
       consumed_at: timestamp,
     });
@@ -407,12 +426,23 @@ export async function markItemAsOpenedWithQuantity(
       expiration_date: convertDateForCloud(newExpirationDate),
     });
   } else {
+    const originalPrice = item.price;
+    const splitPrice = originalPrice != null
+      ? Math.round((originalPrice / currentQuantity) * quantityToOpen * 100) / 100
+      : undefined;
+    const remainingPrice = originalPrice != null
+      ? Math.round((originalPrice - (splitPrice ?? 0)) * 100) / 100
+      : undefined;
+
     item.quantity = currentQuantity - quantityToOpen;
+    if (remainingPrice != null) item.price = remainingPrice;
+
     const newItemId = `${item.id}-opened-${Date.now()}`;
     const newItem = {
       ...item,
       id: newItemId,
       quantity: quantityToOpen,
+      price: splitPrice,
       isOpened: true,
       openedDate,
       daysAfterOpening,
@@ -422,9 +452,10 @@ export async function markItemAsOpenedWithQuantity(
 
     await saveLists(lists);
 
-    // Sync la mise à jour de quantité de l'item original
+    // Sync la mise à jour de quantité et prix de l'item original
     await triggerCloudSync('UPDATE', 'food_items', itemId, {
       quantity: item.quantity,
+      price: item.price ?? null,
     });
 
     // Sync le nouvel item créé
@@ -433,9 +464,11 @@ export async function markItemAsOpenedWithQuantity(
       name: newItem.name,
       expiration_date: convertDateForCloud(newExpirationDate),
       quantity: quantityToOpen,
-      category: newItem.category || null,
-      image_uri: newItem.imageUri || null,
-      price: newItem.price || null,
+      weight: newItem.weight ?? null,
+      unit: newItem.unit ?? null,
+      category: newItem.category ?? null,
+      image_uri: newItem.imageUri ?? null,
+      price: newItem.price ?? null,
       status: newItem.status || 'active',
       is_opened: true,
       opened_date: convertDateForCloud(openedDate),

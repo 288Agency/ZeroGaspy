@@ -39,10 +39,13 @@ import {
   getExportStats,
   cleanupOldExports,
 } from '../services/exportService';
+import { syncNotificationPrefsToCloud } from '../services/notificationPreferencesSync';
 import * as StoreReview from 'expo-store-review';
 import { useTranslation } from 'react-i18next';
 import logger from '../utils/logger';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import { getReferralInfo, shareReferralLink, ReferralInfo } from '../services/referralService';
+import { trackReferralCodeShared } from '../services/analytics';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -73,6 +76,7 @@ export default function AccountScreen() {
   const [isExporting, setIsExporting] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
 
   const loadData = async () => {
     try {
@@ -83,10 +87,12 @@ export default function AccountScreen() {
       setNotificationSettings(settings);
       setExportStats(stats);
 
-      // Charger le nombre de changements en attente
       if (user?.id) {
         const pending = await getPendingChangesCount(user.id);
         setPendingChanges(pending);
+
+        const refInfo = await getReferralInfo(user.id);
+        setReferralInfo(refInfo);
       }
     } catch (error) {
       logger.error('Erreur lors du chargement:', error);
@@ -147,18 +153,27 @@ export default function AccountScreen() {
     const newSettings = { ...notificationSettings, enabled: value };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
+    if (user?.id) {
+      syncNotificationPrefsToCloud(user.id, newSettings);
+    }
   };
 
   const handleToggleDailyReminder = async (value: boolean) => {
     const newSettings = { ...notificationSettings, dailyReminder: value };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
+    if (user?.id) {
+      syncNotificationPrefsToCloud(user.id, newSettings);
+    }
   };
 
   const handleChangeDaysBeforeExpiration = async (days: number) => {
     const newSettings = { ...notificationSettings, daysBeforeExpiration: days };
     setNotificationSettings(newSettings);
     await saveNotificationSettings(newSettings);
+    if (user?.id) {
+      syncNotificationPrefsToCloud(user.id, newSettings);
+    }
   };
 
   const handleExportJSON = async () => {
@@ -393,6 +408,9 @@ export default function AccountScreen() {
                     <Text style={styles.streakText}>
                       🌱 {gamificationData?.streaks.currentNoWaste || 0}{t('common.dayShort')}
                     </Text>
+                    <Text style={styles.streakText}>
+                      🛡️ {gamificationData?.streakFreezes?.available ?? 0}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -419,6 +437,50 @@ export default function AccountScreen() {
             </View>
           </PressableScale>
         </View>
+
+        {/* Section Parrainage */}
+        {user && referralInfo?.code && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('account.sectionReferral')}
+            </Text>
+
+            <View style={styles.sectionCard}>
+              <View style={styles.referralCodeBox}>
+                <Text style={styles.referralCodeLabel}>{t('referral.yourCode')}</Text>
+                <Text style={styles.referralCodeValue}>{referralInfo.code}</Text>
+              </View>
+
+              <View style={styles.referralStatsRow}>
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>{referralInfo.referralCount}/5</Text>
+                  <Text style={styles.referralStatLabel}>{t('referral.referrals')}</Text>
+                </View>
+                <View style={styles.referralStatDivider} />
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>{referralInfo.bonusScansRemaining}</Text>
+                  <Text style={styles.referralStatLabel}>{t('referral.bonusScans')}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.referralDescription}>{t('referral.description')}</Text>
+
+              <PressableScale
+                onPress={async () => {
+                  if (referralInfo.code) {
+                    const shared = await shareReferralLink(referralInfo.code);
+                    if (shared) trackReferralCodeShared();
+                  }
+                }}
+                style={styles.referralShareButton}
+                hapticType="medium"
+              >
+                <Ionicons name="share-outline" size={20} color={COLORS.neutral.white} />
+                <Text style={styles.referralShareText}>{t('referral.inviteFriend')}</Text>
+              </PressableScale>
+            </View>
+          </View>
+        )}
 
         {/* Section Abonnement */}
         <View style={styles.section}>
@@ -1375,5 +1437,77 @@ const styles = StyleSheet.create({
     color: COLORS.primary[500],
     fontWeight: '600',
     fontSize: 14,
+  },
+
+  // Referral section
+  referralCodeBox: {
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.15),
+    borderStyle: 'dashed',
+  },
+  referralCodeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: SPACING.xs,
+  },
+  referralCodeValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.primary[500],
+    letterSpacing: 2,
+  },
+  referralStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  referralStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  referralStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  referralStatLabel: {
+    fontSize: 12,
+    color: COLORS.text.muted,
+    marginTop: 2,
+  },
+  referralStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.15),
+  },
+  referralDescription: {
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: SPACING.lg,
+  },
+  referralShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+    ...SHADOWS.colored(COLORS.primary[500], 0.3),
+  },
+  referralShareText: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

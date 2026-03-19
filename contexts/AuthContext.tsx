@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, InteractionManager } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +21,9 @@ import {
   trackAuthSkipped as analyticsTrackAuthSkipped,
   resetAnalytics,
 } from '../services/analytics';
+import { deactivatePushTokens } from '../services/pushTokenService';
+import { initCloudNotificationPrefs } from '../services/notificationPreferencesSync';
+import { savePendingReferralCode, completeReferral, syncBonusScanCredits } from '../services/referralService';
 
 const SKIP_AUTH_KEY = 'skip_auth_preference';
 
@@ -31,7 +34,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLocalMode: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName?: string, referralCode?: string) => Promise<{ error: Error | null }>;
   signInWithApple: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
@@ -76,27 +79,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initAuth();
 
-    // Ecouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         logger.debug('Auth state changed:', event);
-
-        // Pour SIGNED_IN : migrer et synchroniser depuis le cloud AVANT de mettre à jour la session
-        // Cela garantit que les données sont dans AsyncStorage quand les écrans se montent
-        if (event === 'SIGNED_IN' && session?.user) {
-          try {
-            await migrateLocalDataToCloud(session.user.id);
-            await syncWithCloud(session.user.id);
-            // Supprimer la préférence "Passer" car l'utilisateur s'est connecté
-            await AsyncStorage.removeItem(SKIP_AUTH_KEY);
-            setSkippedAuth(false);
-          } catch (error) {
-            logger.error('Erreur sync au login:', error);
-          }
-        }
 
         setSession(session);
         setUser(session?.user ?? null);
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          const userId = session.user.id;
+          InteractionManager.runAfterInteractions(async () => {
+            try {
+              await migrateLocalDataToCloud(userId);
+              await syncWithCloud(userId);
+              await initCloudNotificationPrefs(userId);
+              await completeReferral(userId);
+              await syncBonusScanCredits(userId);
+              await AsyncStorage.removeItem(SKIP_AUTH_KEY);
+              setSkippedAuth(false);
+            } catch (error) {
+              logger.error('Erreur sync au login:', error);
+            }
+          });
+        }
       }
     );
 
@@ -138,7 +143,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string, fullName?: string, referralCode?: string) => {
     try {
       // Rate limiting
       const rateLimit = checkSignupRateLimit();
@@ -185,6 +190,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Reset rate limit on success
       resetRateLimit('signup');
       analyticsTrackAccountCreated('email');
+
+      if (referralCode?.trim()) {
+        await savePendingReferralCode(referralCode.trim());
+      }
+
       return { error: null };
     } catch (error: any) {
       return { error: new Error(error.message || 'Erreur lors de l\'inscription') };
@@ -248,6 +258,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
+      // Deactivate push tokens before signing out
+      if (user?.id) {
+        await deactivatePushTokens(user.id);
+      }
       await supabase.auth.signOut();
       await AsyncStorage.removeItem(SKIP_AUTH_KEY);
       setSkippedAuth(false);

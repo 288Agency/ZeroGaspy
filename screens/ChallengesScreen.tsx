@@ -307,10 +307,12 @@ function ChallengeCard({
 
 function HistoryRow({ entry, index }: { entry: WeeklyHistory; index: number }) {
   const { t } = useTranslation();
+  const { start, end } = getWeekDateRange(entry.weekKey);
+  const label = `${formatDate(start)} - ${formatDate(end)}`;
 
   return (
     <View style={[styles.historyRow, index > 0 && styles.historyRowBorder]}>
-      <Text style={styles.historyWeek}>{entry.weekKey}</Text>
+      <Text style={styles.historyWeek}>{label}</Text>
       <View style={styles.historyStats}>
         <Text style={styles.historyCompleted}>
           {entry.completedCount}/3

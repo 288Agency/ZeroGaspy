@@ -144,6 +144,37 @@ export function trackOcrUsed(success: boolean) {
   track('ocr_used', { success });
 }
 
+// Proactive recipe card
+export function trackProactiveRecipeTapped(recipeId: string, recipeName: string, matchPercentage: number) {
+  track('proactive_recipe_tapped', { recipe_id: recipeId, recipe_name: recipeName, match_percentage: matchPercentage });
+}
+
+// Active onboarding
+export function trackOnboardingFoodAdded(count: number) {
+  track('onboarding_food_added', { count });
+}
+
+export function trackOnboardingRecipeViewed() {
+  track('onboarding_recipe_viewed');
+}
+
+export function trackOnboardingStepCompleted(step: string) {
+  track('onboarding_step_completed', { step });
+}
+
+// Referral
+export function trackReferralCodeShared() {
+  track('referral_code_shared');
+}
+
+export function trackReferralCompleted(referrerId: string) {
+  track('referral_completed', { referrer_id: referrerId });
+}
+
+export function trackBonusScanUsed() {
+  track('bonus_scan_used');
+}
+
 // ── Cleanup ─────────────────────────────────────────────────────
 
 export async function shutdownAnalytics() {

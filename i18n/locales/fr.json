@@ -74,7 +74,11 @@
     "hello": "Bonjour !",
     "logoAccessibility": "Logo ZeroGaspy",
     "sendFeedback": "Envoyer un feedback",
-    "loadListsError": "Impossible de charger vos listes. Veuillez réessayer."
+    "loadListsError": "Impossible de charger vos listes. Veuillez réessayer.",
+    "tonightCook": "Ce soir, cuisinez !",
+    "expiresInDays": "expire dans {{count}} jour",
+    "expiresInDays_plural": "expire dans {{count}} jours",
+    "expiresInDays_zero": "expire aujourd'hui"
   },
   "lists": {
     "title": "Mes Listes",
@@ -254,6 +258,7 @@
     "nameRequired": "Veuillez entrer un nom d'aliment",
     "editError": "Impossible de modifier l'aliment",
     "addError": "Impossible d'ajouter l'aliment",
+    "dateDetected": "Date détectée",
     "permissionRequired": "Permission requise",
     "permissionText": "Nous avons besoin de votre permission pour accéder à vos photos.",
     "selectImage": "Sélectionner une image",
@@ -431,6 +436,7 @@
     "user": "Utilisateur",
     "sectionAccount": "👤 Compte",
     "sectionAchievements": "🏆 Mes Succès",
+    "sectionReferral": "🎁 Parrainage",
     "sectionSubscription": "⭐ Mon Abonnement",
     "sectionNotifications": "🔔 Notifications",
     "sectionExport": "💾 Export des données",
@@ -500,6 +506,17 @@
     "feedbackError": "Impossible d'envoyer le feedback",
     "enterMessage": "Veuillez entrer votre message"
   },
+  "referral": {
+    "yourCode": "Votre code parrain",
+    "referrals": "Parrainages",
+    "bonusScans": "Scans bonus",
+    "description": "Parrainez un ami et recevez chacun 1 scan de ticket gratuit. Vous pouvez parrainer jusqu'à 5 personnes.",
+    "inviteFriend": "Inviter un ami",
+    "shareMessage": "Rejoins ZeroGaspy, l'app anti-gaspillage ! Utilise mon code {{code}} pour obtenir un scan de ticket gratuit.",
+    "homeTitle": "Invite tes amis",
+    "homeSubtitle": "Gagne des scans bonus pour chaque ami inscrit",
+    "homeCta": "Inviter"
+  },
   "gamification": {
     "title": "Mes Succès",
     "level": "Niveau",
@@ -510,7 +527,10 @@
     "achievements": "Badges",
     "locked": "Verrouillé",
     "unlocked": "Débloqué",
-    "progress": "Progression"
+    "progress": "Progression",
+    "streakFreezeUsed": "Streak protégé !",
+    "streakFreezeAvailable": "{{count}} streak freeze dispo",
+    "streakFreezePremium": "Illimité avec Premium"
   },
   "onboarding": {
     "welcome": "Bienvenue sur ZeroGaspy",
@@ -537,7 +557,45 @@
     "of": "sur",
     "fridge": "Frigo",
     "cupboard": "Placard",
-    "freezer": "Congélo"
+    "freezer": "Congélo",
+    "activeWelcomeTitle": "Bienvenue sur\nZeroGaspy",
+    "activeWelcomeSubtitle": "Ajoutez votre premier aliment et découvrez comment réduire le gaspillage !",
+    "addFirstFood": "Ajoutez votre premier aliment",
+    "foodNamePlaceholder": "Ex : Tomates, Lait, Poulet...",
+    "foodName": "Nom de l'aliment",
+    "category": "Catégorie",
+    "expiresIn": "Expire dans",
+    "threeDays": "3 jours",
+    "oneWeek": "1 semaine",
+    "twoWeeks": "2 semaines",
+    "oneMonth": "1 mois",
+    "customDate": "Personnalisé",
+    "addFood": "Ajouter",
+    "foodAdded": "Ajouté !",
+    "addAnother": "Ajouter un autre",
+    "seeRecipes": "Voir les recettes",
+    "recipesForYou": "Recettes pour vous",
+    "recipesDescription": "Voici des recettes qui utilisent vos aliments",
+    "noRecipesTitle": "On va trouver !",
+    "noRecipesMessage": "Ajoutez plus d'aliments pour débloquer des recettes personnalisées. Votre frigo sera bientôt plein d'inspiration !",
+    "readyTitle": "Tout est prêt !",
+    "readySubtitle": "Votre frigo est configuré.\nExplorez l'app et continuez à ajouter vos aliments.",
+    "exploreApp": "Explorer l'app",
+    "defaultListName": "Mon Frigo",
+    "itemsAdded": "{{count}} aliment ajouté",
+    "itemsAdded_plural": "{{count}} aliments ajoutés",
+    "ahaMoment": "Premier aliment sauvé ! Tu viens peut-être d'éviter ~0.30€ de gaspillage 🌱",
+    "matching": "{{percent}}% de match",
+    "missingCount": "{{count}} ingrédient manquant",
+    "missingCount_plural": "{{count}} ingrédients manquants",
+    "categoryFruits": "Fruits",
+    "categoryVegetables": "Légumes",
+    "categoryMeat": "Viande",
+    "categoryDairy": "Produits laitiers",
+    "categoryBakery": "Boulangerie",
+    "categoryGrocery": "Épicerie",
+    "categoryFrozen": "Surgelés",
+    "categoryOther": "Autre"
   },
   "auth": {
     "login": "Connexion",
@@ -588,6 +646,8 @@
     "passwordStrong": "Fort",
     "passwordHint": "Requis: majuscule, minuscule, chiffre, 8+ caractères",
     "passwordInvalid": "Mot de passe invalide",
+    "referralCodeLabel": "Code parrain (optionnel)",
+    "referralCodePlaceholder": "Ex: ZERO-ABCD",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "forgotPasswordTitle": "Mot de passe oublié ?",
     "forgotPasswordDesc": "Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
@@ -938,7 +998,10 @@
       "addVaried3": "Multi-Espaces",
       "streak5": "Série en Cours",
       "noThrow3": "Début Prometteur",
-      "allActions": "Touche-à-tout"
+      "allActions": "Touche-à-tout",
+      "addVaried5": "Maître des Listes",
+      "recipes15": "Chef Passionné",
+      "noThrow7": "Semaine Parfaite"
     },
     "descriptions": {
       "zeroWasteWeek": "Ne jetez aucun aliment cette semaine",
@@ -955,7 +1018,10 @@
       "addVaried3": "Ajoutez des aliments dans 3 listes différentes",
       "streak5": "Maintenez une série de 5 jours consécutifs",
       "noThrow3": "3 jours consécutifs sans gaspillage",
-      "allActions": "Faites les 4 actions (ajouter, consommer, recette, lister) cette semaine"
+      "allActions": "Faites les 4 actions (ajouter, consommer, recette, lister) cette semaine",
+      "addVaried5": "Ajoutez des aliments dans 5 listes différentes",
+      "recipes15": "Consultez 15 recettes cette semaine",
+      "noThrow7": "7 jours consécutifs sans gaspillage"
     }
   },
   "loadingOverlay": {
@@ -1005,5 +1071,18 @@
     "scanBarcode": "Scanner le code-barres",
     "productNotFound": "Produit non trouvé dans la base de données",
     "searchError": "Erreur lors de la recherche du produit"
+  },
+  "weeklyRecap": {
+    "title": "Ton récap de la semaine",
+    "itemsSaved": "{{count}} aliment sauvé",
+    "itemsSaved_plural": "{{count}} aliments sauvés",
+    "itemsThrown": "{{count}} aliment gaspillé",
+    "itemsThrown_plural": "{{count}} aliments gaspillés",
+    "eurosSaved": "{{amount}}€ économisés",
+    "streak": "{{count}} jours de streak",
+    "share": "Partager mon récap",
+    "shareMessage": "Cette semaine sur ZeroGaspy : {{saved}} aliments sauvés, {{euros}}€ économisés ! Streak : {{streak}} jours 🌿",
+    "pushTitle": "Ton récap hebdo est prêt !",
+    "pushBody": "{{saved}} aliments sauvés, {{euros}}€ économisés cette semaine"
   }
 }

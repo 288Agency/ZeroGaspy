@@ -1,13 +1,14 @@
-import './i18n'; // Initialize i18n
+import './i18n';
+import i18n from './i18n';
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Alert, AppState } from 'react-native';
 import { NavigationContainer, NavigationState, createNavigationContainerRef } from '@react-navigation/native';
 import { RootStackParamList } from './types/navigation';
 import { getScreenFromNotificationData } from './utils/notificationNavigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
@@ -26,6 +27,7 @@ import {
   checkAndScheduleNotifications,
   addNotificationReceivedListener,
   addNotificationResponseListener,
+  scheduleWelcomeBackNotification,
 } from './services/notificationService';
 import { registerPushToken, updateLastOpenedAt } from './services/pushTokenService';
 import logger from './utils/logger';
@@ -216,10 +218,20 @@ function RootNavigator() {
       responseListener.current = addNotificationResponseListener((response) => {
         logger.info('Notification tapped:', response.notification.request.content.title);
         const data = response.notification.request.content.data as Record<string, unknown> | null;
-        const screen = getScreenFromNotificationData(data);
+        const dest = getScreenFromNotificationData(data);
         if (navigationRef.isReady()) {
-          // Type is already constrained to param-less routes — no cast needed
-          navigationRef.navigate(screen);
+          navigationRef.navigate(dest.screen as any, dest.params as any);
+        }
+      });
+
+      // Cold-start: l'app a été lancée via un tap sur une notification
+      Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (response) {
+          const data = response.notification.request.content.data as Record<string, unknown> | null;
+          const dest = getScreenFromNotificationData(data);
+          if (navigationRef.isReady()) {
+            navigationRef.navigate(dest.screen as any, dest.params as any);
+          }
         }
       });
     }
@@ -248,6 +260,7 @@ function RootNavigator() {
 
   const handleOnboardingComplete = () => {
     trackOnboardingCompleted();
+    scheduleWelcomeBackNotification(i18n.language);
     setShowOnboarding(false);
   };
 

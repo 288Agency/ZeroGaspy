@@ -9,7 +9,7 @@ export type AuthStackParamList = {
 
 // Stack principale de l'application
 export type RootStackParamList = {
-  Home: undefined;
+  Home: { showWeeklyRecap?: boolean } | undefined;
   Lists: undefined;
   CreateList: undefined;
   AddFood: { listId: string; editItem?: FoodItem };
@@ -17,7 +17,7 @@ export type RootStackParamList = {
   Account: undefined;
   ExpiringSoon: undefined;
   ThrownFoods: undefined;
-  Recipes: undefined;
+  Recipes: { ingredient?: string } | undefined;
   Stats: undefined;
   Challenges: undefined;
   ListMembers: { listId: string; listTitle: string; listColor?: string };

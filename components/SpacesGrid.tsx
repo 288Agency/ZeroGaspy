@@ -186,8 +186,8 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         </PressableScale>
       </View>
 
-      {/* Grid */}
-      {lists.length > 0 ? (
+      {/* Grid - personal + shared lists merged */}
+      {lists.length > 0 || sharedLists.length > 0 ? (
         <View style={styles.grid}>
           {lists.map((list, index) => {
             const activeCount = getActiveItemsCount(list);
@@ -266,6 +266,79 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
               </AnimatedListItem>
             );
           })}
+
+          {/* Shared lists - merged into same grid */}
+          {sharedLists.map((sl, index) => {
+            const slColor = sl.listColor || COLORS.primary[500];
+            const icon = (sl.listIcon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
+            return (
+              <AnimatedListItem
+                key={sl.shareId}
+                index={lists.length + index}
+                animationType="scale"
+                style={styles.cardWrapper}
+              >
+                <PressableScale
+                  onPress={() => handleSelectSharedList(sl)}
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: hexToRgba(slColor, 0.12),
+                      borderColor: hexToRgba(slColor, 0.25),
+                    },
+                  ]}
+                  hapticType="selection"
+                  activeScale={0.97}
+                  accessibilityLabel={sl.listTitle}
+                  accessibilityRole="button"
+                >
+                  {/* Icon with shared badge */}
+                  <View style={{ marginBottom: scaleSpacing(isSmallScreen ? 8 : 12) }}>
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: hexToRgba(slColor, 0.2) },
+                      ]}
+                    >
+                      <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
+                    </View>
+                    {/* Shared indicator badge */}
+                    <View style={[styles.sharedIconBadge, { backgroundColor: slColor }]}>
+                      <Ionicons name="people" size={scaleSize(10)} color={COLORS.neutral.white} />
+                    </View>
+                  </View>
+
+                  {/* Title */}
+                  <Text style={[styles.cardTitle, { color: slColor }]} numberOfLines={2}>
+                    {sl.listTitle}
+                  </Text>
+
+                  {/* Footer */}
+                  <View style={styles.cardFooter}>
+                    <View style={styles.countBadge}>
+                      {sl.ownerName && (
+                        <Text style={[styles.countLabel, { color: hexToRgba(slColor, 0.7) }]} numberOfLines={1}>
+                          {sl.ownerName}
+                        </Text>
+                      )}
+                    </View>
+                    {sl.permission === 'view' ? (
+                      <View style={styles.readOnlyBadge}>
+                        <Ionicons name="eye-outline" size={10} color={COLORS.text.muted} />
+                      </View>
+                    ) : (
+                      <View style={[styles.arrowCircle, { backgroundColor: hexToRgba(slColor, 0.15) }]}>
+                        <Ionicons name="chevron-forward" size={scaleSize(isSmallScreen ? 14 : 16)} color={slColor} />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Decorative dot */}
+                  <View style={[styles.decorativeDot, { backgroundColor: hexToRgba(slColor, 0.3) }]} />
+                </PressableScale>
+              </AnimatedListItem>
+            );
+          })}
         </View>
       ) : (
         /* Empty state */
@@ -283,62 +356,6 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
             <Ionicons name="add-circle-outline" size={scaleSize(isSmallScreen ? 18 : 20)} color={COLORS.neutral.white} />
             <Text style={styles.emptyButtonText}>{t('lists.createList')}</Text>
           </PressableScale>
-        </View>
-      )}
-
-      {/* Shared lists section */}
-      {user && sharedLists.length > 0 && (
-        <View style={styles.sharedSection}>
-          <Text style={styles.sharedSectionTitle}>{t('sharing.sharedWithMe')}</Text>
-          <View style={styles.grid}>
-            {sharedLists.map((sl, index) => {
-              const slColor = sl.listColor || COLORS.primary[500];
-              const icon = (sl.listIcon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
-              return (
-                <AnimatedListItem
-                  key={sl.shareId}
-                  index={index}
-                  animationType="scale"
-                  style={styles.cardWrapper}
-                >
-                  <PressableScale
-                    onPress={() => handleSelectSharedList(sl)}
-                    style={[
-                      styles.card,
-                      {
-                        backgroundColor: hexToRgba(slColor, 0.12),
-                        borderColor: hexToRgba(slColor, 0.25),
-                      },
-                    ]}
-                    hapticType="selection"
-                    activeScale={0.97}
-                  >
-                    <View style={[styles.iconContainer, { backgroundColor: hexToRgba(slColor, 0.2) }]}>
-                      <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
-                    </View>
-                    <Text style={[styles.cardTitle, { color: slColor }]} numberOfLines={2}>
-                      {sl.listTitle}
-                    </Text>
-                    <View style={styles.cardFooter}>
-                      <View style={styles.countBadge}>
-                        {sl.ownerName && (
-                          <Text style={[styles.countLabel, { color: hexToRgba(slColor, 0.7) }]}>
-                            {t('sharing.sharedBy', { name: sl.ownerName })}
-                          </Text>
-                        )}
-                      </View>
-                      {sl.permission === 'view' && (
-                        <View style={styles.readOnlyBadge}>
-                          <Ionicons name="eye-outline" size={10} color={COLORS.text.muted} />
-                        </View>
-                      )}
-                    </View>
-                    <View style={[styles.decorativeDot, { backgroundColor: hexToRgba(slColor, 0.3) }]} />
-                  </PressableScale>
-                </AnimatedListItem>
-              );
-            })}
-          </View>
         </View>
       )}
 
@@ -498,15 +515,17 @@ const styles = StyleSheet.create({
     color: COLORS.neutral.white,
     marginLeft: scaleSpacing(6),
   },
-  // Shared lists section
-  sharedSection: {
-    marginTop: scaleSpacing(isSmallScreen ? 16 : 24),
-  },
-  sharedSectionTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 18 : 22),
-    fontWeight: '700',
-    color: COLORS.primary[500],
-    marginBottom: scaleSpacing(isSmallScreen ? 10 : 14),
+  sharedIconBadge: {
+    position: 'absolute',
+    bottom: scaleSize(-3),
+    right: scaleSize(-3),
+    width: scaleSize(18),
+    height: scaleSize(18),
+    borderRadius: scaleSize(9),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.neutral.white,
   },
   readOnlyBadge: {
     backgroundColor: COLORS.neutral.gray100,

@@ -148,7 +148,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
           body: expiringToday.length === 1
             ? `${expiringToday[0].name} expire aujourd'hui`
             : `${expiringToday.length} aliments expirent aujourd'hui`,
-          data: { type: 'expiration_today' },
+          data: { type: 'expiration_today', foodName: expiringToday[0].name },
           sound: 'default',
         },
         trigger: {
@@ -204,7 +204,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
         body: items.length === 1
           ? `${items[0].name} (${items[0].listTitle})`
           : `${items.length} aliments arrivent à expiration`,
-        data: { type: 'expiration_warning', days },
+        data: { type: 'expiration_warning', days, foodName: items[0].name },
         sound: 'default',
       },
       trigger: {
@@ -238,6 +238,37 @@ export async function sendTestNotification(): Promise<void> {
       seconds: 2,
     },
   });
+}
+
+const WELCOME_BACK_NOTIF_KEY = 'welcome_back_notif_scheduled';
+
+export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Promise<void> {
+  try {
+    const alreadyScheduled = await AsyncStorage.getItem(WELCOME_BACK_NOTIF_KEY);
+    if (alreadyScheduled) return;
+
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) return;
+
+    const isEn = locale.startsWith('en');
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: isEn ? '🌿 Your streak continues!' : '🌿 Ta streak continue !',
+        body: isEn ? 'Check your fridge — some items might expire soon.' : 'Vérifie ton frigo — des aliments pourraient bientôt expirer.',
+        data: { type: 'daily_reminder' },
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 23 * 60 * 60,
+      },
+    });
+
+    await AsyncStorage.setItem(WELCOME_BACK_NOTIF_KEY, 'true');
+    logger.info('D+1 welcome-back notification scheduled');
+  } catch (error) {
+    logger.error('Error scheduling welcome-back notification:', error);
+  }
 }
 
 // Écouter les notifications reçues

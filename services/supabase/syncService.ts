@@ -73,22 +73,24 @@ export async function migrateLocalDataToCloud(userId: string): Promise<void> {
         // Migrer les items de la liste
         if (localList.items && localList.items.length > 0) {
           const itemsToInsert = localList.items
-            .filter(item => item.name && item.expirationDate)
+            .filter(item => item.name)
             .map(item => ({
               list_id: cloudList.id,
               user_id: userId,
               name: item.name,
               expiration_date: convertDateToISO(item.expirationDate),
-              quantity: item.quantity || 1,
-              weight: item.weight || null,
-              category: item.category || null,
-              image_uri: item.imageUri || null,
-              price: item.price || null,
+              quantity: item.quantity ?? 1,
+              weight: item.weight ?? null,
+              unit: item.unit ?? null,
+              category: item.category ?? null,
+              image_uri: item.imageUri ?? null,
+              price: item.price ?? null,
               status: item.status || 'active',
               is_opened: item.isOpened || false,
               opened_date: item.openedDate ? convertDateToISO(item.openedDate) : null,
-              days_after_opening: item.daysAfterOpening || null,
+              days_after_opening: item.daysAfterOpening ?? null,
               local_id: item.id,
+              consumed_at: item.consumedAt ?? null,
             }));
 
           if (itemsToInsert.length > 0) {
@@ -129,7 +131,14 @@ export async function syncWithCloud(userId: string): Promise<void> {
     // 1. Envoyer les changements locaux en attente
     await pushPendingChanges(userId);
 
-    // 2. Recuperer les donnees du cloud
+    // 2. Recuperer les donnees du cloud seulement si la queue est vide
+    const remainingQueue = await AsyncStorage.getItem(`${SYNC_QUEUE_KEY}_${userId}`);
+    const pendingItems = remainingQueue ? JSON.parse(remainingQueue) : [];
+    if (pendingItems.length > 0) {
+      logger.info(`[SYNC] ${pendingItems.length} items encore en queue, pull reporté`);
+      return;
+    }
+
     await pullFromCloud(userId);
 
     // 3. Mettre a jour le timestamp
@@ -198,6 +207,9 @@ async function pushPendingChanges(userId: string): Promise<void> {
           const { error: insertError } = await supabase.from(item.tableName).insert(payload);
           if (insertError) {
             logger.error(`[SYNC] Erreur insertion ${item.tableName}:`, insertError);
+            if (item.retryCount < 3) {
+              failedItems.push({ ...item, retryCount: item.retryCount + 1 });
+            }
           }
           break;
 
@@ -208,6 +220,9 @@ async function pushPendingChanges(userId: string): Promise<void> {
             .eq('local_id', item.localId);
           if (updateError) {
             logger.error(`[SYNC] Erreur update ${item.tableName} (local_id=${item.localId}):`, updateError);
+            if (item.retryCount < 3) {
+              failedItems.push({ ...item, retryCount: item.retryCount + 1 });
+            }
           }
           break;
         }
@@ -219,6 +234,9 @@ async function pushPendingChanges(userId: string): Promise<void> {
             .eq('local_id', item.localId);
           if (deleteError) {
             logger.error(`[SYNC] Erreur delete ${item.tableName} (local_id=${item.localId}):`, deleteError);
+            if (item.retryCount < 3) {
+              failedItems.push({ ...item, retryCount: item.retryCount + 1 });
+            }
           }
           break;
         }
@@ -381,7 +399,7 @@ export async function forceSyncAllItems(userId: string): Promise<{ synced: numbe
         }
 
         const activeItems = localList.items.filter(
-          (item) => item.name && item.expirationDate
+          (item) => item.name
         );
 
         if (activeItems.length === 0) continue;
@@ -405,16 +423,18 @@ export async function forceSyncAllItems(userId: string): Promise<{ synced: numbe
                 user_id: userId,
                 name: item.name,
                 expiration_date: convertDateToISO(item.expirationDate),
-                quantity: item.quantity || 1,
-                weight: item.weight || null,
-                category: item.category || null,
-                image_uri: item.imageUri || null,
-                price: item.price || null,
+                quantity: item.quantity ?? 1,
+                weight: item.weight ?? null,
+                unit: item.unit ?? null,
+                category: item.category ?? null,
+                image_uri: item.imageUri ?? null,
+                price: item.price ?? null,
                 status: item.status || 'active',
                 is_opened: item.isOpened || false,
                 opened_date: item.openedDate ? convertDateToISO(item.openedDate) : null,
-                days_after_opening: item.daysAfterOpening || null,
+                days_after_opening: item.daysAfterOpening ?? null,
                 local_id: item.id,
+                consumed_at: item.consumedAt ?? null,
               });
 
             if (insertError) {
@@ -511,12 +531,12 @@ export async function getPendingChangesCount(userId: string): Promise<number> {
 /**
  * Convertit une date DD/MM/YYYY en format ISO (YYYY-MM-DD)
  */
-function convertDateToISO(dateStr: string): string {
-  if (!dateStr) return new Date().toISOString().split('T')[0];
+function convertDateToISO(dateStr: string | undefined): string | null {
+  if (!dateStr || dateStr.trim() === '') return null;
 
-  // Si deja au format ISO
-  if (dateStr.includes('-') && dateStr.length === 10) {
-    return dateStr;
+  // Si au format ISO (avec ou sans timestamp)
+  if (dateStr.includes('-')) {
+    return dateStr.split('T')[0];
   }
 
   // Format DD/MM/YYYY
@@ -526,7 +546,7 @@ function convertDateToISO(dateStr: string): string {
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
-  return new Date().toISOString().split('T')[0];
+  return null;
 }
 
 /**
@@ -535,29 +555,30 @@ function convertDateToISO(dateStr: string): string {
 function convertISOToDate(isoStr: string): string {
   if (!isoStr) return '';
 
-  const date = new Date(isoStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
+  const datePart = isoStr.split('T')[0];
+  const [year, month, day] = datePart.split('-');
+  if (!year || !month || !day) return '';
   return `${day}/${month}/${year}`;
 }
 
 /**
  * Convertit un item cloud en format local
  */
-function convertCloudItemToLocal(item: CloudFoodItem): FoodItem {
+export function convertCloudItemToLocal(item: CloudFoodItem): FoodItem {
   return {
     id: item.local_id || item.id,
     name: item.name,
-    expirationDate: convertISOToDate(item.expiration_date),
+    expirationDate: item.expiration_date ? convertISOToDate(item.expiration_date) : '',
     quantity: item.quantity,
-    weight: item.weight || undefined,
-    category: item.category || undefined,
-    imageUri: item.image_uri || undefined,
-    price: item.price || undefined,
+    weight: item.weight ?? undefined,
+    unit: item.unit ?? undefined,
+    category: item.category ?? undefined,
+    imageUri: item.image_uri ?? undefined,
+    price: item.price ?? undefined,
     status: item.status,
-    isOpened: item.is_opened,
+    isOpened: item.is_opened ?? false,
     openedDate: item.opened_date ? convertISOToDate(item.opened_date) : undefined,
-    daysAfterOpening: item.days_after_opening || undefined,
+    daysAfterOpening: item.days_after_opening ?? undefined,
+    consumedAt: item.consumed_at ?? undefined,
   };
 }

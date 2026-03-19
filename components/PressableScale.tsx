@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import { Pressable, PressableProps, Animated, StyleProp, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -11,7 +11,7 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   minHitSlop?: number;
 }
 
-export default function PressableScale({
+const PressableScale = React.memo(function PressableScale({
   children,
   activeScale = 0.97,
   haptic = true,
@@ -28,7 +28,7 @@ export default function PressableScale({
 }: PressableScaleProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const handlePressIn = (e: any) => {
+  const handlePressIn = useCallback((e: any) => {
     Animated.spring(scaleAnim, {
       toValue: activeScale,
       useNativeDriver: true,
@@ -36,9 +36,9 @@ export default function PressableScale({
       bounciness: 4,
     }).start();
     onPressIn?.(e);
-  };
+  }, [scaleAnim, activeScale, onPressIn]);
 
-  const handlePressOut = (e: any) => {
+  const handlePressOut = useCallback((e: any) => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -46,9 +46,9 @@ export default function PressableScale({
       bounciness: 4,
     }).start();
     onPressOut?.(e);
-  };
+  }, [scaleAnim, onPressOut]);
 
-  const handlePress = (e: any) => {
+  const handlePress = useCallback((e: any) => {
     if (haptic && !disabled) {
       const feedbackStyle = {
         light: Haptics.ImpactFeedbackStyle.Light,
@@ -64,22 +64,26 @@ export default function PressableScale({
       }
     }
     onPress?.(e);
-  };
+  }, [haptic, disabled, hapticType, onPress]);
 
-  const handleLongPress = (e: any) => {
+  const handleLongPress = useCallback((e: any) => {
     if (haptic && !disabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
     onLongPress?.(e);
-  };
+  }, [haptic, disabled, onLongPress]);
 
-  // Calculer le hitSlop pour améliorer la zone tactile (important pour iPad)
-  const computedHitSlop = hitSlop ?? {
+  const computedHitSlop = useMemo(() => hitSlop ?? {
     top: minHitSlop,
     bottom: minHitSlop,
     left: minHitSlop,
     right: minHitSlop,
-  };
+  }, [hitSlop, minHitSlop]);
+
+  const animatedStyle = useMemo(
+    () => [{ transform: [{ scale: scaleAnim }] }, style],
+    [scaleAnim, style]
+  );
 
   return (
     <Pressable
@@ -91,11 +95,11 @@ export default function PressableScale({
       hitSlop={computedHitSlop}
       {...props}
     >
-      <Animated.View
-        style={[{ transform: [{ scale: scaleAnim }] }, style]}
-      >
+      <Animated.View style={animatedStyle}>
         {children}
       </Animated.View>
     </Pressable>
   );
-}
+});
+
+export default PressableScale;

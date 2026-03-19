@@ -21,6 +21,13 @@ export interface UserBadge {
   isNew: boolean;
 }
 
+export interface StreakFreezes {
+  available: number;
+  lastWeeklyGrant: string; // ISO week key "2026-W12"
+  usedThisWeek: number;
+  totalUsed: number;
+}
+
 export interface UserGamification {
   level: number;
   xp: number;
@@ -29,6 +36,7 @@ export interface UserGamification {
   badges: UserBadge[];
   stats: GamificationStats;
   streaks: Streaks;
+  streakFreezes: StreakFreezes;
 }
 
 export interface GamificationStats {
@@ -396,6 +404,14 @@ export async function saveGamificationData(data: UserGamification): Promise<void
   }
 }
 
+function getISOWeekKey(date: Date = new Date()): string {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
 function getDefaultGamification(): UserGamification {
   return {
     level: 1,
@@ -421,6 +437,12 @@ function getDefaultGamification(): UserGamification {
       lastNoWasteDate: '',
       lastDailyDate: '',
     },
+    streakFreezes: {
+      available: 0,
+      lastWeeklyGrant: '',
+      usedThisWeek: 0,
+      totalUsed: 0,
+    },
   };
 }
 
@@ -431,15 +453,19 @@ export interface GamificationResult {
   newBadges: Badge[];
   levelUp: boolean;
   newLevel?: number;
+  freezeUsed?: boolean;
 }
 
 async function updateGamification(
-  updateFn: (data: UserGamification) => { data: UserGamification; xpGained: number; newBadges: Badge[] }
+  updateFn: (data: UserGamification) => { data: UserGamification; xpGained: number; newBadges: Badge[]; freezeUsed?: boolean }
 ): Promise<GamificationResult> {
   const currentData = await getGamificationData();
-  const { data: updatedData, xpGained, newBadges } = updateFn(currentData);
+  // Migrate old data without streakFreezes
+  if (!currentData.streakFreezes) {
+    currentData.streakFreezes = { available: 0, lastWeeklyGrant: '', usedThisWeek: 0, totalUsed: 0 };
+  }
+  const { data: updatedData, xpGained, newBadges, freezeUsed } = updateFn(currentData);
 
-  // Mettre a jour l'XP et le niveau
   const newTotalXp = updatedData.totalXp + xpGained;
   const levelInfo = getLevelFromXp(newTotalXp);
   const levelUp = levelInfo.level > updatedData.level;
@@ -459,6 +485,7 @@ async function updateGamification(
     newBadges,
     levelUp,
     newLevel: levelUp ? levelInfo.level : undefined,
+    freezeUsed,
   };
 }
 
@@ -553,14 +580,15 @@ export async function onFoodThrown(): Promise<GamificationResult> {
   return updateGamification((data) => {
     data.stats.totalFoodsThrown++;
 
-    // Reset du streak zero gaspillage
-    data.streaks.currentNoWaste = 0;
+    if (data.streakFreezes.available > 0 && data.streaks.currentNoWaste > 0) {
+      data.streakFreezes.available--;
+      data.streakFreezes.usedThisWeek++;
+      data.streakFreezes.totalUsed++;
+      return { data, xpGained: 0, newBadges: [], freezeUsed: true };
+    }
 
-    return {
-      data,
-      xpGained: 0,
-      newBadges: [],
-    };
+    data.streaks.currentNoWaste = 0;
+    return { data, xpGained: 0, newBadges: [] };
   });
 }
 
@@ -604,11 +632,10 @@ export async function onListCreated(): Promise<GamificationResult> {
   });
 }
 
-export async function onDailyVisit(): Promise<GamificationResult> {
+export async function onDailyVisit(isPremium: boolean = false): Promise<GamificationResult> {
   return updateGamification((data) => {
     const today = new Date().toISOString().split('T')[0];
 
-    // Deja visite aujourd'hui?
     if (data.stats.lastActiveDate === today) {
       return { data, xpGained: 0, newBadges: [] };
     }
@@ -617,7 +644,18 @@ export async function onDailyVisit(): Promise<GamificationResult> {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    // Mise a jour streak quotidien
+    // Auto-grant streak freeze: 1/week for free, replenish for premium
+    const currentWeek = getISOWeekKey();
+    if (data.streakFreezes.lastWeeklyGrant !== currentWeek) {
+      data.streakFreezes.lastWeeklyGrant = currentWeek;
+      data.streakFreezes.usedThisWeek = 0;
+      if (isPremium) {
+        data.streakFreezes.available = Math.max(data.streakFreezes.available, 3);
+      } else {
+        data.streakFreezes.available = Math.min(data.streakFreezes.available + 1, 1);
+      }
+    }
+
     if (data.stats.lastActiveDate === yesterdayStr) {
       data.streaks.currentDaily++;
     } else {
@@ -741,4 +779,12 @@ export function getCategoryIcon(category: BadgeCategory): string {
     case 'milestone': return '🎯';
     default: return '🏆';
   }
+}
+
+export async function grantChallengeXp(amount: number): Promise<GamificationResult> {
+  return updateGamification((data) => ({
+    data,
+    xpGained: amount,
+    newBadges: [],
+  }));
 }

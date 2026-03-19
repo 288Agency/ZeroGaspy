@@ -257,6 +257,42 @@ export const CHALLENGES: ChallengeDefinition[] = [
     trackingType: 'unique_actions',
     relevantActions: ['food_added', 'food_consumed', 'recipe_viewed', 'list_created'],
   },
+  {
+    id: 'add_varied_5',
+    nameKey: 'challenges.names.addVaried5',
+    descriptionKey: 'challenges.descriptions.addVaried5',
+    icon: '🗄️',
+    category: 'variety',
+    difficulty: 'hard',
+    xpReward: XP_REWARDS.hard,
+    targetValue: 5,
+    trackingType: 'unique_lists',
+    relevantActions: ['food_added'],
+  },
+  {
+    id: 'recipes_15',
+    nameKey: 'challenges.names.recipes15',
+    descriptionKey: 'challenges.descriptions.recipes15',
+    icon: '👨‍🍳',
+    category: 'recipes',
+    difficulty: 'hard',
+    xpReward: XP_REWARDS.hard,
+    targetValue: 15,
+    trackingType: 'count',
+    relevantActions: ['recipe_viewed'],
+  },
+  {
+    id: 'no_throw_7',
+    nameKey: 'challenges.names.noThrow7',
+    descriptionKey: 'challenges.descriptions.noThrow7',
+    icon: '💎',
+    category: 'streak',
+    difficulty: 'hard',
+    xpReward: XP_REWARDS.hard,
+    targetValue: 7,
+    trackingType: 'streak',
+    relevantActions: ['app_opened', 'food_thrown'],
+  },
 ];
 
 // ==================== WEEK UTILITIES ====================
@@ -326,23 +362,50 @@ function weekKeyToSeed(weekKey: string): number {
   return Math.abs(hash);
 }
 
+function getPreviousWeekKey(weekKey: string): string {
+  const [yearStr, weekStr] = weekKey.split('-W');
+  let year = parseInt(yearStr, 10);
+  let week = parseInt(weekStr, 10) - 1;
+  if (week < 1) {
+    year--;
+    week = 52;
+  }
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
 /**
- * Select 3 challenges for a given week: 1 easy, 1 medium, 1 hard
+ * Select 3 challenges for a given week: 1 easy, 1 medium, 1 hard.
+ * Avoids repeating challenges from the previous week when the pool allows.
  */
 export function getActiveChallenges(weekKey: string): ChallengeDefinition[] {
+  const prevWeek = getPreviousWeekKey(weekKey);
+  const prevSeed = weekKeyToSeed(prevWeek);
+  const prevRng = seededRandom(prevSeed);
+
+  const easyAll = CHALLENGES.filter(c => c.difficulty === 'easy');
+  const mediumAll = CHALLENGES.filter(c => c.difficulty === 'medium');
+  const hardAll = CHALLENGES.filter(c => c.difficulty === 'hard');
+
+  const prevPicks = [
+    easyAll[Math.floor(prevRng() * easyAll.length)],
+    mediumAll[Math.floor(prevRng() * mediumAll.length)],
+    hardAll[Math.floor(prevRng() * hardAll.length)],
+  ];
+
   const seed = weekKeyToSeed(weekKey);
   const rng = seededRandom(seed);
 
-  const easy = CHALLENGES.filter(c => c.difficulty === 'easy');
-  const medium = CHALLENGES.filter(c => c.difficulty === 'medium');
-  const hard = CHALLENGES.filter(c => c.difficulty === 'hard');
-
-  const pickRandom = (arr: ChallengeDefinition[]): ChallengeDefinition => {
-    const index = Math.floor(rng() * arr.length);
-    return arr[index];
+  const pickAvoidingPrev = (pool: ChallengeDefinition[], prevId: string): ChallengeDefinition => {
+    const filtered = pool.filter(c => c.id !== prevId);
+    const arr = filtered.length > 0 ? filtered : pool;
+    return arr[Math.floor(rng() * arr.length)];
   };
 
-  return [pickRandom(easy), pickRandom(medium), pickRandom(hard)];
+  return [
+    pickAvoidingPrev(easyAll, prevPicks[0].id),
+    pickAvoidingPrev(mediumAll, prevPicks[1].id),
+    pickAvoidingPrev(hardAll, prevPicks[2].id),
+  ];
 }
 
 // ==================== STORAGE ====================
@@ -375,16 +438,20 @@ export async function saveChallengesState(state: WeeklyChallengesState): Promise
  * Get or initialize the current week's challenges.
  * If the week has changed, archive the previous week and create new challenges.
  */
-export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
+export interface InitChallengesResult {
+  state: WeeklyChallengesState;
+  autoCompleted: ChallengeCompletionResult[];
+}
+
+export async function getOrInitChallenges(): Promise<InitChallengesResult> {
   const currentWeek = getCurrentWeekKey();
   let state = await getChallengesState();
+  const autoCompleted: ChallengeCompletionResult[] = [];
 
   if (!state || state.weekKey !== currentWeek) {
-    // Archive previous week if it exists
     const history: WeeklyHistory[] = state?.history ?? [];
 
     if (state && state.weekKey !== currentWeek) {
-      // Auto-complete boolean_inverse challenges that survived the week
       const prevDefs = getActiveChallenges(state.weekKey);
       for (const progress of state.challenges) {
         if (progress.completed) continue;
@@ -392,6 +459,12 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
         if (def?.trackingType === 'boolean_inverse' && progress.currentValue === 1) {
           progress.completed = true;
           progress.completedAt = new Date().toISOString();
+          autoCompleted.push({
+            challengeId: def.id,
+            xpReward: def.xpReward,
+            challengeName: def.nameKey,
+            challengeIcon: def.icon,
+          });
         }
       }
 
@@ -409,13 +482,11 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
         totalXpEarned: totalXp,
       });
 
-      // Keep only last 10 weeks
       if (history.length > 10) {
         history.length = 10;
       }
     }
 
-    // Create new challenges for this week
     const activeDefs = getActiveChallenges(currentWeek);
     const challenges: ChallengeProgress[] = activeDefs.map(def => {
       const progress: ChallengeProgress = {
@@ -424,7 +495,6 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
         completed: false,
       };
 
-      // Initialize tracking arrays based on type
       if (def.trackingType === 'unique_days' || def.trackingType === 'streak') {
         progress.uniqueDays = [];
         progress.streakDays = [];
@@ -435,10 +505,9 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
       if (def.trackingType === 'unique_actions') {
         progress.uniqueActions = [];
       }
-      // boolean_inverse starts as "completed" (no waste yet)
       if (def.trackingType === 'boolean_inverse') {
         progress.currentValue = 1;
-        progress.completed = false; // Will stay completed unless food_thrown
+        progress.completed = false;
       }
 
       return progress;
@@ -453,7 +522,7 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
     await saveChallengesState(state);
   }
 
-  return state;
+  return { state, autoCompleted };
 }
 
 // ==================== PROGRESS TRACKING ====================
@@ -465,10 +534,10 @@ export async function getOrInitChallenges(): Promise<WeeklyChallengesState> {
 export async function trackChallengeProgress(
   action: ChallengeAction
 ): Promise<ChallengeCompletionResult[]> {
-  const state = await getOrInitChallenges();
+  const { state } = await getOrInitChallenges();
   const activeDefs = getActiveChallenges(state.weekKey);
   const completedChallenges: ChallengeCompletionResult[] = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   for (let i = 0; i < state.challenges.length; i++) {
     const progress = state.challenges[i];
@@ -544,7 +613,7 @@ export async function trackChallengeProgress(
       case 'streak': {
         if (!progress.streakDays) progress.streakDays = [];
 
-        if (def.id === 'no_throw_3') {
+        if (def.id === 'no_throw_3' || def.id === 'no_throw_7') {
           // Reset streak on food thrown
           if (action.type === 'food_thrown') {
             progress.streakDays = [];
@@ -607,7 +676,7 @@ export async function trackChallengeProgress(
 
   if (boolInverseProgress) {
     const { end } = getWeekDateRange(state.weekKey);
-    const endStr = end.toISOString().split('T')[0];
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
     if (today >= endStr) {
       boolInverseProgress.completed = true;
       boolInverseProgress.completedAt = new Date().toISOString();
@@ -639,10 +708,16 @@ function getActionCategory(actionType: ChallengeActionType): string | null {
   }
 }
 
+function getLocalToday(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 function getYesterday(todayStr: string): string {
-  const d = new Date(todayStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().split('T')[0];
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function getChallengeById(id: string): ChallengeDefinition | undefined {

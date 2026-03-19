@@ -1,95 +1,84 @@
-/**
- * Service pour gérer l'accès aux fonctionnalités premium via rewarded ads
- */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logger from '../utils/logger';
+import { getBonusScansRemaining } from './referralService';
+import { supabase } from '../config/supabase';
 
 const RECEIPT_SCAN_CREDIT_KEY = 'receipt_scan_free_credit';
+const SCAN_CREDIT_FUNCTION_NAME = 'validate-scan-credit';
 
 interface ReceiptScanCredit {
-  lastUsedDate: string; // Format ISO
-  month: string; // Format YYYY-MM pour identifier le mois
+  lastUsedDate: string;
+  month: string;
 }
 
-/**
- * Vérifie si l'utilisateur a déjà utilisé son crédit gratuit ce mois-ci
- */
-export async function hasUsedFreeReceiptScanThisMonth(): Promise<boolean> {
+export async function hasUsedFreeReceiptScanThisMonth(userId: string | null): Promise<boolean> {
+  if (userId) {
+    try {
+      const { data, error } = await supabase.functions.invoke(SCAN_CREDIT_FUNCTION_NAME, {
+        body: { action: 'check' },
+      });
+      if (!error && data) {
+        return !data.allowed;
+      }
+    } catch (err) {
+      logger.error('Edge function check failed, falling back to local:', err);
+    }
+  }
+
   try {
     const creditData = await AsyncStorage.getItem(RECEIPT_SCAN_CREDIT_KEY);
-
-    if (!creditData) {
-      return false; // Jamais utilisé
-    }
-
+    if (!creditData) return false;
     const credit: ReceiptScanCredit = JSON.parse(creditData);
-    const currentMonth = new Date().toISOString().slice(0, 7); // Format YYYY-MM
-
-    // Vérifier si le crédit a été utilisé ce mois-ci
-    return credit.month === currentMonth;
-
-  } catch (error) {
-    logger.error('Erreur vérification crédit gratuit:', error);
-    return false; // En cas d'erreur, autoriser l'utilisation
+    return credit.month === new Date().toISOString().slice(0, 7);
+  } catch {
+    return false;
   }
 }
 
-/**
- * Marque le crédit gratuit comme utilisé pour ce mois
- */
-export async function markFreeReceiptScanAsUsed(): Promise<void> {
-  try {
-    const now = new Date();
-    const credit: ReceiptScanCredit = {
-      lastUsedDate: now.toISOString(),
-      month: now.toISOString().slice(0, 7), // Format YYYY-MM
-    };
-
-    await AsyncStorage.setItem(RECEIPT_SCAN_CREDIT_KEY, JSON.stringify(credit));
-    logger.info('✅ Crédit gratuit scan ticket marqué comme utilisé pour', credit.month);
-
-  } catch (error) {
-    logger.error('Erreur sauvegarde crédit gratuit:', error);
+export async function markFreeReceiptScanAsUsed(userId: string | null): Promise<void> {
+  if (userId) {
+    try {
+      await supabase.functions.invoke(SCAN_CREDIT_FUNCTION_NAME, {
+        body: { action: 'consume' },
+      });
+    } catch (err) {
+      logger.error('Edge function consume failed:', err);
+    }
   }
+
+  const now = new Date();
+  const credit: ReceiptScanCredit = {
+    lastUsedDate: now.toISOString(),
+    month: now.toISOString().slice(0, 7),
+  };
+  await AsyncStorage.setItem(RECEIPT_SCAN_CREDIT_KEY, JSON.stringify(credit));
 }
 
-/**
- * Réinitialise le crédit gratuit (pour les tests ou le changement de mois)
- */
 export async function resetFreeReceiptScanCredit(): Promise<void> {
   try {
     await AsyncStorage.removeItem(RECEIPT_SCAN_CREDIT_KEY);
-    logger.info('🔄 Crédit gratuit scan ticket réinitialisé');
+    logger.info('Crédit gratuit scan ticket réinitialisé');
   } catch (error) {
     logger.error('Erreur réinitialisation crédit:', error);
   }
 }
 
-/**
- * Obtient les informations sur le crédit gratuit
- */
-export async function getFreeReceiptScanInfo(): Promise<{
+export async function getFreeReceiptScanInfo(userId: string | null): Promise<{
   hasUsed: boolean;
   lastUsedDate: Date | null;
   canUseAgainOn: Date | null;
 }> {
   try {
-    const hasUsed = await hasUsedFreeReceiptScanThisMonth();
+    const hasUsed = await hasUsedFreeReceiptScanThisMonth(userId);
     const creditData = await AsyncStorage.getItem(RECEIPT_SCAN_CREDIT_KEY);
 
     if (!creditData) {
-      return {
-        hasUsed: false,
-        lastUsedDate: null,
-        canUseAgainOn: null,
-      };
+      return { hasUsed, lastUsedDate: null, canUseAgainOn: null };
     }
 
     const credit: ReceiptScanCredit = JSON.parse(creditData);
     const lastUsedDate = new Date(credit.lastUsedDate);
 
-    // Calculer la date du prochain crédit (1er jour du mois suivant)
     const nextMonth = new Date(lastUsedDate);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     nextMonth.setDate(1);
@@ -100,13 +89,27 @@ export async function getFreeReceiptScanInfo(): Promise<{
       lastUsedDate,
       canUseAgainOn: hasUsed ? nextMonth : null,
     };
-
   } catch (error) {
     logger.error('Erreur récupération info crédit:', error);
-    return {
-      hasUsed: false,
-      lastUsedDate: null,
-      canUseAgainOn: null,
-    };
+    return { hasUsed: false, lastUsedDate: null, canUseAgainOn: null };
   }
+}
+
+export type ScanSource = 'premium' | 'monthly_free' | 'bonus';
+
+export async function canScanReceipt(
+  userId: string | null,
+  isPremium: boolean,
+): Promise<{ allowed: boolean; source: ScanSource | null }> {
+  if (isPremium) return { allowed: true, source: 'premium' };
+
+  const hasUsed = await hasUsedFreeReceiptScanThisMonth(userId);
+  if (!hasUsed) return { allowed: true, source: 'monthly_free' };
+
+  if (userId) {
+    const bonus = await getBonusScansRemaining(userId);
+    if (bonus > 0) return { allowed: true, source: 'bonus' };
+  }
+
+  return { allowed: false, source: null };
 }

@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../types/navigation';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../components/Header';
@@ -386,6 +387,8 @@ const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
 
 export default function RecipesScreen() {
   const { t } = useTranslation();
+  const route = useRoute<RouteProp<RootStackParamList, 'Recipes'>>();
+  const highlightIngredient = route.params?.ingredient;
   const { trackRecipeViewed } = useGamification();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
@@ -498,8 +501,19 @@ export default function RecipesScreen() {
     ? userRecipes
     : availableMatches.filter(m => m.recipe.category === selectedFilter);
 
-  // Appliquer le tri selon le mode sélectionné
+  // Boost recipes matching the deep-linked ingredient to the top
+  const ingredientLower = highlightIngredient?.toLowerCase();
+  const matchesIngredient = (m: RecipeMatch) =>
+    ingredientLower && m.matchingIngredients.some(
+      (ing) => ing.toLowerCase().includes(ingredientLower) || ingredientLower.includes(ing.toLowerCase())
+    );
+
   const filteredMatches = [...categoryFiltered].sort((a, b) => {
+    if (ingredientLower) {
+      const aMatch = matchesIngredient(a) ? 1 : 0;
+      const bMatch = matchesIngredient(b) ? 1 : 0;
+      if (bMatch !== aMatch) return bMatch - aMatch;
+    }
     if (sortMode === 'antiWaste') {
       return b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage;
     }

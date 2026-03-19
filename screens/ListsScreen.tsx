@@ -192,14 +192,112 @@ export default function ListsScreen() {
     });
   };
 
-  const renderList = ({ item }: { item: List }) => {
-    const listColor = item.color || COLORS.primary[500];
+  // Unified list item type for FlatList
+  type ListItem =
+    | { type: 'personal'; data: List }
+    | { type: 'shared'; data: SharedListWithMe };
+
+  const allListItems: ListItem[] = [
+    ...lists.map((l): ListItem => ({ type: 'personal', data: l })),
+    ...sharedLists.map((sl): ListItem => ({ type: 'shared', data: sl })),
+  ];
+
+  const renderListItem = ({ item }: { item: ListItem }) => {
+    if (item.type === 'personal') {
+      const list = item.data;
+      const listColor = list.color || COLORS.primary[500];
+
+      return (
+        <Card
+          onPress={() => handleSelectList(list)}
+          variant="elevated"
+          style={[styles.cardItem, { backgroundColor: listColor + '20' }]}
+        >
+          {/* Bande de couleur à gauche */}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 6,
+              backgroundColor: listColor,
+              borderTopLeftRadius: 16,
+              borderBottomLeftRadius: 16,
+            }}
+          />
+
+          <View style={styles.listRow}>
+            <View style={styles.listContent}>
+              <View style={styles.listTitleRow}>
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: listColor,
+                    marginRight: SPACING.sm,
+                  }}
+                />
+                <Text style={styles.listTitle}>
+                  {list.title}
+                </Text>
+              </View>
+              <View style={styles.listMeta}>
+                <Text style={styles.listItemCount}>
+                  {t('lists.itemsCount', { count: list.items.length })}
+                </Text>
+                {memberCounts[list.id] > 1 && (
+                  <View style={styles.sharedBadge}>
+                    <Ionicons name="people" size={12} color={listColor} />
+                    <Text style={[styles.sharedBadgeText, { color: listColor }]}>
+                      {memberCounts[list.id]}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.listDate}>
+                  • {t('lists.createdOn')} {formatDate(list.createdAt)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.listActions}>
+              {user && !isLocalMode && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleShareList(list);
+                  }}
+                  style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="share-social-outline" size={18} color={listColor} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDeleteList(list.id, list.title);
+                }}
+                style={[styles.deleteCircle, { backgroundColor: listColor }]}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.deleteCircleText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      );
+    }
+
+    // Shared list card
+    const sl = item.data;
+    const slColor = sl.listColor || COLORS.primary[500];
 
     return (
       <Card
-        onPress={() => handleSelectList(item)}
+        onPress={() => handleSelectSharedList(sl)}
         variant="elevated"
-        style={[styles.cardItem, { backgroundColor: listColor + '20' }]}
+        style={[styles.cardItem, { backgroundColor: slColor + '20' }]}
       >
         {/* Bande de couleur à gauche */}
         <View
@@ -209,7 +307,7 @@ export default function ListsScreen() {
             top: 0,
             bottom: 0,
             width: 6,
-            backgroundColor: listColor,
+            backgroundColor: slColor,
             borderTopLeftRadius: 16,
             borderBottomLeftRadius: 16,
           }}
@@ -223,54 +321,31 @@ export default function ListsScreen() {
                   width: 12,
                   height: 12,
                   borderRadius: 6,
-                  backgroundColor: listColor,
+                  backgroundColor: slColor,
                   marginRight: SPACING.sm,
                 }}
               />
-              <Text style={styles.listTitle}>
-                {item.title}
-              </Text>
+              <Text style={styles.listTitle}>{sl.listTitle}</Text>
+              {/* Shared icon badge */}
+              <View style={[styles.sharedListBadge, { backgroundColor: hexToRgba(slColor, 0.15) }]}>
+                <Ionicons name="people" size={12} color={slColor} />
+              </View>
             </View>
             <View style={styles.listMeta}>
-              <Text style={styles.listItemCount}>
-                {t('lists.itemsCount', { count: item.items.length })}
-              </Text>
-              {memberCounts[item.id] > 1 && (
-                <View style={styles.sharedBadge}>
-                  <Ionicons name="people" size={12} color={listColor} />
-                  <Text style={[styles.sharedBadgeText, { color: listColor }]}>
-                    {memberCounts[item.id]}
+              {sl.ownerName && (
+                <Text style={styles.listItemCount}>
+                  {sl.ownerName}
+                </Text>
+              )}
+              {sl.permission === 'view' && (
+                <View style={styles.readOnlyBadge}>
+                  <Ionicons name="eye-outline" size={12} color={COLORS.text.muted} />
+                  <Text style={styles.readOnlyText}>
+                    {t('sharing.readOnly')}
                   </Text>
                 </View>
               )}
-              <Text style={styles.listDate}>
-                • {t('lists.createdOn')} {formatDate(item.createdAt)}
-              </Text>
             </View>
-          </View>
-          <View style={styles.listActions}>
-            {user && !isLocalMode && (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleShareList(item);
-                }}
-                style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="share-social-outline" size={18} color={listColor} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                handleDeleteList(item.id, item.title);
-              }}
-              style={[styles.deleteCircle, { backgroundColor: listColor }]}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.deleteCircleText}>✕</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Card>
@@ -280,9 +355,11 @@ export default function ListsScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={lists}
-        renderItem={renderList}
-        keyExtractor={(item) => item.id}
+        data={allListItems}
+        renderItem={renderListItem}
+        keyExtractor={(item) =>
+          item.type === 'personal' ? item.data.id : item.data.shareId
+        }
         contentContainerStyle={{ padding: SPACING.xl }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -293,76 +370,6 @@ export default function ListsScreen() {
               {t('lists.emptyListsAction')}
             </Text>
           </View>
-        }
-        ListFooterComponent={
-          sharedLists.length > 0 ? (
-            <View style={styles.sharedSection}>
-              <Text style={styles.sharedSectionTitle}>
-                {t('sharing.sharedWithMe')}
-              </Text>
-              {sharedLists.map((sl) => {
-                const slColor = sl.listColor || COLORS.primary[500];
-                return (
-                  <Card
-                    key={sl.shareId}
-                    onPress={() => handleSelectSharedList(sl)}
-                    variant="elevated"
-                    style={[styles.cardItem, { backgroundColor: slColor + '20' }]}
-                  >
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: 6,
-                        backgroundColor: slColor,
-                        borderTopLeftRadius: 16,
-                        borderBottomLeftRadius: 16,
-                      }}
-                    />
-                    <View style={styles.listRow}>
-                      <View style={styles.listContent}>
-                        <View style={styles.listTitleRow}>
-                          <View
-                            style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: 6,
-                              backgroundColor: slColor,
-                              marginRight: SPACING.sm,
-                            }}
-                          />
-                          <Text style={styles.listTitle}>{sl.listTitle}</Text>
-                        </View>
-                        <View style={styles.listMeta}>
-                          {sl.ownerName && (
-                            <Text style={styles.listItemCount}>
-                              {t('sharing.sharedBy', { name: sl.ownerName })}
-                            </Text>
-                          )}
-                          <View style={styles.sharedBadge}>
-                            <Ionicons name="people" size={12} color={slColor} />
-                            <Text style={[styles.sharedBadgeText, { color: slColor }]}>
-                              {sl.memberCount}
-                            </Text>
-                          </View>
-                          {sl.permission === 'view' && (
-                            <View style={styles.readOnlyBadge}>
-                              <Ionicons name="eye-outline" size={12} color={COLORS.text.muted} />
-                              <Text style={styles.readOnlyText}>
-                                {t('sharing.readOnly')}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                  </Card>
-                );
-              })}
-            </View>
-          ) : null
         }
       />
 
@@ -512,14 +519,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text.muted,
   },
-  sharedSection: {
-    marginTop: SPACING.xl,
-  },
-  sharedSectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.secondary,
-    marginBottom: SPACING.md,
+  sharedListBadge: {
+    marginLeft: SPACING.sm,
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listRow: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import PressableScale from '../../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING } from '../../utils/designSystem';
 import { validatePassword } from '../../utils/security';
+import { getPendingReferralCode } from '../../services/referralService';
 
 const TERMS_URL = 'https://www.zerogaspy.fr/terms/';
 const PRIVACY_URL = 'https://www.zerogaspy.fr/privacy/';
@@ -38,6 +39,13 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+
+  useEffect(() => {
+    getPendingReferralCode().then((code) => {
+      if (code) setReferralCode(code);
+    });
+  }, []);
 
   // Validation du mot de passe en temps reel
   const passwordValidation = validatePassword(password);
@@ -90,7 +98,7 @@ export default function RegisterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, fullName, referralCode || undefined);
       if (error) {
         if (error.message === 'USER_ALREADY_EXISTS') {
           Alert.alert(
@@ -238,6 +246,22 @@ export default function RegisterScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showPassword}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{t('auth.referralCodeLabel')}</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="gift-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('auth.referralCodePlaceholder')}
+                placeholderTextColor={COLORS.text.muted}
+                value={referralCode}
+                onChangeText={(text) => setReferralCode(text.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
               />
             </View>
           </View>

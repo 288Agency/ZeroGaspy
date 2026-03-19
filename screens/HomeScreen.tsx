@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { List } from '../types';
@@ -24,7 +24,10 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import StatsCardsRow from '../components/StatsCardsRow';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import SpacesGrid from '../components/SpacesGrid';
+import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
 import FeedbackModal from '../components/FeedbackModal';
+import WeeklyRecapModal from '../components/WeeklyRecapModal';
+import ReferralCard from '../components/ReferralCard';
 import PressableScale from '../components/PressableScale';
 
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
@@ -153,12 +156,21 @@ const LogoSection = React.memo(function LogoSection({ colors }: { colors: typeof
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const { colors } = useTheme();
-  const { challengesState } = useGamification();
+  const { challengesState, gamificationData } = useGamification();
   const { user } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [showWeeklyRecap, setShowWeeklyRecap] = useState(false);
+
+  useEffect(() => {
+    if (route.params?.showWeeklyRecap) {
+      setShowWeeklyRecap(true);
+      navigation.setParams({ showWeeklyRecap: undefined });
+    }
+  }, [route.params?.showWeeklyRecap]);
 
   // One-time force sync of local items to cloud
   useEffect(() => {
@@ -167,16 +179,16 @@ export default function HomeScreen() {
     (async () => {
       try {
         const done = await AsyncStorage.getItem(syncKey);
-        console.log('[FORCE SYNC] key:', syncKey, 'done:', done);
+        logger.debug('[FORCE SYNC] key done:', !!done);
         if (done) return;
-        console.log('[FORCE SYNC] Starting...');
+        logger.debug('[FORCE SYNC] Starting...');
         const { synced, errors } = await forceSyncAllItems(user.id);
-        console.log(`[FORCE SYNC] Result: ${synced} synced, ${errors} errors`);
+        logger.debug(`[FORCE SYNC] Result: ${synced} synced, ${errors} errors`);
         if (errors === 0) {
           await AsyncStorage.setItem(syncKey, 'true');
         }
       } catch (err) {
-        console.error('[FORCE SYNC] Error:', err);
+        logger.error('[FORCE SYNC] Error:', err);
       }
     })();
   }, [user]);
@@ -307,6 +319,14 @@ export default function HomeScreen() {
           {/* Weekly challenge */}
           <WeeklyChallengeCard challengesState={challengesState} />
 
+          {/* Proactive recipe suggestion */}
+          <ProactiveRecipeCard lists={lists} />
+
+          {/* Referral card — shown after first badge unlock */}
+          {user && (gamificationData?.badges?.length ?? 0) >= 1 && (
+            <ReferralCard userId={user.id} hasBadges={true} />
+          )}
+
           {/* Spaces grid */}
           <SpacesGrid
             lists={lists}
@@ -320,6 +340,12 @@ export default function HomeScreen() {
       <FeedbackModal
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
+      />
+
+      {/* Weekly recap modal */}
+      <WeeklyRecapModal
+        visible={showWeeklyRecap}
+        onClose={() => setShowWeeklyRecap(false)}
       />
     </View>
   );

@@ -56,6 +56,10 @@
     "logoAccessibility": "ZeroGaspy Logo",
     "sendFeedback": "Send feedback",
     "loadListsError": "Unable to load your lists. Please try again.",
+    "tonightCook": "Tonight, let's cook!",
+    "expiresInDays": "expires in {{count}} day",
+    "expiresInDays_plural": "expires in {{count}} days",
+    "expiresInDays_zero": "expires today",
     "quickActions": "Quick actions",
     "addFood": "Add food",
     "scanBarcode": "Scan barcode",
@@ -254,6 +258,7 @@
     "nameRequired": "Please enter a food name",
     "editError": "Unable to edit the food",
     "addError": "Unable to add the food",
+    "dateDetected": "Date detected",
     "permissionRequired": "Permission required",
     "permissionText": "We need your permission to access your photos.",
     "selectImage": "Select an image",
@@ -431,6 +436,7 @@
     "user": "User",
     "sectionAccount": "👤 Account",
     "sectionAchievements": "🏆 My Achievements",
+    "sectionReferral": "🎁 Referral",
     "sectionSubscription": "⭐ My Subscription",
     "sectionNotifications": "🔔 Notifications",
     "sectionExport": "💾 Data Export",
@@ -500,6 +506,17 @@
     "feedbackError": "Unable to send feedback",
     "enterMessage": "Please enter your message"
   },
+  "referral": {
+    "yourCode": "Your referral code",
+    "referrals": "Referrals",
+    "bonusScans": "Bonus scans",
+    "description": "Refer a friend and you both get 1 free receipt scan. You can refer up to 5 people.",
+    "inviteFriend": "Invite a friend",
+    "shareMessage": "Join ZeroGaspy, the anti-waste app! Use my code {{code}} to get a free receipt scan.",
+    "homeTitle": "Invite your friends",
+    "homeSubtitle": "Earn bonus scans for each friend who joins",
+    "homeCta": "Invite"
+  },
   "gamification": {
     "title": "My Achievements",
     "level": "Level",
@@ -510,7 +527,10 @@
     "achievements": "Badges",
     "locked": "Locked",
     "unlocked": "Unlocked",
-    "progress": "Progress"
+    "progress": "Progress",
+    "streakFreezeUsed": "Streak protected!",
+    "streakFreezeAvailable": "{{count}} streak freeze available",
+    "streakFreezePremium": "Unlimited with Premium"
   },
   "onboarding": {
     "welcome": "Welcome to ZeroGaspy",
@@ -537,7 +557,45 @@
     "of": "of",
     "fridge": "Fridge",
     "cupboard": "Cupboard",
-    "freezer": "Freezer"
+    "freezer": "Freezer",
+    "activeWelcomeTitle": "Welcome to\nZeroGaspy",
+    "activeWelcomeSubtitle": "Add your first food item and see how to reduce waste!",
+    "addFirstFood": "Add your first food item",
+    "foodNamePlaceholder": "E.g. Tomatoes, Milk, Chicken...",
+    "foodName": "Food name",
+    "category": "Category",
+    "expiresIn": "Expires in",
+    "threeDays": "3 days",
+    "oneWeek": "1 week",
+    "twoWeeks": "2 weeks",
+    "oneMonth": "1 month",
+    "customDate": "Custom",
+    "addFood": "Add",
+    "foodAdded": "Added!",
+    "addAnother": "Add another",
+    "seeRecipes": "See recipes",
+    "recipesForYou": "Recipes for you",
+    "recipesDescription": "Here are recipes using your ingredients",
+    "noRecipesTitle": "We'll find some!",
+    "noRecipesMessage": "Add more food items to unlock personalized recipes. Your fridge will soon be full of inspiration!",
+    "readyTitle": "All set!",
+    "readySubtitle": "Your fridge is set up.\nExplore the app and keep adding your food items.",
+    "exploreApp": "Explore the app",
+    "defaultListName": "My Fridge",
+    "itemsAdded": "{{count}} item added",
+    "itemsAdded_plural": "{{count}} items added",
+    "ahaMoment": "First item saved! You just potentially avoided ~€0.30 of waste 🌱",
+    "matching": "{{percent}}% match",
+    "missingCount": "{{count}} missing ingredient",
+    "missingCount_plural": "{{count}} missing ingredients",
+    "categoryFruits": "Fruits",
+    "categoryVegetables": "Vegetables",
+    "categoryMeat": "Meat",
+    "categoryDairy": "Dairy",
+    "categoryBakery": "Bakery",
+    "categoryGrocery": "Grocery",
+    "categoryFrozen": "Frozen",
+    "categoryOther": "Other"
   },
   "auth": {
     "login": "Login",
@@ -588,6 +646,8 @@
     "passwordStrong": "Strong",
     "passwordHint": "Required: uppercase, lowercase, number, 8+ characters",
     "passwordInvalid": "Invalid password",
+    "referralCodeLabel": "Referral code (optional)",
+    "referralCodePlaceholder": "E.g. ZERO-ABCD",
     "passwordMismatch": "Passwords don't match",
     "forgotPasswordTitle": "Forgot password?",
     "forgotPasswordDesc": "Enter your email and we'll send you a link to reset your password.",
@@ -938,7 +998,10 @@
       "addVaried3": "Multi-Space",
       "streak5": "Streak Going",
       "noThrow3": "Promising Start",
-      "allActions": "Jack of All Trades"
+      "allActions": "Jack of All Trades",
+      "addVaried5": "List Master",
+      "recipes15": "Passionate Chef",
+      "noThrow7": "Perfect Week"
     },
     "descriptions": {
       "zeroWasteWeek": "Don't throw away any food this week",
@@ -955,7 +1018,10 @@
       "addVaried3": "Add items to 3 different lists",
       "streak5": "Maintain a 5-day consecutive streak",
       "noThrow3": "3 consecutive days without waste",
-      "allActions": "Do all 4 actions (add, consume, recipe, list) this week"
+      "allActions": "Do all 4 actions (add, consume, recipe, list) this week",
+      "addVaried5": "Add items to 5 different lists",
+      "recipes15": "View 15 recipes this week",
+      "noThrow7": "7 consecutive days without waste"
     }
   },
   "loadingOverlay": {
@@ -1005,5 +1071,18 @@
     "scanBarcode": "Scan barcode",
     "productNotFound": "Product not found in the database",
     "searchError": "Error searching for the product"
+  },
+  "weeklyRecap": {
+    "title": "Your weekly recap",
+    "itemsSaved": "{{count}} item saved",
+    "itemsSaved_plural": "{{count}} items saved",
+    "itemsThrown": "{{count}} item wasted",
+    "itemsThrown_plural": "{{count}} items wasted",
+    "eurosSaved": "{{amount}}€ saved",
+    "streak": "{{count}}-day streak",
+    "share": "Share my recap",
+    "shareMessage": "This week on ZeroGaspy: {{saved}} items saved, {{euros}}€ saved! Streak: {{streak}} days 🌿",
+    "pushTitle": "Your weekly recap is ready!",
+    "pushBody": "{{saved}} items saved, {{euros}}€ saved this week"
   }
 }

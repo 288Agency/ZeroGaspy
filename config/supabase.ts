@@ -111,9 +111,10 @@ export interface CloudFoodItem {
   list_id: string;
   user_id: string;
   name: string;
-  expiration_date: string;
+  expiration_date: string | null;
   quantity: number;
   weight: number | null;
+  unit: string | null;
   category: string | null;
   image_uri: string | null;
   price: number | null;
@@ -125,4 +126,5 @@ export interface CloudFoodItem {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  consumed_at: string | null;
 }

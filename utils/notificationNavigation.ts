@@ -1,24 +1,37 @@
 import { RootStackParamList } from '../types/navigation';
 
-// Only routes that require no params can be navigated to from a notification tap.
-// ExpiringSoon and Home both have `undefined` params in RootStackParamList.
-export type NotificationDestination = keyof Pick<RootStackParamList, 'ExpiringSoon' | 'Home'>;
+export interface NotificationDestination {
+  screen: keyof RootStackParamList;
+  params?: RootStackParamList[keyof RootStackParamList];
+}
 
 /**
- * Maps notification data payload to a navigation screen name.
- * Return type is constrained to routes with no required params.
+ * Maps notification data payload to a navigation destination (screen + optional params).
+ * Expiration notifications deep-link to Recipes with the ingredient name.
  */
 export function getScreenFromNotificationData(
   data: Record<string, unknown> | null | undefined
 ): NotificationDestination {
-  if (!data) return 'Home';
+  if (!data) return { screen: 'Home' };
+
   const type = data.type as string | undefined;
+  const foodName = data.foodName as string | undefined;
+
   switch (type) {
     case 'expiration_today':
-    case 'daily_reminder':
+    case 'expiration_urgent':
     case 'expiration_warning':
-      return 'ExpiringSoon';
+      return {
+        screen: 'Recipes',
+        params: foodName ? { ingredient: foodName } : undefined,
+      };
+    case 'daily_reminder':
+    case 'daily_summary':
+      return { screen: 'ExpiringSoon' };
+    case 'weekly_recap':
+      return { screen: 'Home', params: { showWeeklyRecap: true } };
+    case 're_engagement':
     default:
-      return 'Home';
+      return { screen: 'Home' };
   }
 }

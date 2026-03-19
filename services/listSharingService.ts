@@ -1,5 +1,6 @@
 import { supabase, CloudFoodItem } from '../config/supabase';
 import { List, FoodItem } from '../types';
+import { convertCloudItemToLocal } from './supabase/syncService';
 import logger from '../utils/logger';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -299,31 +300,6 @@ export async function getMemberCount(listId: string): Promise<number> {
 }
 
 // ─── Load shared list from cloud (for members) ──────────────────────
-
-function convertCloudItemToLocal(item: CloudFoodItem): FoodItem {
-  const convertISOToDate = (isoStr: string): string => {
-    if (!isoStr) return '';
-    const d = new Date(isoStr);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    return `${day}/${month}/${d.getFullYear()}`;
-  };
-
-  return {
-    id: item.local_id || item.id,
-    name: item.name,
-    expirationDate: convertISOToDate(item.expiration_date),
-    quantity: item.quantity,
-    weight: item.weight || undefined,
-    category: item.category || undefined,
-    imageUri: item.image_uri || undefined,
-    price: item.price || undefined,
-    status: item.status,
-    isOpened: item.is_opened,
-    openedDate: item.opened_date ? convertISOToDate(item.opened_date) : undefined,
-    daysAfterOpening: item.days_after_opening || undefined,
-  };
-}
 
 /**
  * Load a shared list directly from Supabase (for members who don't have it locally).

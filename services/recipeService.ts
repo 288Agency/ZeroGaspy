@@ -2154,6 +2154,45 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
 }
 
 /**
+ * Version onboarding avec seuil bas (25%) pour garantir des résultats
+ * même avec 1-2 ingrédients seulement
+ */
+export function findMatchingRecipesForOnboarding(foodItems: FoodItem[], threshold: number = 25): RecipeMatch[] {
+  const matches: RecipeMatch[] = [];
+
+  for (const recipe of RECIPES_DATABASE) {
+    const matchingIngredients: string[] = [];
+    const missingIngredients: string[] = [];
+
+    for (const ingredient of recipe.ingredients) {
+      const matchedItem = foodItems.find(item => ingredientMatches(item.name, ingredient));
+      if (matchedItem) {
+        matchingIngredients.push(ingredient);
+      } else {
+        missingIngredients.push(ingredient);
+      }
+    }
+
+    const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
+
+    if (matchPercentage >= threshold && matchingIngredients.length > 0) {
+      matches.push({
+        recipe,
+        matchingIngredients,
+        missingIngredients,
+        matchPercentage,
+        urgencyScore: 0,
+        expiringIngredients: [],
+      });
+    }
+  }
+
+  return matches
+    .sort((a, b) => b.matchPercentage - a.matchPercentage)
+    .slice(0, 5);
+}
+
+/**
  * Récupère toutes les recettes disponibles
  */
 export function getAllRecipes(): Recipe[] {

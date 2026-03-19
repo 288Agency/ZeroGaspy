@@ -126,7 +126,7 @@ export default function AddFoodScreen() {
         unit: weight.trim() ? unit : undefined,
         category: category.trim() || undefined,
         imageUri: imageUri || undefined,
-        isOpened: isOpened || undefined,
+        isOpened,
         openedDate: isOpened && openedDate.trim() ? openedDate.trim() : undefined,
         daysAfterOpening: isOpened && daysAfterOpening.trim() ? parseInt(daysAfterOpening, 10) : undefined,
         price: price.trim() ? parseFloat(price.replace(',', '.')) : undefined,
@@ -281,8 +281,8 @@ export default function AddFoodScreen() {
   const handleDateScanned = (scannedDate: string) => {
     setExpirationDate(scannedDate);
     Alert.alert(
-      'Date détectée',
-      `Date de péremption : ${scannedDate}`,
+      t('addFood.dateDetected'),
+      `${t('addFood.expirationDate')} : ${scannedDate}`,
       [{ text: t('common.ok') }]
     );
   };
@@ -387,7 +387,7 @@ export default function AddFoodScreen() {
                   label={t('addFood.expirationDate')}
                   value={expirationDate}
                   onDateChange={setExpirationDate}
-                  minimumDate={new Date()} // Bloquer les dates passées pour la date de péremption
+                  minimumDate={isEditMode ? undefined : new Date()}
                 />
               </>
             )}
