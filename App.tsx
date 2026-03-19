@@ -2,13 +2,17 @@ import './i18n'; // Initialize i18n
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Alert, AppState } from 'react-native';
-import { NavigationContainer, NavigationState } from '@react-navigation/native';
+import { NavigationContainer, NavigationState, createNavigationContainerRef } from '@react-navigation/native';
+import { RootStackParamList } from './types/navigation';
+import { getScreenFromNotificationData } from './utils/notificationNavigation';
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
-import OnboardingScreen, { ONBOARDING_KEY } from './screens/OnboardingScreen';
+import ActiveOnboardingScreen, { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -23,6 +27,7 @@ import {
   addNotificationReceivedListener,
   addNotificationResponseListener,
 } from './services/notificationService';
+import { registerPushToken, updateLastOpenedAt } from './services/pushTokenService';
 import logger from './utils/logger';
 import { runStartupDiagnostics } from './utils/diagnostics';
 import { initSentry, Sentry } from './config/sentry';
@@ -34,6 +39,7 @@ import {
   identifyUser,
   shutdownAnalytics,
 } from './services/analytics';
+import { savePendingReferralCode } from './services/referralService';
 
 // Initialiser Sentry et PostHog au démarrage
 initSentry();
@@ -100,6 +106,7 @@ function RootNavigator() {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
+  const userIdRef = useRef<string | undefined>(undefined);
 
   // Track app_opened au montage
   useEffect(() => {
@@ -108,6 +115,7 @@ function RootNavigator() {
 
   // Identifier l'user PostHog quand il se connecte
   useEffect(() => {
+    userIdRef.current = user?.id;
     if (user?.id) {
       identifyUser(user.id, { email: user.email ?? null });
     }
@@ -121,6 +129,9 @@ function RootNavigator() {
       }
       if (state === 'active') {
         initAnalytics();
+        if (userIdRef.current) {
+          updateLastOpenedAt(userIdRef.current);
+        }
       }
     });
     return () => subscription.remove();
@@ -135,6 +146,12 @@ function RootNavigator() {
     const handleDeepLink = async (event: { url: string }) => {
       const { url } = event;
       logger.info('Deep link reçu:', url);
+
+      const inviteMatch = url.match(/invite\/([A-Z0-9-]+)/i);
+      if (inviteMatch) {
+        await savePendingReferralCode(inviteMatch[1]);
+        return;
+      }
 
       const authParams = extractAuthParams(url);
       if (authParams?.accessToken && authParams?.refreshToken) {
@@ -184,6 +201,12 @@ function RootNavigator() {
       // Initialiser les notifications seulement après l'onboarding et auth
       checkAndScheduleNotifications();
 
+      // Enregistrer le push token et tracker l'ouverture (users connectés uniquement)
+      if (user?.id) {
+        registerPushToken(user.id);
+        updateLastOpenedAt(user.id);
+      }
+
       // Écouter les notifications reçues
       notificationListener.current = addNotificationReceivedListener((notification) => {
         logger.info('Notification reçue:', notification.request.content.title);
@@ -191,7 +214,13 @@ function RootNavigator() {
 
       // Écouter les clics sur les notifications
       responseListener.current = addNotificationResponseListener((response) => {
-        logger.info('Réponse notification:', response.notification.request.content.title);
+        logger.info('Notification tapped:', response.notification.request.content.title);
+        const data = response.notification.request.content.data as Record<string, unknown> | null;
+        const screen = getScreenFromNotificationData(data);
+        if (navigationRef.isReady()) {
+          // Type is already constrained to param-less routes — no cast needed
+          navigationRef.navigate(screen);
+        }
       });
     }
 
@@ -247,7 +276,7 @@ function RootNavigator() {
   if (showOnboarding) {
     return (
       <>
-        <OnboardingScreen onComplete={handleOnboardingComplete} />
+        <ActiveOnboardingScreen onComplete={handleOnboardingComplete} />
         <StatusBar style={statusBarStyle} />
       </>
     );
@@ -259,7 +288,7 @@ function RootNavigator() {
   // Si pas authentifié, afficher l'écran de connexion
   if (!isAuthenticated) {
     return (
-      <NavigationContainer linking={linking} onStateChange={onNavigationStateChange}>
+      <NavigationContainer ref={navigationRef} linking={linking} onStateChange={onNavigationStateChange}>
         <AuthNavigator />
         <StatusBar style={statusBarStyle} />
       </NavigationContainer>
@@ -268,7 +297,7 @@ function RootNavigator() {
 
   // Utilisateur authentifié ou en mode local, afficher l'app principale
   return (
-    <NavigationContainer linking={linking} onStateChange={onNavigationStateChange}>
+    <NavigationContainer ref={navigationRef} linking={linking} onStateChange={onNavigationStateChange}>
       <AppNavigator />
       <StatusBar style={statusBarStyle} />
     </NavigationContainer>
