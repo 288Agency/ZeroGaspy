@@ -8,16 +8,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
 import PressableScale from './PressableScale';
 import Button from './Button';
 import { COLORS, SHADOWS, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { Recipe, addUserRecipe, RECIPE_EMOJIS } from '../services/recipeService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AddRecipeModalProps {
   visible: boolean;
@@ -42,6 +46,7 @@ const DIFFICULTY_KEYS: Array<{ key: Recipe['difficulty']; labelKey: string }> = 
 
 export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddRecipeModalProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('🍳');
@@ -53,6 +58,14 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
   const [tips, setTips] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { showToast, hideToast, toastVisible, toastConfig } = useToast();
+  const [errors, setErrors] = useState<{
+    name?: string;
+    description?: string;
+    ingredients?: string;
+    instructions?: string;
+    prepTime?: string;
+  }>({});
 
   const resetForm = () => {
     setName('');
@@ -65,6 +78,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
     setInstructions(['']);
     setTips('');
     setShowEmojiPicker(false);
+    setErrors({});
   };
 
   const handleClose = () => {
@@ -105,30 +119,15 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
   };
 
   const validateForm = (): boolean => {
-    if (!name.trim()) {
-      Alert.alert(t('common.error'), t('addRecipe.errorNameRequired'));
-      return false;
-    }
-    if (!description.trim()) {
-      Alert.alert(t('common.error'), t('addRecipe.errorDescRequired'));
-      return false;
-    }
-    const validIngredients = ingredients.filter(i => i.trim());
-    if (validIngredients.length === 0) {
-      Alert.alert(t('common.error'), t('addRecipe.errorIngredientRequired'));
-      return false;
-    }
-    const validInstructions = instructions.filter(i => i.trim());
-    if (validInstructions.length === 0) {
-      Alert.alert(t('common.error'), t('addRecipe.errorStepRequired'));
-      return false;
-    }
+    const newErrors: typeof errors = {};
+    if (!name.trim()) newErrors.name = t('addRecipe.errorNameRequired');
+    if (!description.trim()) newErrors.description = t('addRecipe.errorDescRequired');
+    if (ingredients.filter(i => i.trim()).length === 0) newErrors.ingredients = t('addRecipe.errorIngredientRequired');
+    if (instructions.filter(i => i.trim()).length === 0) newErrors.instructions = t('addRecipe.errorStepRequired');
     const time = parseInt(preparationTime);
-    if (isNaN(time) || time <= 0) {
-      Alert.alert(t('common.error'), t('addRecipe.errorPrepTimeRequired'));
-      return false;
-    }
-    return true;
+    if (isNaN(time) || time <= 0) newErrors.prepTime = t('addRecipe.errorPrepTimeRequired');
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
@@ -146,18 +145,19 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         ingredients: ingredients.filter(i => i.trim()),
         instructions: instructions.filter(i => i.trim()),
         tips: tips.trim() || undefined,
-      });
+      }, user?.id);
 
-      Alert.alert(t('common.success'), t('addRecipe.recipeAdded'), [
-        {
-          text: t('common.ok'),
-          onPress: () => {
-            resetForm();
-            onRecipeAdded();
-            onClose();
-          },
-        },
-      ]);
+      showToast({
+        type: 'success',
+        title: t('addRecipe.recipeAdded'),
+        subtitle: name.trim(),
+        duration: 2500,
+      });
+      setTimeout(() => {
+        resetForm();
+        onRecipeAdded();
+        onClose();
+      }, 300);
     } catch (error) {
       Alert.alert(t('common.error'), t('addRecipe.saveError'));
     } finally {
@@ -174,7 +174,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
     >
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -195,7 +195,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addRecipe.illustration')}</Text>
             <PressableScale
-              onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+              onPress={() => { Keyboard.dismiss(); setShowEmojiPicker(!showEmojiPicker); }}
               style={styles.emojiButton}
               hapticType="light"
             >
@@ -228,26 +228,28 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addRecipe.recipeName')}</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.name ? styles.inputError : undefined]}
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => { setName(text); if (errors.name) setErrors(e => ({ ...e, name: undefined })); }}
               placeholder={t('addRecipe.recipeNamePlaceholder')}
               placeholderTextColor={COLORS.text.muted}
             />
+            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
           </View>
 
           {/* Description */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addRecipe.description')}</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, errors.description ? styles.inputError : undefined]}
               value={description}
-              onChangeText={setDescription}
+              onChangeText={(text) => { setDescription(text); if (errors.description) setErrors(e => ({ ...e, description: undefined })); }}
               placeholder={t('addRecipe.descriptionPlaceholder')}
               placeholderTextColor={COLORS.text.muted}
               multiline
               numberOfLines={3}
             />
+            {errors.description ? <Text style={styles.errorText}>{errors.description}</Text> : null}
           </View>
 
           {/* Category */}
@@ -310,20 +312,24 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           {/* Preparation Time */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addRecipe.prepTime')}</Text>
-            <TextInput
-              style={[styles.input, styles.timeInput]}
-              value={preparationTime}
-              onChangeText={setPreparationTime}
-              placeholder="30"
-              placeholderTextColor={COLORS.text.muted}
-              keyboardType="number-pad"
-            />
+            <View style={styles.timeRow}>
+              <TextInput
+                style={[styles.input, styles.timeInput, errors.prepTime ? styles.inputError : undefined]}
+                value={preparationTime}
+                onChangeText={(text) => { setPreparationTime(text); if (errors.prepTime) setErrors(e => ({ ...e, prepTime: undefined })); }}
+                placeholder="30"
+                placeholderTextColor={COLORS.text.muted}
+                keyboardType="number-pad"
+              />
+              <Text style={styles.timeUnit}>{t('addRecipe.minutesUnit')}</Text>
+            </View>
+            {errors.prepTime ? <Text style={styles.errorText}>{errors.prepTime}</Text> : null}
           </View>
 
           {/* Ingredients */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('addRecipe.ingredients')}</Text>
+              <Text style={[styles.sectionTitle, errors.ingredients ? styles.sectionTitleError : undefined]}>{t('addRecipe.ingredients')}</Text>
               <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
                 <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
               </TouchableOpacity>
@@ -336,7 +342,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 <TextInput
                   style={[styles.input, styles.listInput]}
                   value={ingredient}
-                  onChangeText={(text) => updateIngredient(index, text)}
+                  onChangeText={(text) => { updateIngredient(index, text); if (errors.ingredients) setErrors(e => ({ ...e, ingredients: undefined })); }}
                   placeholder={t('addRecipe.ingredientPlaceholder', { index: index + 1 })}
                   placeholderTextColor={COLORS.text.muted}
                 />
@@ -350,12 +356,13 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 )}
               </View>
             ))}
+            {errors.ingredients ? <Text style={styles.errorText}>{errors.ingredients}</Text> : null}
           </View>
 
           {/* Instructions */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('addRecipe.steps')}</Text>
+              <Text style={[styles.sectionTitle, errors.instructions ? styles.sectionTitleError : undefined]}>{t('addRecipe.steps')}</Text>
               <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
                 <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
               </TouchableOpacity>
@@ -368,7 +375,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 <TextInput
                   style={[styles.input, styles.listInput, styles.instructionInput]}
                   value={instruction}
-                  onChangeText={(text) => updateInstruction(index, text)}
+                  onChangeText={(text) => { updateInstruction(index, text); if (errors.instructions) setErrors(e => ({ ...e, instructions: undefined })); }}
                   placeholder={t('addRecipe.stepPlaceholder', { index: index + 1 })}
                   placeholderTextColor={COLORS.text.muted}
                   multiline
@@ -383,6 +390,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 )}
               </View>
             ))}
+            {errors.instructions ? <Text style={styles.errorText}>{errors.instructions}</Text> : null}
           </View>
 
           {/* Tips */}
@@ -413,6 +421,14 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
 
           <View style={{ height: scaleSpacing(40) }} />
         </ScrollView>
+        <Toast
+          visible={toastVisible}
+          type={toastConfig?.type ?? 'success'}
+          title={toastConfig?.title ?? ''}
+          subtitle={toastConfig?.subtitle}
+          duration={toastConfig?.duration}
+          onHide={hideToast}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -598,5 +614,26 @@ const styles = StyleSheet.create({
   },
   submitSection: {
     marginTop: scaleSpacing(10),
+  },
+  inputError: {
+    borderColor: COLORS.semantic.dangerLight,
+  },
+  errorText: {
+    fontSize: scaleFontSize(12),
+    color: COLORS.semantic.dangerLight,
+    marginTop: scaleSpacing(4),
+  },
+  sectionTitleError: {
+    color: COLORS.semantic.dangerLight,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeUnit: {
+    fontSize: scaleFontSize(isSmallScreen ? 14 : 16),
+    color: COLORS.text.secondary,
+    marginLeft: scaleSpacing(10),
+    fontWeight: '500',
   },
 });
