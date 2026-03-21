@@ -602,16 +602,16 @@
     "categoryOther": "Other",
     "slide1Title": "Stop food waste for good",
     "slide1Sub": "Track your food, get alerts before items expire, cook what you have.",
-    "slide1Pill1": "Easy inventory",
-    "slide1Pill2": "Expiry alerts",
+    "slide1Pill1": "📦 Easy inventory",
+    "slide1Pill2": "🔔 Expiry alerts",
     "slide2Title": "Never miss an expiry date again",
     "slide2Sub": "ZeroGaspy alerts you 3 days before. Act in time, nothing ends up in the bin.",
-    "slide2Pill1": "3-day alert",
-    "slide2Pill2": "Zero waste",
+    "slide2Pill1": "🔥 3-day alert",
+    "slide2Pill2": "♻️ Zero waste",
     "slide3Title": "Recipes from what you already have",
     "slide3Sub": "AI scans your fridge and suggests the best anti-waste recipes of the day.",
-    "slide3Pill1": "AI suggestions",
-    "slide3Pill2": "Tailored recipes"
+    "slide3Pill1": "✨ AI suggestions",
+    "slide3Pill2": "🎯 Tailored recipes"
   },
   "auth": {
     "login": "Login",
