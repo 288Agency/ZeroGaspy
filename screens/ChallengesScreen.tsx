@@ -5,14 +5,16 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
-  SafeAreaView,
+  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import PressableScale from '../components/PressableScale';
+import { SkeletonChallengesContent } from '../components/Skeleton';
 import { useGamification } from '../contexts/GamificationContext';
 import {
   getActiveChallenges,
@@ -37,6 +39,7 @@ export default function ChallengesScreen() {
 
   const [activeDefs, setActiveDefs] = useState<ChallengeDefinition[]>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     refreshChallenges();
@@ -85,7 +88,44 @@ export default function ChallengesScreen() {
     }
   }, [challengesState]);
 
-  if (!challengesState) return null;
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshChallenges();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (!challengesState) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Animated.View style={[styles.header, { opacity: headerFade }]}>
+            <PressableScale
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              hapticType="light"
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+            </PressableScale>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{t('challenges.screenTitle')}</Text>
+              <Text style={styles.headerSubtitle}>{t('common.loading')}</Text>
+            </View>
+            <View style={styles.headerSpacer} />
+          </Animated.View>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <SkeletonChallengesContent />
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const completedCount = challengesState.challenges.filter(c => c.completed).length;
   const totalXpEarned = challengesState.challenges
@@ -114,12 +154,21 @@ export default function ChallengesScreen() {
               {t('challenges.dateRange', { start: dateRange.start, end: dateRange.end })}
             </Text>
           </View>
+          <View style={styles.headerSpacer} />
         </Animated.View>
 
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary[500]}
+              colors={[COLORS.primary[500]]}
+            />
+          }
         >
           <Animated.View style={{ opacity: contentFade }}>
             {/* Summary card */}
@@ -363,10 +412,14 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     flex: 1,
   },
+  headerSpacer: {
+    width: scaleSize(40),
+    marginLeft: SPACING.md,
+  },
   headerTitle: {
     fontSize: scaleFontSize(isSmallScreen ? 22 : 26),
-    fontWeight: '700',
-    color: COLORS.primary[500],
+    fontWeight: '800',
+    color: COLORS.text.primary,
     letterSpacing: -0.5,
   },
   headerSubtitle: {

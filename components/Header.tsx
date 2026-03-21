@@ -146,10 +146,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSpacing(6),
   },
   title: {
-    fontSize: scaleFontSize(isSmallScreen ? 18 : 22),
-    lineHeight: scaleFontSize(isSmallScreen ? 24 : 28),
-    fontWeight: '600',
-    color: COLORS.primary[500],
+    fontSize: scaleFontSize(isSmallScreen ? 22 : 26),
+    lineHeight: scaleFontSize(isSmallScreen ? 28 : 34),
+    fontWeight: '800',
+    color: COLORS.text.primary,
     textAlign: 'center',
   },
   subtitle: {

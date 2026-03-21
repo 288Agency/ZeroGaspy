@@ -29,6 +29,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
 import PressableScale from '../components/PressableScale';
+import { SkeletonHomeContent } from '../components/Skeleton';
 
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -75,6 +76,8 @@ const BackgroundDecoration = React.memo(function BackgroundDecoration() {
 
   return (
     <Animated.View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
       style={[
         styles.backgroundDecoration,
         {
@@ -162,6 +165,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [homeReady, setHomeReady] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [showWeeklyRecap, setShowWeeklyRecap] = useState(false);
 
@@ -233,6 +237,8 @@ export default function HomeScreen() {
         'Impossible de charger vos listes. Veuillez réessayer.',
         [{ text: 'OK' }]
       );
+    } finally {
+      setHomeReady(true);
     }
   }, []);
 
@@ -266,6 +272,10 @@ export default function HomeScreen() {
       return sum + thrownItems.length;
     }, 0);
   }, [lists]);
+
+  const onExpiringSoonPress = useCallback(() => navigation.navigate('ExpiringSoon'), [navigation]);
+  const onThrownPress = useCallback(() => navigation.navigate('ThrownFoods'), [navigation]);
+  const onCreateList = useCallback(() => navigation.navigate('CreateList'), [navigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
@@ -308,31 +318,32 @@ export default function HomeScreen() {
             transform: [{ translateY: contentSlide }],
           }}
         >
-          {/* Stats cards */}
-          <StatsCardsRow
-            expiringSoonCount={expiringSoonCount}
-            thrownCount={thrownCount}
-            onExpiringSoonPress={useCallback(() => navigation.navigate('ExpiringSoon'), [navigation])}
-            onThrownPress={useCallback(() => navigation.navigate('ThrownFoods'), [navigation])}
-          />
+          {!homeReady ? (
+            <SkeletonHomeContent />
+          ) : (
+            <>
+              <StatsCardsRow
+                expiringSoonCount={expiringSoonCount}
+                thrownCount={thrownCount}
+                onExpiringSoonPress={onExpiringSoonPress}
+                onThrownPress={onThrownPress}
+              />
 
-          {/* Weekly challenge */}
-          <WeeklyChallengeCard challengesState={challengesState} />
+              <WeeklyChallengeCard challengesState={challengesState} />
 
-          {/* Proactive recipe suggestion */}
-          <ProactiveRecipeCard lists={lists} />
+              <ProactiveRecipeCard lists={lists} />
 
-          {/* Referral card — shown after first badge unlock */}
-          {user && (gamificationData?.badges?.length ?? 0) >= 1 && (
-            <ReferralCard userId={user.id} hasBadges={true} />
+              {user && (gamificationData?.badges?.length ?? 0) >= 1 && (
+                <ReferralCard userId={user.id} hasBadges={true} />
+              )}
+
+              <SpacesGrid
+                lists={lists}
+                onCreateList={onCreateList}
+                onListDeleted={loadListsData}
+              />
+            </>
           )}
-
-          {/* Spaces grid */}
-          <SpacesGrid
-            lists={lists}
-            onCreateList={useCallback(() => navigation.navigate('CreateList'), [navigation])}
-            onListDeleted={loadListsData}
-          />
         </Animated.View>
       </ScrollView>
 
@@ -421,7 +432,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: scaleFontSize(isSmallScreen ? 26 : 32),
     lineHeight: scaleFontSize(isSmallScreen ? 32 : 40),
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.primary[500],
     letterSpacing: -1,
   },

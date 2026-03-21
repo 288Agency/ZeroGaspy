@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   StyleSheet,
   Linking,
+  RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +46,7 @@ import * as StoreReview from 'expo-store-review';
 import { useTranslation } from 'react-i18next';
 import logger from '../utils/logger';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import { scaleFontSize } from '../utils/responsive';
 import { getReferralInfo, shareReferralLink, ReferralInfo } from '../services/referralService';
 import { trackReferralCodeShared } from '../services/analytics';
 
@@ -51,9 +54,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut, isLocalMode } = useAuth();
-  const { isPremium, currentPlan, expirationDate, restorePurchases, isLoading: subscriptionLoading } = useSubscription();
+  const { isPremium, currentPlan, expirationDate, restorePurchases, refreshSubscriptionStatus, isLoading: subscriptionLoading } = useSubscription();
   const isOnline = useIsOnline();
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [accountSettingsVisible, setAccountSettingsVisible] = useState(false);
@@ -61,7 +65,7 @@ export default function AccountScreen() {
   const [achievementsVisible, setAchievementsVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
-  const { gamificationData } = useGamification();
+  const { gamificationData, refreshData: refreshGamification } = useGamification();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
     dailyReminder: true,
@@ -77,12 +81,15 @@ export default function AccountScreen() {
   const [pendingChanges, setPendingChanges] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
       const [settings, stats] = await Promise.all([
         loadNotificationSettings(),
         getExportStats(),
+        refreshGamification(),
+        refreshSubscriptionStatus(),
       ]);
       setNotificationSettings(settings);
       setExportStats(stats);
@@ -96,6 +103,15 @@ export default function AccountScreen() {
       }
     } catch (error) {
       logger.error('Erreur lors du chargement:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -233,10 +249,12 @@ export default function AccountScreen() {
     </View>
   );
 
+  const headerPaddingTop = Math.max(insets.top, SPACING.lg) + SPACING.sm;
+
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.headerTitle}>
           {t('account.title')}
         </Text>
@@ -246,6 +264,14 @@ export default function AccountScreen() {
         style={styles.scrollView}
         contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary[500]}
+            colors={[COLORS.primary[500]]}
+          />
+        }
       >
         {/* Section Compte Utilisateur */}
         <View style={styles.section}>
@@ -671,10 +697,10 @@ export default function AccountScreen() {
           )}
 
           <View style={styles.exportButtonsRow}>
-            <PressableScale
+            <TouchableOpacity
               onPress={handleExportJSON}
               style={styles.exportJsonButton}
-              hapticType="medium"
+              activeOpacity={0.7}
               disabled={isExporting}
             >
               <View style={styles.exportButtonContent}>
@@ -690,12 +716,12 @@ export default function AccountScreen() {
                   {t('export.jsonDesc')}
                 </Text>
               </View>
-            </PressableScale>
+            </TouchableOpacity>
 
-            <PressableScale
+            <TouchableOpacity
               onPress={handleExportCSV}
               style={styles.exportCsvButton}
-              hapticType="medium"
+              activeOpacity={0.7}
               disabled={isExporting}
             >
               <View style={styles.exportButtonContent}>
@@ -711,7 +737,7 @@ export default function AccountScreen() {
                   {t('export.csvDesc')}
                 </Text>
               </View>
-            </PressableScale>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.exportInfoBanner}>
@@ -861,13 +887,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingTop: 64,
     paddingBottom: SPACING['2xl'],
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: COLORS.primary[500],
+    fontSize: scaleFontSize(26),
+    fontWeight: '700',
+    color: COLORS.text.primary,
   },
   scrollView: {
     flex: 1,
@@ -876,9 +901,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING['2xl'],
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.primary[500],
+    fontSize: scaleFontSize(18),
+    fontWeight: '700',
+    color: COLORS.text.primary,
     marginBottom: SPACING.lg,
   },
   sectionCard: {
@@ -1222,9 +1247,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-    fontSize: 16,
+    color: COLORS.text.primary,
+    fontWeight: '700',
+    fontSize: scaleFontSize(16),
   },
   settingSubtitle: {
     color: COLORS.text.tertiary,

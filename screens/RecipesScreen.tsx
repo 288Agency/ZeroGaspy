@@ -9,6 +9,7 @@ import {
   Modal,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,12 +24,13 @@ import AddRecipeModal from '../components/AddRecipeModal';
 import PaywallModal from '../components/PaywallModal';
 import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '../components/RecipeOnboardingModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { COLORS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } from '../services/recipeService';
 import { useGamification } from '../contexts/GamificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { trackRecipeViewed as analyticsTrackRecipeViewed } from '../services/analytics';
@@ -390,10 +392,12 @@ export default function RecipesScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Recipes'>>();
   const highlightIngredient = route.params?.ingredient;
   const { trackRecipeViewed } = useGamification();
+  const { user } = useAuth();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const [lists, setLists] = useState<List[]>([]);
   const [recipeMatches, setRecipeMatches] = useState<RecipeMatch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<RecipeMatch | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -426,9 +430,8 @@ export default function RecipesScreen() {
       const data = await loadLists();
       setLists(data);
 
-      // Récupérer tous les aliments de toutes les listes
       const allFoodItems: FoodItem[] = data.flatMap(list => list.items);
-      const matches = await findMatchingRecipesWithUser(allFoodItems);
+      const matches = await findMatchingRecipesWithUser(allFoodItems, user?.id);
       setRecipeMatches(matches);
     } catch (error) {
       logger.error('Erreur lors du chargement:', error);
@@ -437,6 +440,8 @@ export default function RecipesScreen() {
         t('recipes.loadError'),
         [{ text: t('common.ok') }]
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -448,8 +453,11 @@ export default function RecipesScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleRecipePress = (match: RecipeMatch) => {
@@ -472,9 +480,13 @@ export default function RecipesScreen() {
             text: t('common.delete'),
             style: 'destructive',
             onPress: async () => {
-              const success = await deleteUserRecipe(match.recipe.id);
-              if (success) {
-                loadData();
+              // Optimistic update
+              setRecipeMatches(prev => prev.filter(m => m.recipe.id !== match.recipe.id));
+              const success = await deleteUserRecipe(match.recipe.id, user?.id);
+              if (!success) {
+                // Rollback on failure
+                setRecipeMatches(prev => [...prev, match]);
+                Alert.alert(t('common.error'), t('recipes.deleteError'));
               }
             },
           },
@@ -608,7 +620,7 @@ export default function RecipesScreen() {
           </PressableScale>
           <PressableScale
             onPress={() => setSortMode('bestMatch')}
-            style={[styles.sortButton, sortMode === 'bestMatch' && styles.sortButtonActive]}
+            style={[styles.sortButton, styles.sortButtonMatch, sortMode === 'bestMatch' && styles.sortButtonMatchActive]}
             hapticType="light"
           >
             <Ionicons
@@ -616,7 +628,7 @@ export default function RecipesScreen() {
               size={scaleSize(14)}
               color={sortMode === 'bestMatch' ? COLORS.neutral.white : COLORS.primary[500]}
             />
-            <Text style={[styles.sortButtonText, sortMode === 'bestMatch' && styles.sortButtonTextActive]}>
+            <Text style={[styles.sortButtonText, styles.sortButtonMatchText, sortMode === 'bestMatch' && styles.sortButtonTextActive]}>
               {t('recipes.sortBestMatch')}
             </Text>
           </PressableScale>
@@ -643,7 +655,11 @@ export default function RecipesScreen() {
             />
           )}
 
-          {filteredMatches.length > 0 ? (
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary[500]} />
+            </View>
+          ) : filteredMatches.length > 0 ? (
             filteredMatches.map((match, index) => (
               <RecipeCard
                 key={match.recipe.id}
@@ -653,6 +669,18 @@ export default function RecipesScreen() {
                 index={index}
               />
             ))
+          ) : selectedFilter !== 'all' && availableMatches.length > 0 ? (
+            <View style={styles.emptyState}>
+              <ChefIllustration />
+              <Text style={styles.emptyTitle}>{t('recipes.noFilterResults')}</Text>
+              <Text style={styles.emptySubtitle}>{t('recipes.noFilterResultsHint')}</Text>
+              <TouchableOpacity
+                onPress={() => setSelectedFilter('all')}
+                style={styles.resetFilterButton}
+              >
+                <Text style={styles.resetFilterText}>{t('recipes.resetFilter')}</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={styles.emptyState}>
               <ChefIllustration />
@@ -817,6 +845,17 @@ const styles = StyleSheet.create({
   sortButtonTextActive: {
     color: COLORS.neutral.white,
   },
+  sortButtonMatch: {
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  sortButtonMatchActive: {
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
+  },
+  sortButtonMatchText: {
+    color: COLORS.primary[500],
+  },
   scrollView: {
     flex: 1,
   },
@@ -856,8 +895,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   recipeName: {
-    fontSize: scaleFontSize(isSmallScreen ? 15 : 17),
-    fontWeight: '700',
+    fontSize: scaleFontSize(isSmallScreen ? 15 : 16),
+    fontWeight: '600',
     color: COLORS.text.primary,
     flex: 1,
   },
@@ -960,6 +999,26 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     textAlign: 'center',
     paddingHorizontal: scaleSpacing(32),
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING['3xl'],
+  },
+  resetFilterButton: {
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.full,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
+    borderWidth: 1,
+    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+  },
+  resetFilterText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: scaleFontSize(14),
   },
 
   // Modal styles
