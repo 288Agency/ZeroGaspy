@@ -1,9 +1,16 @@
 import { useState, useCallback } from 'react';
-import type { ToastConfig } from '../components/Toast';
+import type { ToastType } from '../components/Toast';
 
 // ============================================
 // TYPES
 // ============================================
+
+interface ToastConfig {
+  type: ToastType;
+  title: string;
+  subtitle?: string;
+  duration?: number;
+}
 
 interface UseToastReturn {
   toastVisible: boolean;
@@ -18,7 +25,7 @@ interface UseToastReturn {
 
 const DEFAULT_CONFIG: ToastConfig = {
   type: 'info',
-  message: '',
+  title: '',
   duration: 3000,
 };
 

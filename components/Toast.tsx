@@ -15,16 +15,13 @@ import { COLORS, RADIUS, SHADOWS } from '../utils/designSystem';
 
 export type ToastType = 'success' | 'error' | 'info';
 
-export interface ToastConfig {
-  type: ToastType;
-  message: string;
-  duration?: number;
-}
-
-interface ToastProps {
+export interface ToastProps {
   visible: boolean;
-  config: ToastConfig;
+  type: ToastType;
+  title: string;
+  subtitle?: string;
   onHide: () => void;
+  duration?: number;
 }
 
 // ============================================
@@ -56,7 +53,7 @@ const TOAST_STYLES: Record<
 // COMPONENT
 // ============================================
 
-const Toast: React.FC<ToastProps> = ({ visible, config, onHide }) => {
+const Toast: React.FC<ToastProps> = ({ visible, type, title, subtitle, onHide, duration }) => {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,10 +75,10 @@ const Toast: React.FC<ToastProps> = ({ visible, config, onHide }) => {
       }).start();
 
       // Auto-hide after duration
-      const duration = config.duration ?? 3000;
+      const d = duration ?? 3000;
       timerRef.current = setTimeout(() => {
         hide();
-      }, duration);
+      }, d);
     } else {
       // Slide out
       Animated.spring(translateY, {
@@ -116,7 +113,7 @@ const Toast: React.FC<ToastProps> = ({ visible, config, onHide }) => {
     });
   };
 
-  const toastStyle = TOAST_STYLES[config.type];
+  const toastStyle = TOAST_STYLES[type];
 
   return (
     <Animated.View
@@ -137,9 +134,16 @@ const Toast: React.FC<ToastProps> = ({ visible, config, onHide }) => {
         activeOpacity={0.85}
       >
         <Text style={styles.icon}>{toastStyle.icon}</Text>
-        <Text style={styles.message} numberOfLines={3}>
-          {config.message}
-        </Text>
+        <View style={styles.textContainer}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.subtitle} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -170,12 +174,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
   },
-  message: {
+  textContainer: {
     flex: 1,
+    gap: 2,
+  },
+  title: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '700',
     color: COLORS.text.primary,
     lineHeight: 20,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: COLORS.text.secondary,
+    lineHeight: 18,
   },
 });
 
