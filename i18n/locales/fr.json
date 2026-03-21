@@ -611,7 +611,10 @@
     "slide3Title": "Des recettes avec ce que tu as déjà",
     "slide3Sub": "L'IA analyse ton frigo et propose les meilleures recettes anti-gaspi du jour.",
     "slide3Pill1": "✨ Suggestions IA",
-    "slide3Pill2": "🎯 Recettes sur-mesure"
+    "slide3Pill2": "🎯 Recettes sur-mesure",
+    "step1of2": "Étape 1 sur 2",
+    "savingsEstimate": "Tu économises ~{{amount}}€ en évitant ce gaspillage",
+    "itemPillLabel": "expire dans {{days}}j"
   },
   "auth": {
     "login": "Connexion",

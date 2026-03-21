@@ -611,7 +611,10 @@
     "slide3Title": "Recipes from what you already have",
     "slide3Sub": "AI scans your fridge and suggests the best anti-waste recipes of the day.",
     "slide3Pill1": "✨ AI suggestions",
-    "slide3Pill2": "🎯 Tailored recipes"
+    "slide3Pill2": "🎯 Tailored recipes",
+    "step1of2": "Step 1 of 2",
+    "savingsEstimate": "You save ~€{{amount}} by avoiding this waste",
+    "itemPillLabel": "expires in {{days}}d"
   },
   "auth": {
     "login": "Login",

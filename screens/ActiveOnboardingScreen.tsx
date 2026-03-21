@@ -4,6 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Alert,
   Animated,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -25,7 +26,7 @@ import {
 } from '../utils/responsive';
 import { FoodItem } from '../types';
 import { createList, addItemToList } from '../utils/localStorage';
-import { findMatchingRecipesForOnboarding, RecipeMatch } from '../services/recipeService';
+import { findMatchingRecipesForOnboarding, RecipeMatch, fetchRecipesFromCloud } from '../services/recipeService';
 import { formatDateToDDMMYYYY } from '../utils/dateUtils';
 import FieldInput from '../components/FieldInput';
 import DatePickerField from '../components/DatePickerField';
@@ -65,6 +66,15 @@ const EXPIRATION_OPTIONS = [
   { key: 'oneMonth', days: 30 },
   { key: 'customDate', days: -1 },
 ];
+
+const SAVINGS_BY_CATEGORY: Record<string, number> = {
+  fruits: 0.80, vegetables: 0.70, meat: 2.50, dairy: 1.20,
+  bakery: 0.90, condiments: 1.50, frozen: 1.80, other: 1.00,
+};
+
+const STEP_PROGRESS: Record<string, number> = {
+  welcome: 0, addFood: 40, addMore: 60, recipes: 80, ready: 100,
+};
 
 interface ActiveOnboardingScreenProps {
   onComplete: () => void;
@@ -190,6 +200,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       transitionTo('addMore');
     } catch (error) {
       logger.error('Error adding food during onboarding:', error);
+      Alert.alert(t('common.error'), t('addFood.saveError'));
     } finally {
       setIsAdding(false);
     }
@@ -202,6 +213,10 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
     trackOnboardingRecipeViewed();
     trackOnboardingStepCompleted('recipes');
     transitionTo('recipes');
+    fetchRecipesFromCloud().then(() => {
+      const updatedMatches = findMatchingRecipesForOnboarding(addedItems);
+      setRecipes(updatedMatches);
+    }).catch(() => {});
   };
 
   const handleComplete = async () => {
@@ -303,6 +318,9 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepBadgeText}>{t('onboarding.step1of2')}</Text>
+        </View>
         <Text style={styles.stepTitle}>{t('onboarding.addFirstFood')}</Text>
 
         {/* Food name */}
@@ -419,8 +437,8 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       <View style={styles.addMoreContainer}>
         {/* Success card */}
         <View style={styles.successCard}>
-          <View style={styles.successIconCircle}>
-            <Ionicons name="checkmark-circle" size={scaleSize(40)} color={COLORS.semantic.success} />
+          <View style={styles.checkCircle}>
+            <Text style={styles.checkMark}>✓</Text>
           </View>
           <Text style={styles.successTitle}>{t('onboarding.foodAdded')}</Text>
           {lastItem && (
@@ -433,6 +451,28 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
               )}
             </View>
           )}
+          {(() => {
+            const item = addedItems[addedItems.length - 1];
+            if (!item) return null;
+            const savings = SAVINGS_BY_CATEGORY[item.category ?? 'other'] ?? 1.00;
+            const catLabel = item.category ? getCategoryLabel(item.category) : null;
+            const daysLeft = item.expirationDate
+              ? Math.round((new Date(item.expirationDate.split('/').reverse().join('-')).getTime() - Date.now()) / 86400000)
+              : null;
+            return (
+              <>
+                <View style={styles.itemPill}>
+                  <Text style={styles.itemPillText}>
+                    {catLabel ?? t('onboarding.categoryOther')}
+                    {daysLeft !== null ? ` · ${t('onboarding.itemPillLabel', { days: daysLeft })}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.savingsText}>
+                  {t('onboarding.savingsEstimate', { amount: savings.toFixed(2) })}
+                </Text>
+              </>
+            );
+          })()}
           <Text style={styles.itemCount}>
             {t('onboarding.itemsAdded', { count: addedItems.length })}
           </Text>
@@ -518,6 +558,13 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
                   </Text>
                 </View>
               )}
+              <View style={styles.recipeTag}>
+                <Text style={styles.recipeTagText}>
+                  {match.recipe.difficulty === 'facile' ? t('recipes.easy') :
+                   match.recipe.difficulty === 'moyen' ? t('recipes.medium') :
+                   t('recipes.hard')}
+                </Text>
+              </View>
             </View>
           </View>
         ))
@@ -586,6 +633,9 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
 
   return (
     <View style={styles.container}>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${STEP_PROGRESS[step] ?? 0}%` as any }]} />
+      </View>
       {/* Header with back + step indicator */}
       <View style={styles.header}>
         {step !== 'welcome' ? (
@@ -619,6 +669,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.surface.background,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: COLORS.neutral.gray200 || '#e5e7eb',
+    width: '100%',
+  },
+  progressFill: {
+    height: 4,
+    backgroundColor: COLORS.primary[500],
   },
   flex: {
     flex: 1,
@@ -660,6 +719,19 @@ const styles = StyleSheet.create({
   },
   stepDotCompleted: {
     backgroundColor: COLORS.primary[300],
+  },
+  stepBadge: {
+    backgroundColor: hexToRgba ? hexToRgba(COLORS.primary[500], 0.1) : '#e8f5eb',
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  stepBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary[500],
   },
 
   // Welcome
@@ -857,6 +929,38 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.text.secondary,
     marginTop: SPACING.sm,
+  },
+  checkCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  checkMark: {
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  itemPill: {
+    backgroundColor: hexToRgba ? hexToRgba(COLORS.primary[500], 0.1) : '#e8f5eb',
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    marginVertical: 4,
+  },
+  itemPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary[500],
+  },
+  savingsText: {
+    fontSize: 11,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginTop: 2,
   },
   addMoreButtons: {
     gap: SPACING.md,
