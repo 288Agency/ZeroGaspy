@@ -23,6 +23,7 @@ import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/
 import { Recipe, addUserRecipe, RECIPE_EMOJIS } from '../services/recipeService';
 import { useAuth } from '../contexts/AuthContext';
 
+
 interface AddRecipeModalProps {
   visible: boolean;
   onClose: () => void;
@@ -58,6 +59,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
   const [tips, setTips] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const { showToast, hideToast, toastVisible, toastConfig } = useToast();
   const [errors, setErrors] = useState<{
     name?: string;
@@ -79,6 +81,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
     setTips('');
     setShowEmojiPicker(false);
     setErrors({});
+    setCurrentStep(1);
   };
 
   const handleClose = () => {
@@ -118,20 +121,35 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
     }
   };
 
-  const validateForm = (): boolean => {
+  const validateCurrentStep = (): boolean => {
     const newErrors: typeof errors = {};
-    if (!name.trim()) newErrors.name = t('addRecipe.errorNameRequired');
-    if (!description.trim()) newErrors.description = t('addRecipe.errorDescRequired');
-    if (ingredients.filter(i => i.trim()).length === 0) newErrors.ingredients = t('addRecipe.errorIngredientRequired');
-    if (instructions.filter(i => i.trim()).length === 0) newErrors.instructions = t('addRecipe.errorStepRequired');
-    const time = parseInt(preparationTime);
-    if (isNaN(time) || time <= 0) newErrors.prepTime = t('addRecipe.errorPrepTimeRequired');
+    if (currentStep === 1) {
+      if (!name.trim()) newErrors.name = t('addRecipe.errorNameRequired');
+      if (!description.trim()) newErrors.description = t('addRecipe.errorDescRequired');
+      const time = parseInt(preparationTime);
+      if (isNaN(time) || time <= 0) newErrors.prepTime = t('addRecipe.errorPrepTimeRequired');
+    }
+    if (currentStep === 2) {
+      if (ingredients.filter(i => i.trim()).length === 0) newErrors.ingredients = t('addRecipe.errorIngredientRequired');
+    }
+    if (currentStep === 3) {
+      if (instructions.filter(i => i.trim()).length === 0) newErrors.instructions = t('addRecipe.errorStepRequired');
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleNext = () => {
+    if (!validateCurrentStep()) return;
+    setCurrentStep((s) => (s < 4 ? (s + 1) as 1 | 2 | 3 | 4 : s));
+  };
+
+  const handleBack = () => {
+    setCurrentStep((s) => (s > 1 ? (s - 1) as 1 | 2 | 3 | 4 : s));
+  };
+
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (!validateCurrentStep()) return;
 
     setSaving(true);
     try {
@@ -165,262 +183,341 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
     }
   };
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
+  const renderStepProgress = () => (
+    <View style={styles.stepProgressRow}>
+      {[1, 2, 3, 4].map((s) => (
+        <View
+          key={s}
+          style={[
+            styles.stepProgressDot,
+            s < currentStep && styles.stepProgressDone,
+            s === currentStep && styles.stepProgressActive,
+          ]}
+        />
+      ))}
+    </View>
+  );
+
+  const renderStep1 = () => (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      {/* Emoji Picker */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.illustration')}</Text>
+        <PressableScale
+          onPress={() => { Keyboard.dismiss(); setShowEmojiPicker(!showEmojiPicker); }}
+          style={styles.emojiButton}
+          hapticType="light"
+        >
+          <Text style={styles.selectedEmoji}>{selectedEmoji}</Text>
+          <Text style={styles.emojiButtonText}>{t('addRecipe.change')}</Text>
+        </PressableScale>
+
+        {showEmojiPicker && (
+          <View style={styles.emojiGrid}>
+            {RECIPE_EMOJIS.map((emoji, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => {
+                  setSelectedEmoji(emoji);
+                  setShowEmojiPicker(false);
+                }}
+                style={[
+                  styles.emojiItem,
+                  emoji === selectedEmoji && styles.emojiItemSelected,
+                ]}
+              >
+                <Text style={styles.emojiItemText}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Name */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.recipeName')}</Text>
+        <TextInput
+          style={[styles.input, errors.name ? styles.inputError : undefined]}
+          value={name}
+          onChangeText={(text) => { setName(text); if (errors.name) setErrors(e => ({ ...e, name: undefined })); }}
+          placeholder={t('addRecipe.recipeNamePlaceholder')}
+          placeholderTextColor={COLORS.text.muted}
+        />
+        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+      </View>
+
+      {/* Description */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.description')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea, errors.description ? styles.inputError : undefined]}
+          value={description}
+          onChangeText={(text) => { setDescription(text); if (errors.description) setErrors(e => ({ ...e, description: undefined })); }}
+          placeholder={t('addRecipe.descriptionPlaceholder')}
+          placeholderTextColor={COLORS.text.muted}
+          multiline
+          numberOfLines={3}
+        />
+        {errors.description ? <Text style={styles.errorText}>{errors.description}</Text> : null}
+      </View>
+
+      {/* Category */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.category')}</Text>
+        <View style={styles.chipRow}>
+          {CATEGORY_KEYS.map((cat) => (
+            <TouchableOpacity
+              key={cat.key}
+              onPress={() => setCategory(cat.key)}
+              style={[
+                styles.chip,
+                category === cat.key && styles.chipSelected,
+              ]}
+            >
+              <Ionicons
+                name={cat.icon}
+                size={scaleSize(16)}
+                color={category === cat.key ? COLORS.neutral.white : COLORS.primary[500]}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  category === cat.key && styles.chipTextSelected,
+                ]}
+              >
+                {t(cat.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Difficulty */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.difficulty')}</Text>
+        <View style={styles.chipRow}>
+          {DIFFICULTY_KEYS.map((diff) => (
+            <TouchableOpacity
+              key={diff.key}
+              onPress={() => setDifficulty(diff.key)}
+              style={[
+                styles.chip,
+                difficulty === diff.key && styles.chipSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  difficulty === diff.key && styles.chipTextSelected,
+                ]}
+              >
+                {t(diff.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Preparation Time */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.prepTime')}</Text>
+        <View style={styles.timeRow}>
+          <TextInput
+            style={[styles.input, styles.timeInput, errors.prepTime ? styles.inputError : undefined]}
+            value={preparationTime}
+            onChangeText={(text) => { setPreparationTime(text); if (errors.prepTime) setErrors(e => ({ ...e, prepTime: undefined })); }}
+            placeholder="30"
+            placeholderTextColor={COLORS.text.muted}
+            keyboardType="number-pad"
+          />
+          <Text style={styles.timeUnit}>{t('addRecipe.minutesUnit')}</Text>
+        </View>
+        {errors.prepTime ? <Text style={styles.errorText}>{errors.prepTime}</Text> : null}
+      </View>
+
+      <View style={{ height: scaleSpacing(40) }} />
+    </ScrollView>
+  );
+
+  const renderStep2 = () => (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Ingredients */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, errors.ingredients ? styles.sectionTitleError : undefined]}>{t('addRecipe.ingredients')}</Text>
+          <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
+            <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
+          </TouchableOpacity>
+        </View>
+        {ingredients.map((ingredient, index) => (
+          <View key={index} style={styles.listItemRow}>
+            <View style={styles.bulletPoint}>
+              <Text style={styles.bulletText}>•</Text>
+            </View>
+            <TextInput
+              style={[styles.input, styles.listInput]}
+              value={ingredient}
+              onChangeText={(text) => { updateIngredient(index, text); if (errors.ingredients) setErrors(e => ({ ...e, ingredients: undefined })); }}
+              placeholder={t('addRecipe.ingredientPlaceholder', { index: index + 1 })}
+              placeholderTextColor={COLORS.text.muted}
+            />
+            {ingredients.length > 1 && (
+              <TouchableOpacity
+                onPress={() => removeIngredient(index)}
+                style={styles.removeButton}
+              >
+                <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+        {errors.ingredients ? <Text style={styles.errorText}>{errors.ingredients}</Text> : null}
+      </View>
+
+      <View style={{ height: scaleSpacing(40) }} />
+    </ScrollView>
+  );
+
+  const renderStep3 = () => (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Instructions */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, errors.instructions ? styles.sectionTitleError : undefined]}>{t('addRecipe.steps')}</Text>
+          <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
+            <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
+          </TouchableOpacity>
+        </View>
+        {instructions.map((instruction, index) => (
+          <View key={index} style={styles.listItemRow}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>{index + 1}</Text>
+            </View>
+            <TextInput
+              style={[styles.input, styles.listInput, styles.instructionInput]}
+              value={instruction}
+              onChangeText={(text) => { updateInstruction(index, text); if (errors.instructions) setErrors(e => ({ ...e, instructions: undefined })); }}
+              placeholder={t('addRecipe.stepPlaceholder', { index: index + 1 })}
+              placeholderTextColor={COLORS.text.muted}
+              multiline
+            />
+            {instructions.length > 1 && (
+              <TouchableOpacity
+                onPress={() => removeInstruction(index)}
+                style={styles.removeButton}
+              >
+                <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+        {errors.instructions ? <Text style={styles.errorText}>{errors.instructions}</Text> : null}
+      </View>
+
+      <View style={{ height: scaleSpacing(40) }} />
+    </ScrollView>
+  );
+
+  const renderStep4 = () => (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Tips */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('addRecipe.tipsOptional')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={tips}
+          onChangeText={setTips}
+          placeholder={t('addRecipe.tipsPlaceholder')}
+          placeholderTextColor={COLORS.text.muted}
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      {/* Submit Button */}
+      <View style={styles.submitSection}>
+        <Button
+          onPress={handleSave}
+          label={t('addRecipe.saveRecipe2')}
+          icon="checkmark-circle"
+          variant="gradient"
+          loading={saving}
+          disabled={saving}
+        />
+      </View>
+
+      <View style={{ height: scaleSpacing(40) }} />
+    </ScrollView>
+  );
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={scaleSize(24)} color={COLORS.text.primary} />
+          <TouchableOpacity onPress={currentStep === 1 ? handleClose : handleBack} style={styles.closeButton}>
+            <Ionicons
+              name={currentStep === 1 ? 'close' : 'chevron-back'}
+              size={scaleSize(24)}
+              color={COLORS.text.primary}
+            />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('addRecipe.headerTitle')}</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>
+              {currentStep === 1 ? t('addRecipe.stepInfos') :
+               currentStep === 2 ? t('addRecipe.stepIngredients') :
+               currentStep === 3 ? t('addRecipe.stepSteps') :
+               t('addRecipe.stepTips')}
+            </Text>
+            {renderStepProgress()}
+          </View>
           <View style={{ width: scaleSize(40) }} />
         </View>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Emoji Picker */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.illustration')}</Text>
-            <PressableScale
-              onPress={() => { Keyboard.dismiss(); setShowEmojiPicker(!showEmojiPicker); }}
-              style={styles.emojiButton}
-              hapticType="light"
+        {/* Step content */}
+        {currentStep === 1 && renderStep1()}
+        {currentStep === 2 && renderStep2()}
+        {currentStep === 3 && renderStep3()}
+        {currentStep === 4 && renderStep4()}
+
+        {/* Footer nav — only on steps 1-3 */}
+        {currentStep < 4 && (
+          <View style={styles.stepFooter}>
+            <TouchableOpacity
+              onPress={currentStep === 1 ? handleClose : handleBack}
+              style={styles.backFooterButton}
             >
-              <Text style={styles.selectedEmoji}>{selectedEmoji}</Text>
-              <Text style={styles.emojiButtonText}>{t('addRecipe.change')}</Text>
-            </PressableScale>
-
-            {showEmojiPicker && (
-              <View style={styles.emojiGrid}>
-                {RECIPE_EMOJIS.map((emoji, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => {
-                      setSelectedEmoji(emoji);
-                      setShowEmojiPicker(false);
-                    }}
-                    style={[
-                      styles.emojiItem,
-                      emoji === selectedEmoji && styles.emojiItemSelected,
-                    ]}
-                  >
-                    <Text style={styles.emojiItemText}>{emoji}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+              <Text style={styles.backFooterText}>
+                {currentStep === 1 ? t('common.cancel') : `← ${t('addRecipe.back')}`}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleNext} style={styles.nextFooterButton}>
+              <Text style={styles.nextFooterText}>{t('onboarding.next')} →</Text>
+            </TouchableOpacity>
           </View>
+        )}
 
-          {/* Name */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.recipeName')}</Text>
-            <TextInput
-              style={[styles.input, errors.name ? styles.inputError : undefined]}
-              value={name}
-              onChangeText={(text) => { setName(text); if (errors.name) setErrors(e => ({ ...e, name: undefined })); }}
-              placeholder={t('addRecipe.recipeNamePlaceholder')}
-              placeholderTextColor={COLORS.text.muted}
-            />
-            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-          </View>
-
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.description')}</Text>
-            <TextInput
-              style={[styles.input, styles.textArea, errors.description ? styles.inputError : undefined]}
-              value={description}
-              onChangeText={(text) => { setDescription(text); if (errors.description) setErrors(e => ({ ...e, description: undefined })); }}
-              placeholder={t('addRecipe.descriptionPlaceholder')}
-              placeholderTextColor={COLORS.text.muted}
-              multiline
-              numberOfLines={3}
-            />
-            {errors.description ? <Text style={styles.errorText}>{errors.description}</Text> : null}
-          </View>
-
-          {/* Category */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.category')}</Text>
-            <View style={styles.chipRow}>
-              {CATEGORY_KEYS.map((cat) => (
-                <TouchableOpacity
-                  key={cat.key}
-                  onPress={() => setCategory(cat.key)}
-                  style={[
-                    styles.chip,
-                    category === cat.key && styles.chipSelected,
-                  ]}
-                >
-                  <Ionicons
-                    name={cat.icon}
-                    size={scaleSize(16)}
-                    color={category === cat.key ? COLORS.neutral.white : COLORS.primary[500]}
-                  />
-                  <Text
-                    style={[
-                      styles.chipText,
-                      category === cat.key && styles.chipTextSelected,
-                    ]}
-                  >
-                    {t(cat.labelKey)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Difficulty */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.difficulty')}</Text>
-            <View style={styles.chipRow}>
-              {DIFFICULTY_KEYS.map((diff) => (
-                <TouchableOpacity
-                  key={diff.key}
-                  onPress={() => setDifficulty(diff.key)}
-                  style={[
-                    styles.chip,
-                    difficulty === diff.key && styles.chipSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      difficulty === diff.key && styles.chipTextSelected,
-                    ]}
-                  >
-                    {t(diff.labelKey)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Preparation Time */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.prepTime')}</Text>
-            <View style={styles.timeRow}>
-              <TextInput
-                style={[styles.input, styles.timeInput, errors.prepTime ? styles.inputError : undefined]}
-                value={preparationTime}
-                onChangeText={(text) => { setPreparationTime(text); if (errors.prepTime) setErrors(e => ({ ...e, prepTime: undefined })); }}
-                placeholder="30"
-                placeholderTextColor={COLORS.text.muted}
-                keyboardType="number-pad"
-              />
-              <Text style={styles.timeUnit}>{t('addRecipe.minutesUnit')}</Text>
-            </View>
-            {errors.prepTime ? <Text style={styles.errorText}>{errors.prepTime}</Text> : null}
-          </View>
-
-          {/* Ingredients */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, errors.ingredients ? styles.sectionTitleError : undefined]}>{t('addRecipe.ingredients')}</Text>
-              <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
-                <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
-              </TouchableOpacity>
-            </View>
-            {ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.listItemRow}>
-                <View style={styles.bulletPoint}>
-                  <Text style={styles.bulletText}>•</Text>
-                </View>
-                <TextInput
-                  style={[styles.input, styles.listInput]}
-                  value={ingredient}
-                  onChangeText={(text) => { updateIngredient(index, text); if (errors.ingredients) setErrors(e => ({ ...e, ingredients: undefined })); }}
-                  placeholder={t('addRecipe.ingredientPlaceholder', { index: index + 1 })}
-                  placeholderTextColor={COLORS.text.muted}
-                />
-                {ingredients.length > 1 && (
-                  <TouchableOpacity
-                    onPress={() => removeIngredient(index)}
-                    style={styles.removeButton}
-                  >
-                    <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-            {errors.ingredients ? <Text style={styles.errorText}>{errors.ingredients}</Text> : null}
-          </View>
-
-          {/* Instructions */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, errors.instructions ? styles.sectionTitleError : undefined]}>{t('addRecipe.steps')}</Text>
-              <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
-                <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
-              </TouchableOpacity>
-            </View>
-            {instructions.map((instruction, index) => (
-              <View key={index} style={styles.listItemRow}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
-                </View>
-                <TextInput
-                  style={[styles.input, styles.listInput, styles.instructionInput]}
-                  value={instruction}
-                  onChangeText={(text) => { updateInstruction(index, text); if (errors.instructions) setErrors(e => ({ ...e, instructions: undefined })); }}
-                  placeholder={t('addRecipe.stepPlaceholder', { index: index + 1 })}
-                  placeholderTextColor={COLORS.text.muted}
-                  multiline
-                />
-                {instructions.length > 1 && (
-                  <TouchableOpacity
-                    onPress={() => removeInstruction(index)}
-                    style={styles.removeButton}
-                  >
-                    <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-            {errors.instructions ? <Text style={styles.errorText}>{errors.instructions}</Text> : null}
-          </View>
-
-          {/* Tips */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('addRecipe.tipsOptional')}</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={tips}
-              onChangeText={setTips}
-              placeholder={t('addRecipe.tipsPlaceholder')}
-              placeholderTextColor={COLORS.text.muted}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
-          {/* Submit Button */}
-          <View style={styles.submitSection}>
-            <Button
-              onPress={handleSave}
-              label={t('addRecipe.saveRecipe')}
-              icon="checkmark-circle"
-              variant="gradient"
-              loading={saving}
-              disabled={saving}
-            />
-          </View>
-
-          <View style={{ height: scaleSpacing(40) }} />
-        </ScrollView>
+        {/* Toast */}
         <Toast
           visible={toastVisible}
           type={toastConfig?.type ?? 'success'}
@@ -635,5 +732,57 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginLeft: scaleSpacing(10),
     fontWeight: '500',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  stepProgressRow: {
+    flexDirection: 'row',
+    gap: scaleSpacing(6),
+    marginBottom: scaleSpacing(8),
+  },
+  stepProgressDot: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.neutral.gray200,
+  },
+  stepProgressDone: {
+    backgroundColor: COLORS.primary[500],
+  },
+  stepProgressActive: {
+    backgroundColor: COLORS.primary[500],
+    opacity: 0.6,
+  },
+  stepFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scaleSpacing(20),
+    paddingVertical: scaleSpacing(12),
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral.gray200,
+    backgroundColor: COLORS.secondary.cream,
+  },
+  backFooterButton: {
+    paddingVertical: scaleSpacing(10),
+    paddingHorizontal: scaleSpacing(12),
+  },
+  backFooterText: {
+    fontSize: scaleFontSize(14),
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+  },
+  nextFooterButton: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.full,
+    paddingVertical: scaleSpacing(10),
+    paddingHorizontal: scaleSpacing(24),
+  },
+  nextFooterText: {
+    fontSize: scaleFontSize(14),
+    fontWeight: '700',
+    color: COLORS.neutral.white,
   },
 });

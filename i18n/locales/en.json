@@ -846,7 +846,14 @@
     "drink": "Drink",
     "easy": "Easy",
     "medium": "Medium",
-    "hard": "Hard"
+    "hard": "Hard",
+    "stepInfos": "Basic info",
+    "stepIngredients": "Ingredients",
+    "stepSteps": "Steps",
+    "stepTips": "Tips",
+    "step": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "saveRecipe2": "Save"
   },
   "editList": {
     "title": "Edit list",

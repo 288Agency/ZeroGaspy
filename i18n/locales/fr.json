@@ -846,7 +846,14 @@
     "drink": "Boisson",
     "easy": "Facile",
     "medium": "Moyen",
-    "hard": "Difficile"
+    "hard": "Difficile",
+    "stepInfos": "Infos de base",
+    "stepIngredients": "Ingrédients",
+    "stepSteps": "Étapes",
+    "stepTips": "Astuces",
+    "step": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "saveRecipe2": "Enregistrer"
   },
   "editList": {
     "title": "Modifier la liste",
