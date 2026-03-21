@@ -264,6 +264,7 @@ function RootNavigator() {
     trackOnboardingCompleted();
     scheduleWelcomeBackNotification(i18n.language);
     setShowOnboarding(false);
+    setOnboardingStep('slides');
   };
 
   // Screen tracking callback pour NavigationContainer
