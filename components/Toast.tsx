@@ -56,7 +56,17 @@ const TOAST_STYLES: Record<
 const Toast: React.FC<ToastProps> = ({ visible, type, title, subtitle, onHide, duration }) => {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-120)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      translateY.stopAnimation();
+      opacity.stopAnimation();
+    };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -65,6 +75,10 @@ const Toast: React.FC<ToastProps> = ({ visible, type, title, subtitle, onHide, d
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
+
+      // Reset position synchronously so re-show always starts from the top
+      translateY.setValue(-120);
+      opacity.setValue(0);
 
       // Slide in
       Animated.spring(translateY, {
@@ -109,7 +123,7 @@ const Toast: React.FC<ToastProps> = ({ visible, type, title, subtitle, onHide, d
       tension: 80,
       friction: 10,
     }).start(() => {
-      onHide();
+      if (isMounted.current) onHide();
     });
   };
 
