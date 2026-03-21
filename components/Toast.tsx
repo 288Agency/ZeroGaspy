@@ -137,6 +137,7 @@ const Toast: React.FC<ToastProps> = ({ visible, type, title, subtitle, onHide, d
           top: insets.top + 8,
           backgroundColor: toastStyle.backgroundColor,
           borderColor: toastStyle.borderColor,
+          opacity,
           transform: [{ translateY }],
         },
       ]}
