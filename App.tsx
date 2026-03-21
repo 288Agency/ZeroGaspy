@@ -14,6 +14,7 @@ import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
 import ActiveOnboardingScreen, { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
+import IntroSlidesScreen from './screens/onboarding/IntroSlidesScreen';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -104,6 +105,7 @@ function getActiveRouteName(state: NavigationState | undefined): string | undefi
 function RootNavigator() {
   const { user, isLoading: authLoading, isLocalMode } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [onboardingStep, setOnboardingStep] = useState<'slides' | 'active'>('slides');
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
@@ -287,6 +289,14 @@ function RootNavigator() {
 
   // Afficher l'onboarding si pas encore fait
   if (showOnboarding) {
+    if (onboardingStep === 'slides') {
+      return (
+        <>
+          <IntroSlidesScreen onSlidesComplete={() => setOnboardingStep('active')} />
+          <StatusBar style={statusBarStyle} />
+        </>
+      );
+    }
     return (
       <>
         <ActiveOnboardingScreen onComplete={handleOnboardingComplete} />
