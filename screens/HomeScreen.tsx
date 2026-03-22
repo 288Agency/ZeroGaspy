@@ -155,8 +155,6 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Dark background behind scroll — prevents cream showing when overscrolling at the top */}
-      <View style={styles.topBackground} />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -179,11 +177,12 @@ export default function HomeScreen() {
           onFeedbackPress={() => setFeedbackModalVisible(true)}
         />
 
-        {/* Main content */}
+        {/* Main content — cream background covers the container's dark green */}
         <Animated.View
           style={{
             opacity: contentFade,
             transform: [{ translateY: contentSlide }],
+            backgroundColor: COLORS.secondary.cream,
           }}
         >
           {!homeReady ? (
@@ -226,15 +225,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-  },
-  topBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 350,
-    backgroundColor: '#1A3020',
+    backgroundColor: '#1A3020', // hero top color — shows when overscrolling at top
   },
   scrollView: {
     flex: 1,
@@ -242,5 +233,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
+    flexGrow: 1,
   },
 });
