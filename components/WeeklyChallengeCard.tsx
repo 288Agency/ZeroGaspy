@@ -94,14 +94,13 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface.card,
+    backgroundColor: COLORS.primary[700],
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.1),
-    ...SHADOWS.sm,
+    borderWidth: 0,
+    ...SHADOWS.colored(COLORS.primary[700], 0.4),
   },
   leftSection: {
     marginRight: scaleSpacing(12),
@@ -110,7 +109,7 @@ const styles = StyleSheet.create({
     width: scaleSize(44),
     height: scaleSize(44),
     borderRadius: RADIUS.lg,
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
+    backgroundColor: 'rgba(74,222,128,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -123,7 +122,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: scaleFontSize(isSmallScreen ? 14 : 15),
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   progressBarContainer: {
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.neutral.gray200,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
     marginRight: SPACING.sm,
   },
@@ -152,7 +151,7 @@ const styles = StyleSheet.create({
   },
   completionText: {
     fontSize: scaleFontSize(isSmallScreen ? 11 : 12),
-    color: COLORS.text.tertiary,
+    color: 'rgba(255,255,255,0.5)',
     fontWeight: '500',
   },
   chevronContainer: {
@@ -160,7 +159,7 @@ const styles = StyleSheet.create({
   },
   chevron: {
     fontSize: 24,
-    color: COLORS.neutral.gray400,
+    color: 'rgba(255,255,255,0.4)',
     fontWeight: '300',
   },
 });
