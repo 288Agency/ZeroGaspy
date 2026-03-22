@@ -232,7 +232,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                     <View
                       style={[
                         styles.iconContainer,
-                        { backgroundColor: hexToRgba(listColor, 0.2), marginBottom: 0 },
+                        { backgroundColor: hexToRgba(listColor, 0.2) },
                       ]}
                     >
                       <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={listColor} />
@@ -243,9 +243,6 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                       </View>
                     )}
                   </View>
-
-                  {/* Spacer */}
-                  <View style={{ flex: 1 }} />
 
                   {/* Bottom: title + count */}
                   <View>
@@ -292,7 +289,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                       <View
                         style={[
                           styles.iconContainer,
-                          { backgroundColor: hexToRgba(slColor, 0.2), marginBottom: 0 },
+                          { backgroundColor: hexToRgba(slColor, 0.2) },
                         ]}
                       >
                         <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
@@ -307,9 +304,6 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                       </View>
                     )}
                   </View>
-
-                  {/* Spacer */}
-                  <View style={{ flex: 1 }} />
 
                   {/* Bottom: title + owner */}
                   <View>
@@ -432,6 +426,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     position: 'relative',
     overflow: 'hidden',
+    justifyContent: 'space-between',
   },
   iconContainer: {
     width: iconContainerSize,
