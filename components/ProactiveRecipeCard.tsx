@@ -1,15 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { List, FoodItem } from '../types';
-import { findMatchingRecipes } from '../services/recipeService';
+import { findMatchingRecipesWithUser, RecipeMatch } from '../services/recipeService';
+import { useAuth } from '../contexts/AuthContext';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { COLORS, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import PressableScale from './PressableScale';
+import { SkeletonBox } from './Skeleton';
 import { trackProactiveRecipeTapped } from '../services/analytics';
 
 interface ProactiveRecipeCardProps {
@@ -19,18 +22,31 @@ interface ProactiveRecipeCardProps {
 export default function ProactiveRecipeCard({ lists }: ProactiveRecipeCardProps) {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user } = useAuth();
+  const [topMatch, setTopMatch] = useState<RecipeMatch | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const topMatch = useMemo(() => {
-    const allItems: FoodItem[] = lists.flatMap(list => list.items);
-    const matches = findMatchingRecipes(allItems);
-    return matches.length > 0 ? matches[0] : null;
-  }, [lists]);
+  const allItems = useMemo(() => lists.flatMap(list => list.items), [lists]);
 
-  // Find the most urgent expiring ingredient — must run on every render (rules of hooks)
+  useEffect(() => {
+    let cancelled = false;
+    if (allItems.length === 0) {
+      if (!cancelled) { setTopMatch(null); setLoading(false); }
+      return;
+    }
+    setLoading(true);
+    findMatchingRecipesWithUser(allItems, user?.id).then(matches => {
+      if (!cancelled) {
+        setTopMatch(matches.length > 0 ? matches[0] : null);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [allItems, user?.id]);
+
   const urgentIngredient = useMemo(() => {
     if (!topMatch || topMatch.expiringIngredients.length === 0) return null;
 
-    const allItems: FoodItem[] = lists.flatMap(list => list.items);
     let mostUrgent: { name: string; daysLeft: number } | null = null;
 
     for (const name of topMatch.expiringIngredients) {
@@ -45,7 +61,20 @@ export default function ProactiveRecipeCard({ lists }: ProactiveRecipeCardProps)
       }
     }
     return mostUrgent;
-  }, [lists, topMatch]);
+  }, [allItems, topMatch]);
+
+  if (loading) {
+    return (
+      <SkeletonBox
+        height={76}
+        borderRadius={RADIUS.xl}
+        style={{
+          marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+          marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
+        }}
+      />
+    );
+  }
 
   if (!topMatch) return null;
 
@@ -66,7 +95,7 @@ export default function ProactiveRecipeCard({ lists }: ProactiveRecipeCardProps)
       onPress={handlePress}
       style={styles.container}
       hapticType="light"
-      accessibilityLabel={t('home.tonightCook')}
+      accessibilityLabel={`${t('home.tonightCook')}: ${recipe.name}`}
       accessibilityRole="button"
     >
       <View style={styles.leftSection}>
@@ -102,7 +131,7 @@ export default function ProactiveRecipeCard({ lists }: ProactiveRecipeCardProps)
       </View>
 
       <View style={styles.chevronContainer}>
-        <Text style={styles.chevron}>›</Text>
+        <Ionicons name="chevron-forward" size={scaleSize(20)} color={COLORS.text.tertiary} />
       </View>
     </PressableScale>
   );
@@ -112,13 +141,13 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface.card,
+    backgroundColor: '#F0EAD2',
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
     borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.1),
+    borderColor: 'rgba(60,110,71,0.12)',
     ...SHADOWS.sm,
   },
   leftSection: {
@@ -155,7 +184,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: scaleFontSize(isSmallScreen ? 14 : 15),
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: COLORS.primary[700],
   },
   matchBadge: {
     backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
