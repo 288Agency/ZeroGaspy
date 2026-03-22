@@ -6,14 +6,10 @@ import {
   Animated,
   Text,
   StyleSheet,
-  Dimensions,
-  Image,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { List } from '../types';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,146 +17,25 @@ import { loadLists } from '../utils/localStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { forceSyncAllItems } from '../services/supabase/syncService';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
-import StatsCardsRow from '../components/StatsCardsRow';
+import HeroSection from '../components/HeroSection';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import SpacesGrid from '../components/SpacesGrid';
 import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
 import FeedbackModal from '../components/FeedbackModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
-import PressableScale from '../components/PressableScale';
 import { SkeletonHomeContent } from '../components/Skeleton';
 
-import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
-import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import { useTheme } from '../contexts/ThemeContext';
+import { COLORS } from '../utils/designSystem';
+import { scaleSpacing, isSmallScreen } from '../utils/responsive';
 import { useGamification } from '../contexts/GamificationContext';
 import logger from '../utils/logger';
 
-const { width } = Dimensions.get('window');
-
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-// Animated background decoration
-const BackgroundDecoration = React.memo(function BackgroundDecoration() {
-  const floatAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: 1,
-          duration: 8000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 8000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, []);
-
-  const translateY = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 20],
-  });
-
-  const rotate = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '10deg'],
-  });
-
-  return (
-    <Animated.View
-      accessible={false}
-      importantForAccessibility="no-hide-descendants"
-      style={[
-        styles.backgroundDecoration,
-        {
-          transform: [{ translateY }, { rotate }],
-        },
-      ]}
-    >
-      <Svg width={300} height={300} viewBox="0 0 300 300">
-        <Defs>
-          <LinearGradient id="blobGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={COLORS.primary[500]} stopOpacity="0.08" />
-            <Stop offset="100%" stopColor={COLORS.secondary.sage} stopOpacity="0.05" />
-          </LinearGradient>
-        </Defs>
-        <Path
-          d="M150,30 C220,30 270,80 270,150 C270,220 220,270 150,270 C80,270 30,220 30,150 C30,80 80,30 150,30"
-          fill="url(#blobGrad)"
-        />
-        <Circle cx="80" cy="60" r="25" fill={COLORS.primary[500]} opacity="0.04" />
-        <Circle cx="220" cy="240" r="35" fill={COLORS.secondary.sage} opacity="0.06" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-// Logo component
-const LogoSection = React.memo(function LogoSection({ colors }: { colors: typeof COLORS }) {
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const logoSize = scaleSize(isSmallScreen ? 56 : 70);
-
-  useEffect(() => {
-    const animation = Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 5,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]);
-    animation.start();
-    return () => animation.stop();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        styles.logoSection,
-        {
-          opacity: opacityAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      {/* Logo image */}
-      <View style={styles.logoIconContainer}>
-        <Image
-          source={require('../assets/logo.png')}
-          style={{ width: logoSize, height: logoSize }}
-          resizeMode="contain"
-          accessibilityLabel="Logo ZeroGaspy"
-          accessibilityRole="image"
-        />
-      </View>
-
-      {/* App name and greeting */}
-      <View style={styles.logoTextContainer}>
-        <Text style={[styles.greeting, { color: colors.text.secondary }]}>Bonjour !</Text>
-        <Text style={[styles.appName, { color: colors.primary[500] }]}>ZeroGaspy</Text>
-      </View>
-    </Animated.View>
-  );
-});
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
-  const { colors } = useTheme();
   const { challengesState, gamificationData } = useGamification();
   const { user } = useAuth();
   const [lists, setLists] = useState<List[]>([]);
@@ -198,31 +73,22 @@ export default function HomeScreen() {
   }, [user]);
 
   // Animations
-  const headerFade = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(40)).current;
 
   useEffect(() => {
-    // Staggered entrance animation
-    Animated.sequence([
-      Animated.timing(headerFade, {
+    Animated.parallel([
+      Animated.timing(contentFade, {
         toValue: 1,
-        duration: 400,
+        duration: 500,
         useNativeDriver: true,
       }),
-      Animated.parallel([
-        Animated.timing(contentFade, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(contentSlide, {
-          toValue: 0,
-          useNativeDriver: true,
-          friction: 8,
-          tension: 40,
-        }),
-      ]),
+      Animated.spring(contentSlide, {
+        toValue: 0,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 40,
+      }),
     ]).start();
   }, []);
 
@@ -254,7 +120,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadListsData]);
 
-  // Mémoriser les calculs coûteux
+  // Computed counts
   const expiringSoonCount = useMemo(() => {
     return lists.reduce((sum, list) => {
       const expiringItems = list.items.filter((item) => {
@@ -273,28 +139,22 @@ export default function HomeScreen() {
     }, 0);
   }, [lists]);
 
+  const freshCount = useMemo(() => {
+    return lists.reduce((sum, list) => {
+      return sum + list.items.filter(item => {
+        if (item.status === 'consumed' || item.status === 'thrown') return false;
+        const days = getDaysUntilExpiration(item.expirationDate);
+        return days === null || days > 7;
+      }).length;
+    }, 0);
+  }, [lists]);
+
   const onExpiringSoonPress = useCallback(() => navigation.navigate('ExpiringSoon'), [navigation]);
   const onThrownPress = useCallback(() => navigation.navigate('ThrownFoods'), [navigation]);
   const onCreateList = useCallback(() => navigation.navigate('CreateList'), [navigation]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
-      {/* Background decoration */}
-      <BackgroundDecoration />
-
-      {/* Feedback button */}
-      <Animated.View style={[styles.feedbackButton, { opacity: headerFade }]}>
-        <PressableScale
-          onPress={() => setFeedbackModalVisible(true)}
-          style={[styles.headerButton, { backgroundColor: hexToRgba(colors.secondary.sage, 0.6), borderColor: hexToRgba(colors.primary[500], 0.15) }]}
-          hapticType="light"
-          accessibilityLabel="Envoyer un feedback"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chatbubble-outline" size={scaleSize(isSmallScreen ? 18 : 22)} color={colors.primary[500]} />
-        </PressableScale>
-      </Animated.View>
-
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -302,14 +162,20 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary[500]}
-            colors={[colors.primary[500]]}
+            tintColor={COLORS.primary[500]}
+            colors={[COLORS.primary[500]]}
           />
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo section */}
-        <LogoSection colors={colors} />
+        <HeroSection
+          expiringSoonCount={expiringSoonCount}
+          thrownCount={thrownCount}
+          freshCount={freshCount}
+          onExpiringSoonPress={onExpiringSoonPress}
+          onThrownPress={onThrownPress}
+          onFeedbackPress={() => setFeedbackModalVisible(true)}
+        />
 
         {/* Main content */}
         <Animated.View
@@ -322,13 +188,6 @@ export default function HomeScreen() {
             <SkeletonHomeContent />
           ) : (
             <>
-              <StatsCardsRow
-                expiringSoonCount={expiringSoonCount}
-                thrownCount={thrownCount}
-                onExpiringSoonPress={onExpiringSoonPress}
-                onThrownPress={onThrownPress}
-              />
-
               <WeeklyChallengeCard challengesState={challengesState} />
 
               <ProactiveRecipeCard lists={lists} />
@@ -362,79 +221,16 @@ export default function HomeScreen() {
   );
 }
 
-const headerButtonSize = scaleSize(isSmallScreen ? 40 : 48);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.secondary.cream,
   },
-  backgroundDecoration: {
-    position: 'absolute',
-    top: scaleSize(-40),
-    right: scaleSize(-60),
-    zIndex: 0,
-  },
-  feedbackButton: {
-    position: 'absolute',
-    top: scaleSpacing(isSmallScreen ? 44 : 56),
-    right: scaleSpacing(isSmallScreen ? 14 : 20),
-    zIndex: 50,
-  },
-  headerButtons: {
-    position: 'absolute',
-    flexDirection: 'row',
-    gap: scaleSpacing(8),
-    top: scaleSpacing(isSmallScreen ? 44 : 56),
-    right: scaleSpacing(isSmallScreen ? 14 : 20),
-    zIndex: 50,
-  },
-  headerButton: {
-    width: headerButtonSize,
-    height: headerButtonSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: scaleSize(isSmallScreen ? 12 : 16),
-    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.6),
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.15),
-    ...SHADOWS.sm,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: scaleSpacing(isSmallScreen ? 48 : 60),
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
-  },
-  logoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
-    paddingTop: scaleSpacing(isSmallScreen ? 10 : 16),
-    paddingBottom: scaleSpacing(isSmallScreen ? 20 : 32),
-  },
-  logoIconContainer: {
-    width: scaleSize(isSmallScreen ? 60 : 74),
-    height: scaleSize(isSmallScreen ? 60 : 74),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoTextContainer: {
-    marginLeft: scaleSpacing(isSmallScreen ? 12 : 16),
-  },
-  greeting: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 14),
-    lineHeight: scaleFontSize(isSmallScreen ? 16 : 20),
-    fontWeight: '400',
-    color: COLORS.text.secondary,
-  },
-  appName: {
-    fontSize: scaleFontSize(isSmallScreen ? 26 : 32),
-    lineHeight: scaleFontSize(isSmallScreen ? 32 : 40),
-    fontWeight: '800',
-    color: COLORS.primary[500],
-    letterSpacing: -1,
   },
   adBanner: {
     position: 'absolute',
