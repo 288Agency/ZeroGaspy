@@ -7,7 +7,10 @@ import {
   Text,
   StyleSheet,
   Alert,
+  Dimensions,
 } from 'react-native';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { List } from '../types';
@@ -177,12 +180,13 @@ export default function HomeScreen() {
           onFeedbackPress={() => setFeedbackModalVisible(true)}
         />
 
-        {/* Main content — cream background covers the container's dark green */}
+        {/* Main content — cream background with minHeight to prevent dark showing at bottom */}
         <Animated.View
           style={{
             opacity: contentFade,
             transform: [{ translateY: contentSlide }],
             backgroundColor: COLORS.secondary.cream,
+            minHeight: SCREEN_HEIGHT,
           }}
         >
           {!homeReady ? (
@@ -225,14 +229,13 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A3020', // hero top color — shows when overscrolling at top
+    backgroundColor: COLORS.secondary.cream,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#1A3020', // shows when overscrolling at the top → hero continuity
   },
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
-    flexGrow: 1,
   },
 });
