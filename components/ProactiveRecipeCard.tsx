@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0EAD2',
+    backgroundColor: COLORS.secondary.sand,
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
@@ -220,10 +220,5 @@ const styles = StyleSheet.create({
   },
   chevronContainer: {
     marginLeft: scaleSpacing(8),
-  },
-  chevron: {
-    fontSize: 24,
-    color: COLORS.neutral.gray400,
-    fontWeight: '300',
   },
 });
