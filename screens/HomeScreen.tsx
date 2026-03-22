@@ -155,6 +155,8 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Dark background behind scroll — prevents cream showing when overscrolling at the top */}
+      <View style={styles.topBackground} />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -226,8 +228,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.secondary.cream,
   },
+  topBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 350,
+    backgroundColor: '#1A3020',
+  },
   scrollView: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),

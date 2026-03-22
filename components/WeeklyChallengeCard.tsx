@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+    marginTop: scaleSpacing(isSmallScreen ? 12 : 16),
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
     borderWidth: 0,
     ...SHADOWS.colored(COLORS.primary[700], 0.4),
