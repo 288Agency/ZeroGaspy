@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, hexToRgba } from '../utils/designSystem';
+import { COLORS } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import PressableScale from './PressableScale';
 
@@ -57,10 +57,10 @@ export default function HeroSection({
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <PressableScale
+        <TouchableOpacity
           onPress={onExpiringSoonPress}
           style={styles.statPill}
-          hapticType="light"
+          activeOpacity={0.7}
           accessibilityLabel={`${expiringSoonCount} aliments expirent bientôt`}
           accessibilityRole="button"
         >
@@ -68,18 +68,18 @@ export default function HeroSection({
             {expiringSoonCount}
           </Text>
           <Text style={styles.statLabel}>EXPIRENT</Text>
-        </PressableScale>
+        </TouchableOpacity>
 
-        <PressableScale
+        <TouchableOpacity
           onPress={onThrownPress}
           style={styles.statPill}
-          hapticType="light"
+          activeOpacity={0.7}
           accessibilityLabel={`${thrownCount} aliments jetés`}
           accessibilityRole="button"
         >
           <Text style={styles.statNumber}>{thrownCount}</Text>
           <Text style={styles.statLabel}>JETÉS</Text>
-        </PressableScale>
+        </TouchableOpacity>
 
         <View style={styles.statPill}>
           <Text style={styles.statNumber}>{freshCount}</Text>
