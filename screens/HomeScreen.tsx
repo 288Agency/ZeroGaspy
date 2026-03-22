@@ -7,10 +7,7 @@ import {
   Text,
   StyleSheet,
   Alert,
-  Dimensions,
 } from 'react-native';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { List } from '../types';
@@ -20,7 +17,6 @@ import { loadLists } from '../utils/localStorage';
 import { useAuth } from '../contexts/AuthContext';
 import { forceSyncAllItems } from '../services/supabase/syncService';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
-import { LinearGradient } from 'expo-linear-gradient';
 import HeroSection from '../components/HeroSection';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import SpacesGrid from '../components/SpacesGrid';
@@ -159,14 +155,16 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Gradient behind the ScrollView — shows the real gradient when overscrolling at top */}
-      <LinearGradient
-        colors={['#1A3020', '#2E5339', '#3C6E47']}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.3, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.topGradient}
+      {/* Fixed hero — content scrolls behind it */}
+      <HeroSection
+        expiringSoonCount={expiringSoonCount}
+        thrownCount={thrownCount}
+        freshCount={freshCount}
+        onExpiringSoonPress={onExpiringSoonPress}
+        onThrownPress={onThrownPress}
+        onFeedbackPress={() => setFeedbackModalVisible(true)}
       />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -180,22 +178,10 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <HeroSection
-          expiringSoonCount={expiringSoonCount}
-          thrownCount={thrownCount}
-          freshCount={freshCount}
-          onExpiringSoonPress={onExpiringSoonPress}
-          onThrownPress={onThrownPress}
-          onFeedbackPress={() => setFeedbackModalVisible(true)}
-        />
-
-        {/* Main content — cream background with minHeight to prevent dark showing at bottom */}
         <Animated.View
           style={{
             opacity: contentFade,
             transform: [{ translateY: contentSlide }],
-            backgroundColor: COLORS.secondary.cream,
-            minHeight: SCREEN_HEIGHT,
           }}
         >
           {!homeReady ? (
@@ -240,16 +226,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.secondary.cream,
   },
-  topGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-  },
   scrollView: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
