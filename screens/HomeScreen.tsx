@@ -232,10 +232,4 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
   },
-  adBanner: {
-    position: 'absolute',
-    bottom: scaleSpacing(isSmallScreen ? 80 : 90),
-    left: 0,
-    right: 0,
-  },
 });
