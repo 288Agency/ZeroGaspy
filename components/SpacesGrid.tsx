@@ -18,7 +18,7 @@ import { deleteList } from '../utils/localStorage';
 import PressableScale from './PressableScale';
 import AnimatedListItem from './AnimatedListItem';
 import EditListModal from './EditListModal';
-import { COLORS, SHADOWS, RADIUS, hexToRgba } from '../utils/designSystem';
+import { COLORS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { FridgeIllustration } from './icons';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +26,7 @@ import {
   getSharedListsWithMe,
   SharedListWithMe,
 } from '../services/listSharingService';
+import { getDaysUntilExpiration } from '../utils/dateUtils';
 
 interface SpacesGridProps {
   lists: List[];
@@ -164,6 +165,14 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
     ).length;
   };
 
+  const getUrgentItemsCount = (list: List) => {
+    return list.items.filter(item => {
+      if (item.status === 'consumed' || item.status === 'thrown') return false;
+      const days = getDaysUntilExpiration(item.expirationDate);
+      return days !== null && days >= 0 && days <= 7;
+    }).length;
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -191,6 +200,7 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
         <View style={styles.grid}>
           {lists.map((list, index) => {
             const activeCount = getActiveItemsCount(list);
+            const urgentCount = getUrgentItemsCount(list);
             const listColor = list.color || COLORS.primary[500];
             const icon = (list.icon || 'snow-outline') as keyof typeof Ionicons.glyphMap;
 
@@ -208,8 +218,8 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   style={[
                     styles.card,
                     {
-                      backgroundColor: hexToRgba(listColor, 0.12),
-                      borderColor: hexToRgba(listColor, 0.25),
+                      backgroundColor: hexToRgba(listColor, 0.18),
+                      borderColor: hexToRgba(listColor, 0.3),
                     },
                   ]}
                   hapticType="selection"
@@ -217,51 +227,35 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   accessibilityLabel={list.title}
                   accessibilityRole="button"
                 >
-                  {/* Icon */}
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: hexToRgba(listColor, 0.2), marginBottom: scaleSpacing(isSmallScreen ? 8 : 12) },
-                    ]}
-                  >
-                    <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={listColor} />
-                  </View>
-
-                  {/* Title */}
-                  <Text
-                    style={[styles.cardTitle, { color: listColor }]}
-                    numberOfLines={2}
-                  >
-                    {list.title}
-                  </Text>
-
-                  {/* Footer */}
-                  <View style={styles.cardFooter}>
-                    <View style={styles.countBadge}>
-                      <Text style={[styles.countText, { color: listColor }]}>
-                        {activeCount}
-                      </Text>
-                      <Text style={[styles.countLabel, { color: hexToRgba(listColor, 0.7) }]}>
-                        {' '}{t('common.foodItem', { count: activeCount })}
-                      </Text>
-                    </View>
+                  {/* Top: icon + urgent badge */}
+                  <View style={styles.cardTop}>
                     <View
                       style={[
-                        styles.arrowCircle,
-                        { backgroundColor: hexToRgba(listColor, 0.15) },
+                        styles.iconContainer,
+                        { backgroundColor: hexToRgba(listColor, 0.2), marginBottom: 0 },
                       ]}
                     >
-                      <Ionicons name="chevron-forward" size={scaleSize(isSmallScreen ? 14 : 16)} color={listColor} />
+                      <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={listColor} />
                     </View>
+                    {urgentCount > 0 && (
+                      <View style={styles.urgentBadge}>
+                        <Text style={styles.urgentText}>{urgentCount} urgents</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Decorative dot */}
-                  <View
-                    style={[
-                      styles.decorativeDot,
-                      { backgroundColor: hexToRgba(listColor, 0.3) },
-                    ]}
-                  />
+                  {/* Spacer */}
+                  <View style={{ flex: 1 }} />
+
+                  {/* Bottom: title + count */}
+                  <View>
+                    <Text style={[styles.cardTitle, { color: listColor }]} numberOfLines={2}>
+                      {list.title}
+                    </Text>
+                    <Text style={[styles.countLabel, { color: hexToRgba(listColor, 0.6) }]}>
+                      {activeCount} aliment{activeCount !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
                 </PressableScale>
               </AnimatedListItem>
             );
@@ -283,8 +277,8 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   style={[
                     styles.card,
                     {
-                      backgroundColor: hexToRgba(slColor, 0.12),
-                      borderColor: hexToRgba(slColor, 0.25),
+                      backgroundColor: hexToRgba(slColor, 0.18),
+                      borderColor: hexToRgba(slColor, 0.3),
                     },
                   ]}
                   hapticType="selection"
@@ -292,53 +286,65 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
                   accessibilityLabel={sl.listTitle}
                   accessibilityRole="button"
                 >
-                  {/* Icon with shared badge */}
-                  <View style={{ marginBottom: scaleSpacing(isSmallScreen ? 8 : 12) }}>
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        { backgroundColor: hexToRgba(slColor, 0.2) },
-                      ]}
-                    >
-                      <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
+                  {/* Top: icon with shared badge + readOnly badge */}
+                  <View style={styles.cardTop}>
+                    <View style={{ position: 'relative' }}>
+                      <View
+                        style={[
+                          styles.iconContainer,
+                          { backgroundColor: hexToRgba(slColor, 0.2), marginBottom: 0 },
+                        ]}
+                      >
+                        <Ionicons name={icon} size={scaleSize(isSmallScreen ? 20 : 24)} color={slColor} />
+                      </View>
+                      <View style={[styles.sharedIconBadge, { backgroundColor: slColor }]}>
+                        <Ionicons name="people" size={scaleSize(10)} color={COLORS.neutral.white} />
+                      </View>
                     </View>
-                    {/* Shared indicator badge */}
-                    <View style={[styles.sharedIconBadge, { backgroundColor: slColor }]}>
-                      <Ionicons name="people" size={scaleSize(10)} color={COLORS.neutral.white} />
-                    </View>
-                  </View>
-
-                  {/* Title */}
-                  <Text style={[styles.cardTitle, { color: slColor }]} numberOfLines={2}>
-                    {sl.listTitle}
-                  </Text>
-
-                  {/* Footer */}
-                  <View style={styles.cardFooter}>
-                    <View style={styles.countBadge}>
-                      {sl.ownerName && (
-                        <Text style={[styles.countLabel, { color: hexToRgba(slColor, 0.7) }]} numberOfLines={1}>
-                          {sl.ownerName}
-                        </Text>
-                      )}
-                    </View>
-                    {sl.permission === 'view' ? (
+                    {sl.permission === 'view' && (
                       <View style={styles.readOnlyBadge}>
                         <Ionicons name="eye-outline" size={10} color={COLORS.text.muted} />
-                      </View>
-                    ) : (
-                      <View style={[styles.arrowCircle, { backgroundColor: hexToRgba(slColor, 0.15) }]}>
-                        <Ionicons name="chevron-forward" size={scaleSize(isSmallScreen ? 14 : 16)} color={slColor} />
                       </View>
                     )}
                   </View>
 
-                  {/* Decorative dot */}
-                  <View style={[styles.decorativeDot, { backgroundColor: hexToRgba(slColor, 0.3) }]} />
+                  {/* Spacer */}
+                  <View style={{ flex: 1 }} />
+
+                  {/* Bottom: title + owner */}
+                  <View>
+                    <Text style={[styles.cardTitle, { color: slColor }]} numberOfLines={2}>
+                      {sl.listTitle}
+                    </Text>
+                    {sl.ownerName && (
+                      <Text style={[styles.countLabel, { color: hexToRgba(slColor, 0.6) }]} numberOfLines={1}>
+                        {sl.ownerName}
+                      </Text>
+                    )}
+                  </View>
                 </PressableScale>
               </AnimatedListItem>
             );
           })}
+
+          {/* "Nouveau" card — always last in grid */}
+          <AnimatedListItem
+            key="new-list"
+            index={lists.length + sharedLists.length}
+            animationType="scale"
+            style={styles.cardWrapper}
+          >
+            <PressableScale
+              onPress={onCreateList}
+              style={styles.newCard}
+              hapticType="medium"
+              accessibilityLabel={t('lists.createNewList')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="add" size={scaleSize(28)} color="rgba(60,110,71,0.4)" />
+              <Text style={styles.newCardLabel}>Nouveau</Text>
+            </PressableScale>
+          </AnimatedListItem>
         </View>
       ) : (
         /* Empty state */
@@ -376,8 +382,6 @@ export default function SpacesGrid({ lists, onCreateList, onListDeleted }: Space
 
 const addButtonSize = scaleSize(isSmallScreen ? 40 : 48);
 const iconContainerSize = scaleSize(isSmallScreen ? 36 : 44);
-const arrowCircleSize = scaleSize(isSmallScreen ? 24 : 28);
-const decorativeDotSize = scaleSize(isSmallScreen ? 48 : 60);
 
 const styles = StyleSheet.create({
   container: {
@@ -424,8 +428,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: scaleSize(isSmallScreen ? 16 : 20),
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
-    minHeight: scaleSize(isSmallScreen ? 115 : 140),
-    borderWidth: 1.5,
+    aspectRatio: 1,
+    borderWidth: 1,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -437,46 +441,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 15 : 18),
-    lineHeight: scaleFontSize(isSmallScreen ? 20 : 24),
-    fontWeight: '600',
-    flex: 1,
-    marginBottom: scaleSpacing(isSmallScreen ? 6 : 8),
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  countBadge: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  countText: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 14),
-    lineHeight: scaleFontSize(isSmallScreen ? 16 : 20),
-    fontWeight: '700',
+    fontSize: scaleFontSize(isSmallScreen ? 13 : 15),
+    lineHeight: scaleFontSize(isSmallScreen ? 18 : 20),
+    fontWeight: '800',
+    marginBottom: scaleSpacing(2),
   },
   countLabel: {
     fontSize: scaleFontSize(isSmallScreen ? 10 : 12),
     lineHeight: scaleFontSize(isSmallScreen ? 14 : 16),
     fontWeight: '500',
   },
-  arrowCircle: {
-    width: arrowCircleSize,
-    height: arrowCircleSize,
-    borderRadius: arrowCircleSize / 2,
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  urgentBadge: {
+    backgroundColor: 'rgba(251,146,60,0.2)',
+    borderRadius: scaleSize(5),
+    paddingHorizontal: scaleSpacing(5),
+    paddingVertical: scaleSpacing(2),
+  },
+  urgentText: {
+    fontSize: scaleFontSize(9),
+    fontWeight: '700',
+    color: '#E65100',
+  },
+  newCard: {
+    aspectRatio: 1,
+    borderRadius: scaleSize(isSmallScreen ? 16 : 20),
+    backgroundColor: '#F7F5F0',
+    borderWidth: 1.5,
+    borderColor: 'rgba(60,110,71,0.2)',
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  decorativeDot: {
-    position: 'absolute',
-    top: scaleSize(-12),
-    right: scaleSize(-12),
-    width: decorativeDotSize,
-    height: decorativeDotSize,
-    borderRadius: decorativeDotSize / 2,
-    opacity: 0.5,
+  newCardLabel: {
+    fontSize: scaleFontSize(11),
+    color: 'rgba(60,110,71,0.45)',
+    fontWeight: '600',
+    marginTop: scaleSpacing(4),
   },
   emptyState: {
     alignItems: 'center',
