@@ -79,13 +79,13 @@ export default function HeroSection({
         onPress={state !== 'calm' ? onExpiringSoonPress : undefined}
         activeOpacity={state !== 'calm' ? 0.7 : 1}
         style={styles.statsRow}
-        accessibilityRole={state !== 'calm' ? 'button' : 'text'}
+        accessibilityRole={state !== 'calm' ? 'button' : 'none'}
       >
         {state === 'calm' && (
-          <Text style={styles.statText}>
+          <View style={styles.statText}>
             <Text style={styles.statNumber}>{freshCount}</Text>
             <Text style={styles.statUnit}> frais</Text>
-          </Text>
+          </View>
         )}
         {state === 'warning' && (
           <>
