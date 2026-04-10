@@ -2,91 +2,118 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/designSystem';
-import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import PressableScale from './PressableScale';
+import { scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
+
+// One-off gradient values intentionally not in design system
+const WARNING_GRADIENT = ['#C2410C', '#F97316'] as const;
+const URGENT_GRADIENT = ['#7F1D1D', '#DC2626'] as const;
+const CALM_GRADIENT = [COLORS.primary[700], '#2D5A38', COLORS.primary[500]] as const;
+
+type HeroState = 'calm' | 'warning' | 'urgent';
 
 interface HeroSectionProps {
+  urgentCount: number;
   expiringSoonCount: number;
   thrownCount: number;
   freshCount: number;
-  onExpiringSoonPress: () => void;
-  onThrownPress: () => void;
-  onFeedbackPress: () => void;
+  onExpiringSoonPress?: () => void;
+  onThrownPress?: () => void;
 }
 
 export default function HeroSection({
+  urgentCount,
   expiringSoonCount,
   thrownCount,
   freshCount,
   onExpiringSoonPress,
   onThrownPress,
-  onFeedbackPress,
 }: HeroSectionProps) {
   const insets = useSafeAreaInsets();
 
+  const state: HeroState =
+    urgentCount >= 1 ? 'urgent' :
+    expiringSoonCount >= 1 ? 'warning' :
+    'calm';
+
+  const gradient =
+    state === 'urgent' ? URGENT_GRADIENT :
+    state === 'warning' ? WARNING_GRADIENT :
+    CALM_GRADIENT;
+
+  const badge = {
+    urgent: { label: 'URGENCE', dot: '#FCA5A5' },
+    warning: { label: 'ATTENTION REQUISE', dot: '#FCD34D' },
+    calm: { label: 'TOUT VA BIEN', dot: '#4ADE80' },
+  }[state];
+
+  const headline =
+    state === 'urgent'
+      ? `${urgentCount} aliment${urgentCount > 1 ? 's' : ''} périment aujourd'hui`
+      : state === 'warning'
+      ? `${expiringSoonCount} aliment${expiringSoonCount > 1 ? 's' : ''} expirent bientôt`
+      : 'Frigo bien géré 🎉';
+
   return (
     <LinearGradient
-      colors={['#1A3020', '#2E5339', '#3C6E47']}
-      locations={[0, 0.55, 1]}
+      colors={gradient as readonly [string, string, ...string[]]}
+      locations={state === 'calm' ? [0, 0.55, 1] : [0, 1]}
       start={{ x: 0.3, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, { paddingTop: insets.top + 12 }]}
     >
-      {/* Top row: greeting + feedback button */}
-      <View style={styles.topRow}>
-        <View>
-          <Text style={styles.greeting}>Bonjour !</Text>
-          <Text style={styles.appName}>ZeroGaspy</Text>
-        </View>
-        <PressableScale
-          onPress={onFeedbackPress}
-          style={styles.feedbackButton}
-          hapticType="light"
-          accessibilityLabel="Envoyer un feedback"
-          accessibilityRole="button"
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={scaleSize(isSmallScreen ? 18 : 22)}
-            color="rgba(255,255,255,0.8)"
-          />
-        </PressableScale>
+      {/* Decorative circle */}
+      <View style={styles.decorCircle} pointerEvents="none" />
+
+      {/* Status badge */}
+      <View style={styles.badge}>
+        <View style={[styles.badgeDot, { backgroundColor: badge.dot }]} />
+        <Text style={styles.badgeLabel}>{badge.label}</Text>
       </View>
 
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <TouchableOpacity
-          onPress={onExpiringSoonPress}
-          style={styles.statPill}
-          activeOpacity={0.7}
-          accessibilityLabel={`${expiringSoonCount} aliments expirent bientôt`}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.statNumber, expiringSoonCount > 0 && styles.statNumberUrgent]}>
-            {expiringSoonCount}
+      {/* Headline */}
+      <Text style={styles.headline}>{headline}</Text>
+
+      {/* Stats inline */}
+      <TouchableOpacity
+        onPress={state !== 'calm' ? onExpiringSoonPress : undefined}
+        activeOpacity={state !== 'calm' ? 0.7 : 1}
+        style={styles.statsRow}
+        accessibilityRole={state !== 'calm' ? 'button' : 'text'}
+      >
+        {state === 'calm' && (
+          <Text style={styles.statText}>
+            <Text style={styles.statNumber}>{freshCount}</Text>
+            <Text style={styles.statUnit}> frais</Text>
           </Text>
-          <Text style={styles.statLabel}>EXPIRENT</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={onThrownPress}
-          style={styles.statPill}
-          activeOpacity={0.7}
-          accessibilityLabel={`${thrownCount} aliments jetés`}
-          accessibilityRole="button"
-        >
-          <Text style={styles.statNumber}>{thrownCount}</Text>
-          <Text style={styles.statLabel}>JETÉS</Text>
-        </TouchableOpacity>
-
-        <View style={styles.statPill}>
-          <Text style={styles.statNumber}>{freshCount}</Text>
-          <Text style={styles.statLabel}>FRAIS</Text>
-        </View>
-      </View>
+        )}
+        {state === 'warning' && (
+          <>
+            <StatItem value={expiringSoonCount} label="expirent" />
+            <View style={styles.statDivider} />
+            <StatItem value={thrownCount} label="jeté(s)" />
+            <View style={styles.statDivider} />
+            <StatItem value={freshCount} label="frais" />
+          </>
+        )}
+        {state === 'urgent' && (
+          <>
+            <StatItem value={urgentCount} label="aujourd'hui" />
+            <View style={styles.statDivider} />
+            <StatItem value={expiringSoonCount} label="cette sem." />
+          </>
+        )}
+      </TouchableOpacity>
     </LinearGradient>
+  );
+}
+
+function StatItem({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.statItem}>
+      <Text style={styles.statNumber}>{value}</Text>
+      <Text style={styles.statUnit}> {label}</Text>
+    </View>
   );
 }
 
@@ -94,61 +121,73 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: scaleSpacing(20),
     paddingBottom: scaleSpacing(20),
+    overflow: 'hidden',
   },
-  topRow: {
+  decorCircle: {
+    position: 'absolute',
+    right: -20,
+    top: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  badge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: scaleSpacing(10),
+    paddingVertical: scaleSpacing(4),
+    marginBottom: scaleSpacing(10),
   },
-  greeting: {
-    fontSize: scaleFontSize(14),
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 2,
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: scaleSpacing(5),
   },
-  appName: {
-    fontSize: scaleFontSize(32),
+  badgeLabel: {
+    fontSize: scaleFontSize(9),
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+  headline: {
+    fontSize: scaleFontSize(isSmallScreen ? 20 : 24),
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -1,
-  },
-  feedbackButton: {
-    width: scaleSize(isSmallScreen ? 40 : 44),
-    height: scaleSize(isSmallScreen ? 40 : 44),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: scaleSize(12),
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginTop: scaleSpacing(4),
+    letterSpacing: -0.5,
+    lineHeight: scaleFontSize(isSmallScreen ? 26 : 30),
+    marginBottom: scaleSpacing(12),
   },
   statsRow: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     gap: scaleSpacing(8),
   },
-  statPill: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.11)',
-    borderRadius: 10,
-    paddingVertical: scaleSpacing(10),
-    paddingHorizontal: scaleSpacing(8),
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  statText: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   statNumber: {
-    fontSize: scaleFontSize(24),
+    fontSize: scaleFontSize(isSmallScreen ? 18 : 20),
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -1,
-    lineHeight: scaleFontSize(28),
   },
-  statNumberUrgent: {
-    color: COLORS.status.expiringSoon,
-  },
-  statLabel: {
+  statUnit: {
     fontSize: scaleFontSize(9),
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 1,
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  statDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
   },
 });
