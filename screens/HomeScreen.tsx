@@ -7,6 +7,8 @@ import {
   Text,
   StyleSheet,
   Alert,
+  FlatList,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,15 +21,14 @@ import { forceSyncAllItems } from '../services/supabase/syncService';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import HeroSection from '../components/HeroSection';
 import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
-import SpacesGrid from '../components/SpacesGrid';
 import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
-import FeedbackModal from '../components/FeedbackModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
 import { SkeletonHomeContent } from '../components/Skeleton';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { COLORS } from '../utils/designSystem';
-import { scaleSpacing, isSmallScreen } from '../utils/responsive';
+import { scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { useGamification } from '../contexts/GamificationContext';
 import logger from '../utils/logger';
 
@@ -41,7 +42,6 @@ export default function HomeScreen() {
   const [lists, setLists] = useState<List[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [homeReady, setHomeReady] = useState(false);
-  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [showWeeklyRecap, setShowWeeklyRecap] = useState(false);
 
   useEffect(() => {
@@ -121,14 +121,23 @@ export default function HomeScreen() {
   }, [loadListsData]);
 
   // Computed counts
-  const expiringSoonCount = useMemo(() => {
+  const urgentCount = useMemo(() => {
     return lists.reduce((sum, list) => {
-      const expiringItems = list.items.filter((item) => {
+      return sum + list.items.filter(item => {
         if (item.status === 'consumed' || item.status === 'thrown') return false;
         const days = getDaysUntilExpiration(item.expirationDate);
-        return days !== null && days >= 0 && days <= 7;
-      });
-      return sum + expiringItems.length;
+        return days !== null && days >= 0 && days <= 1;
+      }).length;
+    }, 0);
+  }, [lists]);
+
+  const expiringSoonCount = useMemo(() => {
+    return lists.reduce((sum, list) => {
+      return sum + list.items.filter(item => {
+        if (item.status === 'consumed' || item.status === 'thrown') return false;
+        const days = getDaysUntilExpiration(item.expirationDate);
+        return days !== null && days >= 2 && days <= 3;
+      }).length;
     }, 0);
   }, [lists]);
 
@@ -157,12 +166,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {/* Fixed hero — content scrolls behind it */}
       <HeroSection
+        urgentCount={urgentCount}
         expiringSoonCount={expiringSoonCount}
         thrownCount={thrownCount}
         freshCount={freshCount}
         onExpiringSoonPress={onExpiringSoonPress}
         onThrownPress={onThrownPress}
-        onFeedbackPress={() => setFeedbackModalVisible(true)}
       />
 
       <ScrollView
@@ -196,21 +205,103 @@ export default function HomeScreen() {
                 <ReferralCard userId={user.id} hasBadges={true} />
               )}
 
-              <SpacesGrid
-                lists={lists}
-                onCreateList={onCreateList}
-                onListDeleted={loadListsData}
-              />
+              {/* Spaces scroll horizontal */}
+              <View style={styles.spacesSection}>
+                <Text style={styles.sectionLabel}>MES ESPACES</Text>
+                {lists.length === 0 ? (
+                  <TouchableOpacity
+                    onPress={onCreateList}
+                    style={styles.createSpaceButton}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.createSpaceText}>Créer un espace →</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.spacesScrollContainer}>
+                    <FlatList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={[...lists].sort((a, b) => {
+                        const urgentA = a.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
+                        ).length;
+                        const urgentB = b.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
+                        ).length;
+                        if (urgentA !== urgentB) return urgentB - urgentA;
+                        const warnA = a.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
+                        ).length;
+                        const warnB = b.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
+                        ).length;
+                        return warnB - warnA;
+                      })}
+                      keyExtractor={item => item.id}
+                      contentContainerStyle={styles.spacesScrollContent}
+                      renderItem={({ item: list }) => {
+                        const spaceUrgent = list.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
+                        ).length;
+                        const spaceWarn = list.items.filter(i =>
+                          i.status !== 'consumed' && i.status !== 'thrown' &&
+                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
+                        ).length;
+                        const spaceState = spaceUrgent > 0 ? 'urgent' : spaceWarn > 0 ? 'warning' : 'calm';
+                        const borderColor =
+                          spaceState === 'urgent' ? 'rgba(220,38,38,0.25)' :
+                          spaceState === 'warning' ? 'rgba(251,146,60,0.35)' :
+                          'rgba(60,110,71,0.12)';
+                        const barColor =
+                          spaceState === 'urgent' ? '#DC2626' :
+                          spaceState === 'warning' ? '#FB923C' :
+                          COLORS.status.fresh;
+                        const subText =
+                          spaceState === 'urgent' ? `${spaceUrgent} périment 🚨` :
+                          spaceState === 'warning' ? `${spaceWarn} expirent ⚠️` :
+                          `${list.items.filter(i => i.status !== 'consumed' && i.status !== 'thrown').length} alim.`;
+                        const subColor =
+                          spaceState === 'urgent' ? '#DC2626' :
+                          spaceState === 'warning' ? '#FB923C' :
+                          COLORS.text.tertiary;
+
+                        return (
+                          <TouchableOpacity
+                            style={[styles.spaceCard, { borderColor }]}
+                            activeOpacity={0.75}
+                            onPress={() => navigation.navigate('InventoryList', { listId: list.id, listTitle: list.title, listColor: list.color, listIcon: list.icon })}
+                          >
+                            <Text style={styles.spaceCardName} numberOfLines={1}>
+                              {list.title}
+                            </Text>
+                            <Text style={[styles.spaceCardSub, { color: subColor }]} numberOfLines={1}>
+                              {subText}
+                            </Text>
+                            <View style={styles.spaceCardBar}>
+                              <View style={[styles.spaceCardBarFill, { backgroundColor: barColor }]} />
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
+                    <LinearGradient
+                      colors={['transparent', COLORS.surface.background]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.spacesFade, { pointerEvents: 'none' }]}
+                    />
+                  </View>
+                )}
+              </View>
             </>
           )}
         </Animated.View>
       </ScrollView>
-
-      {/* Feedback modal */}
-      <FeedbackModal
-        visible={feedbackModalVisible}
-        onClose={() => setFeedbackModalVisible(false)}
-      />
 
       {/* Weekly recap modal */}
       <WeeklyRecapModal
@@ -231,5 +322,67 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: scaleSpacing(isSmallScreen ? 100 : 120),
+  },
+  spacesSection: {
+    marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
+  },
+  sectionLabel: {
+    fontSize: scaleFontSize(10),
+    fontWeight: '700',
+    color: COLORS.primary[500],
+    letterSpacing: 0.5,
+    marginBottom: scaleSpacing(8),
+    marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+  },
+  spacesScrollContainer: {
+    position: 'relative',
+  },
+  spacesScrollContent: {
+    gap: scaleSpacing(8),
+    paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+    paddingRight: scaleSpacing(isSmallScreen ? 48 : 56),
+  },
+  spaceCard: {
+    width: scaleSpacing(120),
+    height: scaleSpacing(64),
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    padding: scaleSpacing(10),
+    justifyContent: 'space-between',
+  },
+  spaceCardName: {
+    fontSize: scaleFontSize(11),
+    fontWeight: '700',
+    color: COLORS.primary[500],
+  },
+  spaceCardSub: {
+    fontSize: scaleFontSize(9),
+  },
+  spaceCardBar: {
+    height: 2,
+    backgroundColor: 'rgba(60,110,71,0.12)',
+    borderRadius: 1,
+    overflow: 'hidden',
+  },
+  spaceCardBarFill: {
+    height: '100%',
+    width: '60%',
+    borderRadius: 1,
+  },
+  spacesFade: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 32,
+  },
+  createSpaceButton: {
+    paddingVertical: scaleSpacing(10),
+  },
+  createSpaceText: {
+    fontSize: scaleFontSize(13),
+    color: COLORS.primary[500],
+    fontWeight: '600',
   },
 });
