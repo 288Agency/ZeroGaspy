@@ -287,19 +287,21 @@ export default function HomeScreen() {
                               <View style={[styles.spaceCardIconBg, { backgroundColor: iconColor + '20' }]}>
                                 <Ionicons
                                   name={(list.icon as any) || 'apps-outline'}
-                                  size={12}
+                                  size={22}
                                   color={iconColor}
                                 />
                               </View>
-                              <Text style={[styles.spaceCardName, { color: iconColor }]} numberOfLines={1}>
+                              <Text style={[styles.spaceCardName, { color: iconColor }]} numberOfLines={2}>
                                 {list.title}
                               </Text>
                             </View>
-                            <Text style={[styles.spaceCardSub, { color: subColor }]} numberOfLines={1}>
-                              {subText}
-                            </Text>
-                            <View style={styles.spaceCardBar}>
-                              <View style={[styles.spaceCardBarFill, { backgroundColor: barColor }]} />
+                            <View>
+                              <Text style={[styles.spaceCardSub, { color: subColor }]} numberOfLines={1}>
+                                {subText}
+                              </Text>
+                              <View style={styles.spaceCardBar}>
+                                <View style={[styles.spaceCardBarFill, { backgroundColor: barColor }]} />
+                              </View>
                             </View>
                           </TouchableOpacity>
                         );
@@ -370,35 +372,36 @@ const styles = StyleSheet.create({
   spacesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: scaleSpacing(8),
-    paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+    justifyContent: 'space-evenly',
+    rowGap: scaleSpacing(12),
+    paddingHorizontal: scaleSpacing(isSmallScreen ? 8 : 12),
   },
   spaceCard: {
     width: '44%',
     aspectRatio: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
-    padding: scaleSpacing(10),
+    padding: scaleSpacing(12),
     justifyContent: 'space-between',
   },
   spaceCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSpacing(5),
-  },
-  spaceCardIconBg: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    gap: scaleSpacing(8),
+  },
+  spaceCardIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   spaceCardName: {
-    fontSize: scaleFontSize(11),
+    fontSize: scaleFontSize(13),
     fontWeight: '700',
-    flex: 1,
+    textAlign: 'center',
   },
   spaceCardCreate: {
     width: '44%',
