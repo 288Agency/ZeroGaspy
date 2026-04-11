@@ -233,11 +233,25 @@ Recettes générées via OpenAI/Gemini basées sur les ingrédients disponibles 
 - Localisation : FR prioritaire, envisager BE/CH/CA dans un second temps
 - Cadence : réviser les métadonnées chaque mois sur la base des données ASO
 
-**TikTok / Reels**
-- Format : démonstration scan ticket → résultat immédiat → chiffre d'économies
-- Hook d'accroche : "J'aurais jeté 47€ de nourriture ce mois sans cette app"
-- Cadence réaliste : 1 vidéo/semaine minimum, 3 pour accélérer
-- KPI de succès : watch rate > 50 %, clics profil > 2 %, installs trackés via lien PostHog
+**Motion Design avec Remotion (pas de visage, 100% codé)**
+- Outil : [Remotion](https://www.remotion.dev/) — vidéos React exportées en MP4
+- Avantage clé : animations directement cohérentes avec le design system ZeroGaspy (`COLORS`, `TYPOGRAPHY` importés depuis `utils/designSystem.ts`)
+- Chaque vidéo = composant React réutilisable. Changer un chiffre ou une couleur = modifier une prop
+- Rendu local gratuit (`npx remotion render`), aucune dépendance externe
+
+**Pack de 5 vidéos à produire en priorité :**
+
+| # | Concept | Durée | Usage |
+|---|---|---|---|
+| V1 | Scan ticket → aliments qui apparaissent → économies affichées | 15s | TikTok / Reels |
+| V2 | Compteur animé 0 → 47€ économisés ce mois | 8s | TikTok / Story |
+| V3 | Notification 17h → recette générée → badge débloqué | 20s | TikTok |
+| V4 | Mockup téléphone avec widget iOS en action | 10s | App Store / Reels |
+| V5 | Impact collectif : X kg sauvés par la communauté | 12s | Story / LinkedIn |
+
+- Cadence cible : 1 vidéo/semaine une fois les templates créés (changer les chiffres = 5 min)
+- KPI : watch rate > 50 %, clics profil > 2 %, installs trackés via lien UTM PostHog
+- Complément : UGC (3 mois Premium offerts à des utilisateurs motivés en échange d'une vidéo) + micro-influenceurs zéro déchet à la performance
 
 **Referral**
 - Trigger : "Invite 3 amis qui s'inscrivent → 1 mois Premium offert"
