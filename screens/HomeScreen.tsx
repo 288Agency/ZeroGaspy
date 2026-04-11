@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   },
   spaceCard: {
     width: '48%',
-    height: scaleSpacing(80),
+    aspectRatio: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1.5,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   spaceCardCreate: {
     width: '48%',
-    height: scaleSpacing(80),
+    aspectRatio: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1.5,
