@@ -284,3 +284,56 @@ export function addNotificationResponseListener(
 ): Notifications.EventSubscription {
   return Notifications.addNotificationResponseReceivedListener(callback);
 }
+
+const DINNER_NOTIFICATION_ID = 'dinner_reminder_daily';
+
+export async function scheduleDinnerReminderNotification(lang: string = 'fr'): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(DINNER_NOTIFICATION_ID).catch(() => {});
+
+    const lists = await loadLists();
+    const expiringNames: string[] = [];
+
+    for (const list of lists) {
+      for (const item of list.items) {
+        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        const days = getDaysUntilExpiration(item.expirationDate);
+        if (days !== null && days >= 0 && days <= 2) {
+          expiringNames.push(item.name);
+        }
+      }
+    }
+
+    if (expiringNames.length === 0) return;
+
+    const firstName = expiringNames[0];
+    const others = expiringNames.length > 1 ? ` et ${expiringNames.length - 1} autre${expiringNames.length > 2 ? 's' : ''}` : '';
+
+    const title = lang === 'fr'
+      ? '🍽️ Ce soir, mange ça !'
+      : '🍽️ Tonight, use this!';
+
+    const body = lang === 'fr'
+      ? `${firstName}${others} expire${expiringNames.length > 1 ? 'nt' : ''} bientôt. Voir une recette ?`
+      : `${firstName}${others} expire${expiringNames.length > 1 ? '' : 's'} soon. Check a recipe?`;
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: DINNER_NOTIFICATION_ID,
+      content: {
+        title,
+        body,
+        data: { screen: 'Recipes' },
+        sound: true,
+      },
+      trigger: {
+        hour: 17,
+        minute: 0,
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      },
+    });
+
+    logger.info('Notification dîner planifiée:', { itemsExpiring: expiringNames.length });
+  } catch (error) {
+    logger.error('scheduleDinnerReminderNotification error:', error);
+  }
+}

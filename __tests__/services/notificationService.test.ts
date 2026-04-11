@@ -14,6 +14,7 @@ import {
   scheduleExpirationNotifications,
   checkAndScheduleNotifications,
   sendTestNotification,
+  scheduleDinnerReminderNotification,
   NotificationSettings,
 } from '../../services/notificationService';
 import * as localStorage from '../../utils/localStorage';
@@ -385,4 +386,64 @@ describe('NotificationService - Cas limites', () => {
     await expect(scheduleExpirationNotifications()).resolves.not.toThrow();
   });
 
+});
+
+describe('scheduleDinnerReminderNotification', () => {
+  function toFrDate(date: Date): string {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  it('planifie une notification à 17h si des items expirent dans 48h', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    mockLocalStorage.loadLists.mockResolvedValue([{
+      id: '1', title: 'Frigo', createdAt: '2024-01-01T00:00:00Z',
+      items: [{
+        id: '1', name: 'Poulet', expirationDate: toFrDate(tomorrow),
+        quantity: 1, category: 'viande', status: 'active',
+      }],
+    }]);
+
+    mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue(undefined);
+    mockNotifications.scheduleNotificationAsync.mockResolvedValue('dinner_reminder_daily');
+
+    await scheduleDinnerReminderNotification('fr');
+
+    expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: expect.stringContaining(''),
+        }),
+        trigger: expect.objectContaining({ hour: 17, minute: 0 }),
+      })
+    );
+  });
+
+  it('ne planifie pas si aucun item n\'expire dans 48h', async () => {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 10);
+
+    mockLocalStorage.loadLists.mockResolvedValue([{
+      id: '1', title: 'Frigo', createdAt: '2024-01-01T00:00:00Z',
+      items: [{
+        id: '1', name: 'Yaourt', expirationDate: toFrDate(nextWeek),
+        quantity: 1, category: 'produits laitiers', status: 'active',
+      }],
+    }]);
+
+    mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue(undefined);
+    mockNotifications.scheduleNotificationAsync.mockClear();
+
+    await scheduleDinnerReminderNotification('fr');
+
+    const calls = mockNotifications.scheduleNotificationAsync.mock.calls;
+    const dinnerCalls = calls.filter((c: any[]) =>
+      c[0]?.trigger?.hour === 17
+    );
+    expect(dinnerCalls.length).toBe(0);
+  });
 });

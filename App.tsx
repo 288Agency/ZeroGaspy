@@ -14,7 +14,6 @@ import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
 import ActiveOnboardingScreen, { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
-import IntroSlidesScreen from './screens/onboarding/IntroSlidesScreen';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -29,6 +28,7 @@ import {
   addNotificationReceivedListener,
   addNotificationResponseListener,
   scheduleWelcomeBackNotification,
+  scheduleDinnerReminderNotification,
 } from './services/notificationService';
 import { registerPushToken, updateLastOpenedAt } from './services/pushTokenService';
 import logger from './utils/logger';
@@ -105,7 +105,6 @@ function getActiveRouteName(state: NavigationState | undefined): string | undefi
 function RootNavigator() {
   const { user, isLoading: authLoading, isLocalMode } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
-  const [onboardingStep, setOnboardingStep] = useState<'slides' | 'active'>('slides');
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
@@ -204,6 +203,7 @@ function RootNavigator() {
     if (showOnboarding === false && !authLoading && isAuthenticated) {
       // Initialiser les notifications seulement après l'onboarding et auth
       checkAndScheduleNotifications();
+      scheduleDinnerReminderNotification(i18n.language);
 
       // Enregistrer le push token et tracker l'ouverture (users connectés uniquement)
       if (user?.id) {
@@ -264,7 +264,6 @@ function RootNavigator() {
     trackOnboardingCompleted();
     scheduleWelcomeBackNotification(i18n.language);
     setShowOnboarding(false);
-    setOnboardingStep('slides');
   };
 
   // Screen tracking callback pour NavigationContainer
@@ -290,14 +289,6 @@ function RootNavigator() {
 
   // Afficher l'onboarding si pas encore fait
   if (showOnboarding) {
-    if (onboardingStep === 'slides') {
-      return (
-        <>
-          <IntroSlidesScreen onSlidesComplete={() => setOnboardingStep('active')} />
-          <StatusBar style={statusBarStyle} />
-        </>
-      );
-    }
     return (
       <>
         <ActiveOnboardingScreen onComplete={handleOnboardingComplete} />
