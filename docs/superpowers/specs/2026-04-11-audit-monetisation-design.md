@@ -7,7 +7,7 @@
 
 ## 1. Contexte & Objectifs
 
-ZeroGaspy est une app mobile React Native (Expo) anti-gaspillage alimentaire. Elle permet de gérer l'inventaire de son frigo/placard, de suivre les dates d'expiration, de scanner des tickets de caisse, de consulter des recettes et de gamifier son comportement anti-gaspi.
+ZeroGaspy est une app mobile React Native 0.81.5 + Expo SDK 54 (React 19, TypeScript 5.9) anti-gaspillage alimentaire. Elle permet de gérer l'inventaire de son frigo/placard, de suivre les dates d'expiration, de scanner des tickets de caisse, de consulter des recettes et de gamifier son comportement anti-gaspi.
 
 **État actuel :** ~50 utilisateurs, rétention non mesurée précisément (PostHog à activer en priorité pour établir la baseline J7/J30).
 

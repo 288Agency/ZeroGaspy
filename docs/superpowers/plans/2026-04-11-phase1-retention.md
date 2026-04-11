@@ -6,7 +6,7 @@
 
 **Architecture:** Chaque tâche est indépendante et livrable séparément. Aucune ne casse l'existant. Les calculs d'économies s'appuient sur `statsService.ts` déjà existant — on ajoute juste un service dédié au mois courant et un composant d'affichage. La notification "Ce soir" est ajoutée dans `notificationService.ts` existant. L'onboarding est modifié en ajoutant une étape sans toucher aux étapes existantes.
 
-**Tech Stack:** React Native + Expo SDK 52, TypeScript, AsyncStorage, expo-notifications, PostHog (analytics.ts), Jest + ts-jest pour les tests.
+**Tech Stack:** React Native 0.81.5 + Expo SDK 54, React 19, TypeScript 5.9, AsyncStorage 2.2, expo-notifications ~0.32, PostHog posthog-react-native ^4.37, Jest + ts-jest pour les tests.
 
 **Run tests:** `npx jest --testPathPattern="__tests__/services" --no-coverage`
 
