@@ -43,10 +43,11 @@ import {
   trackOnboardingStepCompleted,
 } from '../services/analytics';
 import logger from '../utils/logger';
+import { setMonthlySavingsGoal } from '../services/monthlySavingsService';
 
 export const ONBOARDING_KEY = 'onboarding_completed';
 
-type Step = 'welcome' | 'addFood' | 'addMore' | 'recipes' | 'ready';
+type Step = 'welcome' | 'addFood' | 'addMore' | 'recipes' | 'savings' | 'ready';
 
 const CATEGORIES = [
   { key: 'fruits', icon: 'nutrition' as const, color: '#FFE4E1' },
@@ -73,8 +74,14 @@ const SAVINGS_BY_CATEGORY: Record<string, number> = {
 };
 
 const STEP_PROGRESS: Record<string, number> = {
-  welcome: 0, addFood: 40, addMore: 60, recipes: 80, ready: 100,
+  welcome: 0, addFood: 40, addMore: 60, recipes: 80, savings: 90, ready: 100,
 };
+
+const WASTE_OPTIONS = [
+  { label: 'Peu', sublabel: '(~10 €/mois)', goal: 20 },
+  { label: 'Régulièrement', sublabel: '(~40 €/mois)', goal: 50 },
+  { label: 'Souvent', sublabel: '(~80 €/mois)', goal: 80 },
+];
 
 interface ActiveOnboardingScreenProps {
   onComplete: () => void;
@@ -92,6 +99,9 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const [selectedExpiration, setSelectedExpiration] = useState('');
   const [customDate, setCustomDate] = useState('');
   const [showCustomDate, setShowCustomDate] = useState(false);
+
+  // Savings anchor state
+  const [wasteLevel, setWasteLevel] = useState(1);
 
   // Data state
   const [addedItems, setAddedItems] = useState<FoodItem[]>([]);
@@ -221,6 +231,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
 
   const handleComplete = async () => {
     try {
+      await setMonthlySavingsGoal(WASTE_OPTIONS[wasteLevel].goal);
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       trackOnboardingStepCompleted('ready');
@@ -238,7 +249,8 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       addFood: 'welcome',
       addMore: 'addFood',
       recipes: 'addMore',
-      ready: 'recipes',
+      savings: 'recipes',
+      ready: 'savings',
     };
     transitionTo(backMap[step]);
   };
@@ -246,7 +258,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const canAddFood = foodName.trim().length > 0;
 
   // Step indicator
-  const stepIndex = ['welcome', 'addFood', 'addMore', 'recipes', 'ready'].indexOf(step);
+  const stepIndex = ['welcome', 'addFood', 'addMore', 'recipes', 'savings', 'ready'].indexOf(step);
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
@@ -580,7 +592,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           trackOnboardingStepCompleted('recipes');
-          transitionTo('ready');
+          transitionTo('savings');
         }}
         activeOpacity={0.9}
         style={[styles.primaryButton, { marginTop: SPACING['2xl'] }]}
@@ -591,6 +603,44 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         </View>
       </TouchableOpacity>
     </ScrollView>
+  );
+
+  const renderSavings = () => (
+    <View style={styles.savingsSlide}>
+      <Text style={styles.savingsTitle}>Combien tu jettes par semaine ?</Text>
+      <View style={styles.wasteOptions}>
+        {WASTE_OPTIONS.map((opt, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={[styles.wasteOption, wasteLevel === idx && styles.wasteOptionSelected]}
+            onPress={() => setWasteLevel(idx)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.wasteOptionLabel, wasteLevel === idx && styles.wasteOptionLabelSelected]}>
+              {opt.label}
+            </Text>
+            <Text style={styles.wasteOptionSub}>{opt.sublabel}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.savingsProjection}>
+        <Text style={styles.savingsProjectionText}>ZeroGaspy pourrait te faire économiser</Text>
+        <Text style={styles.savingsProjectionAmount}>~{WASTE_OPTIONS[wasteLevel].goal * 12} €/an</Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          transitionTo('ready');
+        }}
+        activeOpacity={0.9}
+        style={[styles.primaryButton, { marginTop: scaleSpacing(32) }]}
+      >
+        <Text style={styles.primaryButtonText}>Continuer</Text>
+        <View style={styles.buttonIconContainer}>
+          <Ionicons name="arrow-forward" size={scaleSize(18)} color={COLORS.neutral.white} />
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderReady = () => (
@@ -627,6 +677,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       case 'addFood': return renderAddFood();
       case 'addMore': return renderAddMore();
       case 'recipes': return renderRecipes();
+      case 'savings': return renderSavings();
       case 'ready': return renderReady();
     }
   };
@@ -646,7 +697,13 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
           <View style={styles.backPlaceholder} />
         )}
         {renderStepIndicator()}
-        <View style={styles.backPlaceholder} />
+        {step !== 'ready' ? (
+          <TouchableOpacity onPress={handleComplete} style={styles.skipButton} activeOpacity={0.7}>
+            <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backPlaceholder} />
+        )}
       </View>
 
       {/* Animated step content */}
@@ -701,6 +758,17 @@ const styles = StyleSheet.create({
   },
   backPlaceholder: {
     width: scaleSize(40),
+  },
+  skipButton: {
+    paddingHorizontal: scaleSpacing(8),
+    paddingVertical: scaleSpacing(6),
+    width: scaleSize(40),
+    alignItems: 'flex-end',
+  },
+  skipText: {
+    fontSize: scaleFontSize(14),
+    color: COLORS.text.tertiary,
+    fontWeight: '500',
   },
   stepIndicator: {
     flexDirection: 'row',
@@ -1058,6 +1126,67 @@ const styles = StyleSheet.create({
   },
 
   // Ready
+  savingsSlide: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: scaleSpacing(24),
+  },
+  savingsTitle: {
+    fontSize: scaleFontSize(22),
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: scaleSpacing(24),
+  },
+  wasteOptions: {
+    width: '100%',
+    gap: scaleSpacing(12),
+    marginBottom: scaleSpacing(32),
+  },
+  wasteOption: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(60,110,71,0.2)',
+    padding: scaleSpacing(16),
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  wasteOptionSelected: {
+    borderColor: COLORS.primary[500],
+    backgroundColor: 'rgba(60,110,71,0.06)',
+  },
+  wasteOptionLabel: {
+    fontSize: scaleFontSize(16),
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  wasteOptionLabelSelected: {
+    color: COLORS.primary[500],
+  },
+  wasteOptionSub: {
+    fontSize: scaleFontSize(12),
+    color: COLORS.text.tertiary,
+    marginTop: scaleSpacing(2),
+  },
+  savingsProjection: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(60,110,71,0.06)',
+    borderRadius: RADIUS.xl,
+    padding: scaleSpacing(20),
+    width: '100%',
+  },
+  savingsProjectionText: {
+    fontSize: scaleFontSize(14),
+    color: COLORS.text.secondary,
+    marginBottom: scaleSpacing(8),
+    textAlign: 'center',
+  },
+  savingsProjectionAmount: {
+    fontSize: scaleFontSize(40),
+    fontWeight: '800',
+    color: COLORS.primary[500],
+  },
   readyContainer: {
     flex: 1,
     justifyContent: 'center',
