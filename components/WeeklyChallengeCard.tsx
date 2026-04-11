@@ -52,6 +52,7 @@ export default function WeeklyChallengeCard({ challengesState }: WeeklyChallenge
       </View>
 
       <View style={styles.contentSection}>
+        <Text style={styles.sectionLabel}>DÉFI DE LA SEMAINE</Text>
         <Text style={styles.title} numberOfLines={1}>
           {allCompleted
             ? t('challenges.allCompleted')
@@ -94,14 +95,15 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[700],
+    backgroundColor: '#ECFDF5',
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
     marginTop: scaleSpacing(isSmallScreen ? 12 : 16),
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
-    borderWidth: 0,
-    ...SHADOWS.colored(COLORS.primary[700], 0.4),
+    borderWidth: 1,
+    borderColor: 'rgba(60, 110, 71, 0.15)',
+    ...SHADOWS.sm,
   },
   leftSection: {
     marginRight: scaleSpacing(12),
@@ -110,7 +112,7 @@ const styles = StyleSheet.create({
     width: scaleSize(44),
     height: scaleSize(44),
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(74,222,128,0.15)',
+    backgroundColor: 'rgba(60,110,71,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: scaleFontSize(isSmallScreen ? 14 : 15),
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.primary[700],
     marginBottom: 2,
   },
   progressBarContainer: {
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(60, 110, 71, 0.15)',
     overflow: 'hidden',
     marginRight: SPACING.sm,
   },
@@ -146,13 +148,13 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: scaleFontSize(11),
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
+    color: COLORS.text.tertiary,
     minWidth: 30,
     textAlign: 'right',
   },
   completionText: {
     fontSize: scaleFontSize(isSmallScreen ? 11 : 12),
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.tertiary,
     fontWeight: '500',
   },
   chevronContainer: {
@@ -160,7 +162,14 @@ const styles = StyleSheet.create({
   },
   chevron: {
     fontSize: 24,
-    color: 'rgba(255,255,255,0.4)',
+    color: COLORS.primary[500],
     fontWeight: '300',
+  },
+  sectionLabel: {
+    fontSize: scaleFontSize(9),
+    fontWeight: '700',
+    color: '#166534',
+    letterSpacing: 0.5,
+    marginBottom: 3,
   },
 });
