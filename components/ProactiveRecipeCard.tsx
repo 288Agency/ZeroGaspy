@@ -131,7 +131,7 @@ export default function ProactiveRecipeCard({ lists }: ProactiveRecipeCardProps)
       </View>
 
       <View style={styles.chevronContainer}>
-        <Ionicons name="chevron-forward" size={scaleSize(20)} color={COLORS.text.tertiary} />
+        <Ionicons name="chevron-forward" size={scaleSize(18)} color="#92400E" />
       </View>
     </PressableScale>
   );
@@ -141,13 +141,15 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.secondary.sand,
-    borderRadius: RADIUS.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.md,
     padding: scaleSpacing(isSmallScreen ? 12 : 16),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
     borderWidth: 1,
-    borderColor: 'rgba(60,110,71,0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.15)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
     ...SHADOWS.sm,
   },
   leftSection: {
@@ -169,10 +171,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: scaleFontSize(isSmallScreen ? 11 : 12),
-    fontWeight: '600',
-    color: COLORS.status.expiringSoon,
+    fontWeight: '700',
+    color: '#D97706',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginBottom: 2,
   },
   recipeRow: {
@@ -220,5 +222,10 @@ const styles = StyleSheet.create({
   },
   chevronContainer: {
     marginLeft: scaleSpacing(8),
+    backgroundColor: '#FEF3C7',
+    borderRadius: RADIUS.sm,
+    padding: scaleSpacing(6),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
