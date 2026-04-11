@@ -23,6 +23,7 @@ import WeeklyChallengeCard from '../components/WeeklyChallengeCard';
 import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
+import MonthlySavingsCard from '../components/MonthlySavingsCard';
 import { SkeletonHomeContent } from '../components/Skeleton';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -197,6 +198,7 @@ export default function HomeScreen() {
           ) : (
             <>
               <WeeklyChallengeCard challengesState={challengesState} />
+              <MonthlySavingsCard />
 
               <ProactiveRecipeCard lists={lists} />
 
