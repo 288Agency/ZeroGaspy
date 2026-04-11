@@ -9,7 +9,10 @@ const SCAN_CREDIT_FUNCTION_NAME = 'validate-scan-credit';
 interface ReceiptScanCredit {
   lastUsedDate: string;
   month: string;
+  usedCount: number;
 }
+
+export const FREE_SCANS_PER_MONTH = 2;
 
 export async function hasUsedFreeReceiptScanThisMonth(userId: string | null): Promise<boolean> {
   if (userId) {
@@ -29,7 +32,8 @@ export async function hasUsedFreeReceiptScanThisMonth(userId: string | null): Pr
     const creditData = await AsyncStorage.getItem(RECEIPT_SCAN_CREDIT_KEY);
     if (!creditData) return false;
     const credit: ReceiptScanCredit = JSON.parse(creditData);
-    return credit.month === new Date().toISOString().slice(0, 7);
+    if (credit.month !== new Date().toISOString().slice(0, 7)) return false;
+    return (credit.usedCount ?? 1) >= FREE_SCANS_PER_MONTH;
   } catch {
     return false;
   }
@@ -47,11 +51,26 @@ export async function markFreeReceiptScanAsUsed(userId: string | null): Promise<
   }
 
   const now = new Date();
-  const credit: ReceiptScanCredit = {
-    lastUsedDate: now.toISOString(),
-    month: now.toISOString().slice(0, 7),
-  };
-  await AsyncStorage.setItem(RECEIPT_SCAN_CREDIT_KEY, JSON.stringify(credit));
+  const currentMonth = now.toISOString().slice(0, 7);
+
+  try {
+    const existing = await AsyncStorage.getItem(RECEIPT_SCAN_CREDIT_KEY);
+    let usedCount = 1;
+    if (existing) {
+      const prev: ReceiptScanCredit = JSON.parse(existing);
+      if (prev.month === currentMonth) {
+        usedCount = (prev.usedCount ?? 0) + 1;
+      }
+    }
+    const credit: ReceiptScanCredit = {
+      lastUsedDate: now.toISOString(),
+      month: currentMonth,
+      usedCount,
+    };
+    await AsyncStorage.setItem(RECEIPT_SCAN_CREDIT_KEY, JSON.stringify(credit));
+  } catch (error) {
+    logger.error('Erreur mise à jour crédit scan:', error);
+  }
 }
 
 export async function resetFreeReceiptScanCredit(): Promise<void> {
@@ -112,4 +131,16 @@ export async function canScanReceipt(
   }
 
   return { allowed: false, source: null };
+}
+
+export async function getScansRemainingThisMonth(_userId: string | null): Promise<number> {
+  try {
+    const creditData = await AsyncStorage.getItem(RECEIPT_SCAN_CREDIT_KEY);
+    if (!creditData) return FREE_SCANS_PER_MONTH;
+    const credit: ReceiptScanCredit = JSON.parse(creditData);
+    if (credit.month !== new Date().toISOString().slice(0, 7)) return FREE_SCANS_PER_MONTH;
+    return Math.max(0, FREE_SCANS_PER_MONTH - (credit.usedCount ?? 0));
+  } catch {
+    return FREE_SCANS_PER_MONTH;
+  }
 }
