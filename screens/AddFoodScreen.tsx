@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -31,7 +32,7 @@ import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING, hexToRgba } from '../util
 import { useGamification } from '../contexts/GamificationContext';
 import { useAds } from '../contexts/AdContext';
 import logger from '../utils/logger';
-import { trackFoodAdded as analyticsTrackFoodAdded } from '../services/analytics';
+import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAdded } from '../services/analytics';
 
 type RoutePropType = RouteProp<RootStackParamList, 'AddFood'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFood'>;
@@ -143,6 +144,13 @@ export default function AddFoodScreen() {
         await addItemToList(listId, newItem);
         // Tracker pour la gamification
         trackFoodAdded(listId);
+        // Premier aliment ajouté — aha moment
+        const firstFoodKey = '@zerogaspy_first_food_tracked';
+        const alreadyTracked = await AsyncStorage.getItem(firstFoodKey);
+        if (!alreadyTracked) {
+          trackFirstFoodAdded();
+          AsyncStorage.setItem(firstFoodKey, 'true');
+        }
         // Analytics PostHog
         analyticsTrackFoodAdded({
           category: category || undefined,

@@ -41,6 +41,7 @@ import {
   trackOnboardingFoodAdded,
   trackOnboardingRecipeViewed,
   trackOnboardingStepCompleted,
+  trackOnboardingStep,
 } from '../services/analytics';
 import logger from '../utils/logger';
 import { setMonthlySavingsGoal } from '../services/monthlySavingsService';
@@ -126,6 +127,10 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   };
 
   const transitionTo = useCallback((nextStep: Step) => {
+    const stepIndexMap: Record<Step, number> = {
+      welcome: 0, addFood: 1, addMore: 2, recipes: 3, savings: 4, ready: 5,
+    };
+    trackOnboardingStep(stepIndexMap[nextStep], nextStep);
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 200,

@@ -162,6 +162,11 @@ export function trackOnboardingStepCompleted(step: string) {
   track('onboarding_step_completed', { step });
 }
 
+// Recipe A/B testing
+export function trackRecipeVariantAssigned(variant: string) {
+  track('recipe_variant_assigned', { variant });
+}
+
 // Referral
 export function trackReferralCodeShared() {
   track('referral_code_shared');
@@ -180,4 +185,42 @@ export function trackBonusScanUsed() {
 export async function shutdownAnalytics() {
   await posthog?.flush();
   posthog?.shutdown();
+}
+
+// ─── Funnels critiques ────────────────────────────────────────────
+
+export function trackOnboardingStep(step: number, stepName: string): void {
+  track('onboarding_step', { step, step_name: stepName });
+}
+
+export function trackFirstFoodAdded(): void {
+  track('first_food_added');
+}
+
+export function trackPaywallShown(trigger: string): void {
+  track('paywall_shown', { trigger });
+}
+
+export function trackPurchaseStarted(plan: string): void {
+  track('purchase_started', { plan });
+}
+
+export function trackPurchaseCompleted(plan: string, price: number): void {
+  track('purchase_completed', { plan, price });
+}
+
+export function trackDinnerNotificationTapped(): void {
+  track('dinner_notification_tapped');
+}
+
+export function trackSavingsCardViewed(amount: number): void {
+  track('savings_card_viewed', { amount });
+}
+
+export function trackReceiptScanStarted(source: string): void {
+  track('receipt_scan_started', { source });
+}
+
+export function trackReceiptScanCompleted(itemsCount: number): void {
+  track('receipt_scan_completed', { items_count: itemsCount });
 }
