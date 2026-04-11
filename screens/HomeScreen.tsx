@@ -288,11 +288,11 @@ export default function HomeScreen() {
                             <View style={styles.spaceCardIconBg}>
                               <Ionicons
                                 name={(list.icon as any) || 'apps-outline'}
-                                size={22}
+                                size={28}
                                 color="#FFFFFF"
                               />
                             </View>
-                            <View>
+                            <View style={{ width: '100%' }}>
                               <Text style={styles.spaceCardName} numberOfLines={2}>
                                 {list.title}
                               </Text>
@@ -382,6 +382,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: scaleSpacing(12),
     justifyContent: 'space-between',
+    alignItems: 'center',
     overflow: 'hidden',
   },
   spaceCardDecor: {
@@ -394,12 +395,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
   spaceCardIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
   },
   spaceCardName: {
     fontSize: scaleFontSize(13),
