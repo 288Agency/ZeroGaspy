@@ -24,6 +24,7 @@ import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
 import { SkeletonHomeContent } from '../components/Skeleton';
+import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../utils/designSystem';
 import { scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -215,6 +216,7 @@ export default function HomeScreen() {
                     <Text style={styles.createSpaceText}>Créer un espace →</Text>
                   </TouchableOpacity>
                 ) : (
+                  <>
                   <View style={styles.spacesGrid}>
                     {[...lists]
                       .sort((a, b) => {
@@ -272,6 +274,8 @@ export default function HomeScreen() {
                           spaceState === 'warning' ? '#FB923C' :
                           COLORS.text.tertiary;
 
+                        const iconColor = list.color || COLORS.primary[500];
+
                         return (
                           <TouchableOpacity
                             key={list.id}
@@ -279,9 +283,18 @@ export default function HomeScreen() {
                             activeOpacity={0.75}
                             onPress={() => navigation.navigate('InventoryList', { listId: list.id, listTitle: list.title, listColor: list.color, listIcon: list.icon })}
                           >
-                            <Text style={styles.spaceCardName} numberOfLines={1}>
-                              {list.title}
-                            </Text>
+                            <View style={styles.spaceCardHeader}>
+                              <View style={[styles.spaceCardIconBg, { backgroundColor: iconColor + '20' }]}>
+                                <Ionicons
+                                  name={(list.icon as any) || 'apps-outline'}
+                                  size={12}
+                                  color={iconColor}
+                                />
+                              </View>
+                              <Text style={[styles.spaceCardName, { color: iconColor }]} numberOfLines={1}>
+                                {list.title}
+                              </Text>
+                            </View>
                             <Text style={[styles.spaceCardSub, { color: subColor }]} numberOfLines={1}>
                               {subText}
                             </Text>
@@ -291,7 +304,31 @@ export default function HomeScreen() {
                           </TouchableOpacity>
                         );
                       })}
+
+                    {/* Bouton créer un espace */}
+                    {lists.length < 4 && (
+                      <TouchableOpacity
+                        style={styles.spaceCardCreate}
+                        activeOpacity={0.7}
+                        onPress={onCreateList}
+                      >
+                        <Ionicons name="add" size={22} color={COLORS.primary[500]} />
+                        <Text style={styles.spaceCardCreateText}>Nouvel{'\n'}espace</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
+
+                  {lists.length >= 4 && (
+                    <TouchableOpacity
+                      onPress={onCreateList}
+                      style={styles.addSpaceLink}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add-circle-outline" size={14} color={COLORS.primary[500]} />
+                      <Text style={styles.addSpaceLinkText}>Ajouter un espace</Text>
+                    </TouchableOpacity>
+                  )}
+                  </>
                 )}
               </View>
             </>
@@ -345,10 +382,54 @@ const styles = StyleSheet.create({
     padding: scaleSpacing(10),
     justifyContent: 'space-between',
   },
+  spaceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSpacing(5),
+  },
+  spaceCardIconBg: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   spaceCardName: {
     fontSize: scaleFontSize(11),
     fontWeight: '700',
+    flex: 1,
+  },
+  spaceCardCreate: {
+    width: '48%',
+    height: scaleSpacing(80),
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(60,110,71,0.2)',
+    borderStyle: 'dashed',
+    padding: scaleSpacing(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scaleSpacing(4),
+  },
+  spaceCardCreateText: {
+    fontSize: scaleFontSize(10),
+    fontWeight: '600',
     color: COLORS.primary[500],
+    textAlign: 'center',
+  },
+  addSpaceLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSpacing(4),
+    paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+    paddingTop: scaleSpacing(8),
+  },
+  addSpaceLinkText: {
+    fontSize: scaleFontSize(12),
+    color: COLORS.primary[500],
+    fontWeight: '600',
   },
   spaceCardSub: {
     fontSize: scaleFontSize(9),
