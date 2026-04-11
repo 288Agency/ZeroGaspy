@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
   },
   spaceCard: {
-    width: '48%',
+    width: '44%',
     aspectRatio: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   spaceCardCreate: {
-    width: '48%',
+    width: '44%',
     aspectRatio: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
