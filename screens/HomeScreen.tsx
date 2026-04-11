@@ -7,7 +7,6 @@ import {
   Text,
   StyleSheet,
   Alert,
-  FlatList,
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -25,7 +24,6 @@ import ProactiveRecipeCard from '../components/ProactiveRecipeCard';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import ReferralCard from '../components/ReferralCard';
 import { SkeletonHomeContent } from '../components/Skeleton';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { COLORS } from '../utils/designSystem';
 import { scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -205,7 +203,7 @@ export default function HomeScreen() {
                 <ReferralCard userId={user.id} hasBadges={true} />
               )}
 
-              {/* Spaces scroll horizontal */}
+              {/* Spaces grid 2×2 */}
               <View style={styles.spacesSection}>
                 <Text style={styles.sectionLabel}>MES ESPACES</Text>
                 {lists.length === 0 ? (
@@ -217,41 +215,44 @@ export default function HomeScreen() {
                     <Text style={styles.createSpaceText}>Créer un espace →</Text>
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.spacesScrollContainer}>
-                    <FlatList
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      data={[...lists].sort((a, b) => {
-                        const urgentA = a.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
-                        ).length;
-                        const urgentB = b.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
-                        ).length;
+                  <View style={styles.spacesGrid}>
+                    {[...lists]
+                      .sort((a, b) => {
+                        const urgentA = a.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d <= 1;
+                        }).length;
+                        const urgentB = b.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d <= 1;
+                        }).length;
                         if (urgentA !== urgentB) return urgentB - urgentA;
-                        const warnA = a.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
-                        ).length;
-                        const warnB = b.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
-                        ).length;
+                        const warnA = a.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d >= 2 && d <= 3;
+                        }).length;
+                        const warnB = b.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d >= 2 && d <= 3;
+                        }).length;
                         return warnB - warnA;
-                      })}
-                      keyExtractor={item => item.id}
-                      contentContainerStyle={styles.spacesScrollContent}
-                      renderItem={({ item: list }) => {
-                        const spaceUrgent = list.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d <= 1; })()
-                        ).length;
-                        const spaceWarn = list.items.filter(i =>
-                          i.status !== 'consumed' && i.status !== 'thrown' &&
-                          (() => { const d = getDaysUntilExpiration(i.expirationDate); return d !== null && d >= 2 && d <= 3; })()
-                        ).length;
+                      })
+                      .slice(0, 4)
+                      .map(list => {
+                        const spaceUrgent = list.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d <= 1;
+                        }).length;
+                        const spaceWarn = list.items.filter(i => {
+                          if (i.status === 'consumed' || i.status === 'thrown') return false;
+                          const d = getDaysUntilExpiration(i.expirationDate);
+                          return d !== null && d >= 2 && d <= 3;
+                        }).length;
                         const spaceState = spaceUrgent > 0 ? 'urgent' : spaceWarn > 0 ? 'warning' : 'calm';
                         const borderColor =
                           spaceState === 'urgent' ? 'rgba(220,38,38,0.25)' :
@@ -261,10 +262,11 @@ export default function HomeScreen() {
                           spaceState === 'urgent' ? '#DC2626' :
                           spaceState === 'warning' ? '#FB923C' :
                           COLORS.status.fresh;
+                        const activeCount = list.items.filter(i => i.status !== 'consumed' && i.status !== 'thrown').length;
                         const subText =
                           spaceState === 'urgent' ? `${spaceUrgent} périment 🚨` :
                           spaceState === 'warning' ? `${spaceWarn} expirent ⚠️` :
-                          `${list.items.filter(i => i.status !== 'consumed' && i.status !== 'thrown').length} alim.`;
+                          `${activeCount} alim.`;
                         const subColor =
                           spaceState === 'urgent' ? '#DC2626' :
                           spaceState === 'warning' ? '#FB923C' :
@@ -272,6 +274,7 @@ export default function HomeScreen() {
 
                         return (
                           <TouchableOpacity
+                            key={list.id}
                             style={[styles.spaceCard, { borderColor }]}
                             activeOpacity={0.75}
                             onPress={() => navigation.navigate('InventoryList', { listId: list.id, listTitle: list.title, listColor: list.color, listIcon: list.icon })}
@@ -287,14 +290,7 @@ export default function HomeScreen() {
                             </View>
                           </TouchableOpacity>
                         );
-                      }}
-                    />
-                    <LinearGradient
-                      colors={['transparent', COLORS.surface.background]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.spacesFade, { pointerEvents: 'none' }]}
-                    />
+                      })}
                   </View>
                 )}
               </View>
@@ -334,17 +330,15 @@ const styles = StyleSheet.create({
     marginBottom: scaleSpacing(8),
     marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
   },
-  spacesScrollContainer: {
-    position: 'relative',
-  },
-  spacesScrollContent: {
+  spacesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: scaleSpacing(8),
     paddingHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
-    paddingRight: scaleSpacing(isSmallScreen ? 48 : 56),
   },
   spaceCard: {
-    width: scaleSpacing(120),
-    height: scaleSpacing(64),
+    width: '48%',
+    height: scaleSpacing(80),
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1.5,
@@ -369,13 +363,6 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '60%',
     borderRadius: 1,
-  },
-  spacesFade: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 32,
   },
   createSpaceButton: {
     paddingVertical: scaleSpacing(10),
