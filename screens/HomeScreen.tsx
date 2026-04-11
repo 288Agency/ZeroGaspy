@@ -269,38 +269,38 @@ export default function HomeScreen() {
                           spaceState === 'urgent' ? `${spaceUrgent} périment 🚨` :
                           spaceState === 'warning' ? `${spaceWarn} expirent ⚠️` :
                           `${activeCount} alim.`;
-                        const subColor =
-                          spaceState === 'urgent' ? '#DC2626' :
-                          spaceState === 'warning' ? '#FB923C' :
-                          COLORS.text.tertiary;
-
-                        const iconColor = list.color || COLORS.primary[500];
+                        const cardColor = list.color || COLORS.primary[500];
+                        const subTextColor =
+                          spaceState === 'urgent' ? 'rgba(255,180,180,0.9)' :
+                          spaceState === 'warning' ? 'rgba(255,220,150,0.9)' :
+                          'rgba(255,255,255,0.6)';
 
                         return (
                           <TouchableOpacity
                             key={list.id}
-                            style={[styles.spaceCard, { borderColor }]}
-                            activeOpacity={0.75}
+                            style={[styles.spaceCard, { backgroundColor: cardColor }]}
+                            activeOpacity={0.8}
                             onPress={() => navigation.navigate('InventoryList', { listId: list.id, listTitle: list.title, listColor: list.color, listIcon: list.icon })}
                           >
-                            <View style={styles.spaceCardHeader}>
-                              <View style={[styles.spaceCardIconBg, { backgroundColor: iconColor + '20' }]}>
-                                <Ionicons
-                                  name={(list.icon as any) || 'apps-outline'}
-                                  size={22}
-                                  color={iconColor}
-                                />
-                              </View>
-                              <Text style={[styles.spaceCardName, { color: iconColor }]} numberOfLines={2}>
-                                {list.title}
-                              </Text>
+                            {/* Cercle décoratif */}
+                            <View style={styles.spaceCardDecor} pointerEvents="none" />
+
+                            <View style={styles.spaceCardIconBg}>
+                              <Ionicons
+                                name={(list.icon as any) || 'apps-outline'}
+                                size={22}
+                                color="#FFFFFF"
+                              />
                             </View>
                             <View>
-                              <Text style={[styles.spaceCardSub, { color: subColor }]} numberOfLines={1}>
+                              <Text style={styles.spaceCardName} numberOfLines={2}>
+                                {list.title}
+                              </Text>
+                              <Text style={[styles.spaceCardSub, { color: subTextColor }]} numberOfLines={1}>
                                 {subText}
                               </Text>
                               <View style={styles.spaceCardBar}>
-                                <View style={[styles.spaceCardBarFill, { backgroundColor: barColor }]} />
+                                <View style={styles.spaceCardBarFill} />
                               </View>
                             </View>
                           </TouchableOpacity>
@@ -379,29 +379,32 @@ const styles = StyleSheet.create({
   spaceCard: {
     width: '44%',
     aspectRatio: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderRadius: 16,
     padding: scaleSpacing(12),
     justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  spaceCardHeader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scaleSpacing(8),
+  spaceCardDecor: {
+    position: 'absolute',
+    right: -14,
+    top: -14,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   spaceCardIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   spaceCardName: {
     fontSize: scaleFontSize(13),
     fontWeight: '700',
-    textAlign: 'center',
+    color: '#FFFFFF',
   },
   spaceCardCreate: {
     width: '44%',
@@ -436,10 +439,11 @@ const styles = StyleSheet.create({
   },
   spaceCardSub: {
     fontSize: scaleFontSize(9),
+    marginBottom: scaleSpacing(4),
   },
   spaceCardBar: {
     height: 2,
-    backgroundColor: 'rgba(60,110,71,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 1,
     overflow: 'hidden',
   },
@@ -447,6 +451,7 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '60%',
     borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   createSpaceButton: {
     paddingVertical: scaleSpacing(10),
