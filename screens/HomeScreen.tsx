@@ -285,23 +285,23 @@ export default function HomeScreen() {
                             {/* Cercle décoratif */}
                             <View style={styles.spaceCardDecor} pointerEvents="none" />
 
+                            {/* Icône centrée */}
                             <View style={styles.spaceCardIconBg}>
                               <Ionicons
                                 name={(list.icon as any) || 'apps-outline'}
-                                size={28}
+                                size={40}
                                 color="#FFFFFF"
                               />
                             </View>
-                            <View style={{ width: '100%' }}>
-                              <Text style={styles.spaceCardName} numberOfLines={2}>
+
+                            {/* Nom + statut en bas */}
+                            <View style={styles.spaceCardBottom}>
+                              <Text style={styles.spaceCardName} numberOfLines={1}>
                                 {list.title}
                               </Text>
                               <Text style={[styles.spaceCardSub, { color: subTextColor }]} numberOfLines={1}>
                                 {subText}
                               </Text>
-                              <View style={styles.spaceCardBar}>
-                                <View style={styles.spaceCardBarFill} />
-                              </View>
                             </View>
                           </TouchableOpacity>
                         );
@@ -381,32 +381,37 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 16,
     padding: scaleSpacing(12),
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
+    gap: scaleSpacing(10),
   },
   spaceCardDecor: {
     position: 'absolute',
-    right: -14,
-    top: -14,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    right: -16,
+    top: -16,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   spaceCardIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
+  },
+  spaceCardBottom: {
+    alignItems: 'center',
+    width: '100%',
   },
   spaceCardName: {
-    fontSize: scaleFontSize(13),
+    fontSize: scaleFontSize(12),
     fontWeight: '700',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   spaceCardCreate: {
     width: '44%',
@@ -441,19 +446,7 @@ const styles = StyleSheet.create({
   },
   spaceCardSub: {
     fontSize: scaleFontSize(9),
-    marginBottom: scaleSpacing(4),
-  },
-  spaceCardBar: {
-    height: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  spaceCardBarFill: {
-    height: '100%',
-    width: '60%',
-    borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
   },
   createSpaceButton: {
     paddingVertical: scaleSpacing(10),
