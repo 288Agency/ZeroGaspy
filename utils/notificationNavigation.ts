@@ -25,6 +25,11 @@ export function getScreenFromNotificationData(
         screen: 'Recipes',
         params: foodName ? { ingredient: foodName } : undefined,
       };
+    case 'daily_recipe':
+      return {
+        screen: 'Recipes',
+        params: foodName ? { ingredient: foodName } : undefined,
+      };
     case 'daily_reminder':
     case 'daily_summary':
       return { screen: 'ExpiringSoon' };

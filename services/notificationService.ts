@@ -322,7 +322,7 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
       content: {
         title,
         body,
-        data: { screen: 'Recipes' },
+        data: { type: 'daily_recipe', foodName: firstName },
         sound: true,
       },
       trigger: {
