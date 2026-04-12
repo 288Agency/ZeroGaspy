@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import DefaultPreference from 'react-native-default-preference';
+import logger from '../utils/logger';
 
 interface FoodItem {
   id: string;
@@ -74,7 +74,7 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
 
     return expiringFoods;
   } catch (error) {
-    console.error('Erreur widget data:', error);
+    logger.error('Erreur widget data:', error);
     return [];
   }
 }
@@ -104,26 +104,12 @@ export async function updateWidgetData(): Promise<void> {
           },
         });
       } catch (widgetError) {
-        // Ignorer si le widget n'est pas installé
-        console.log('Widget update skipped:', widgetError);
-      }
-    } else if (Platform.OS === 'ios') {
-      // Sauvegarder dans UserDefaults avec App Group pour iOS
-      try {
-        await DefaultPreference.setName('group.com.zerogaspy.app');
-        await DefaultPreference.set('widgetData', JSON.stringify(widgetData));
-
-        // Demander au widget de se rafraîchir (iOS 14+)
-        const { WidgetKit } = require('react-native');
-        if (WidgetKit?.reloadAllTimelines) {
-          WidgetKit.reloadAllTimelines();
-        }
-      } catch (iosError) {
-        console.log('iOS widget update skipped:', iosError);
+        logger.info('Android widget update skipped (not installed)');
       }
     }
+    // iOS : les données sont dans AsyncStorage, le widget Swift les lira via App Group (à implémenter)
   } catch (error) {
-    console.error('Erreur update widget data:', error);
+    logger.error('Erreur update widget data:', error);
   }
 }
 
@@ -141,7 +127,7 @@ export async function getWidgetData(): Promise<{ expiringFoods: ExpiringFood[]; 
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Erreur get widget data:', error);
+    logger.error('Erreur get widget data:', error);
     return null;
   }
 }
