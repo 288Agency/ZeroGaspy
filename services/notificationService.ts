@@ -251,11 +251,48 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
     if (!hasPermission) return;
 
     const isEn = locale.startsWith('en');
+
+    // Lire les aliments expirant dans les 3 prochains jours au moment du scheduling
+    const lists = await loadLists();
+    const expiringItems: string[] = [];
+    for (const list of lists) {
+      for (const item of list.items) {
+        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        const days = getDaysUntilExpiration(item.expirationDate);
+        if (days !== null && days >= 0 && days <= 3) {
+          expiringItems.push(item.name);
+        }
+      }
+    }
+
+    const count = expiringItems.length;
+    const firstName = expiringItems[0];
+
+    let title: string;
+    let body: string;
+    let notifType: string;
+    let foodName: string | undefined;
+
+    if (count > 0) {
+      title = isEn ? '🌿 Your streak continues!' : '🌿 Ta série continue !';
+      body = isEn
+        ? `${firstName} and ${count > 1 ? count - 1 + ' other items expire' : 'it expires'} soon — check a recipe!`
+        : `${firstName}${count > 1 ? ` et ${count - 1} autre${count > 2 ? 's' : ''}` : ''} expire${count > 1 ? 'nt' : ''} bientôt — voir une recette ?`;
+      notifType = 'daily_recipe';
+      foodName = firstName;
+    } else {
+      title = isEn ? '🌿 Your streak continues!' : '🌿 Ta série continue !';
+      body = isEn
+        ? 'Check your fridge — keep your no-waste streak going!'
+        : 'Vérifie ton frigo pour garder ta série sans gaspi !';
+      notifType = 'daily_reminder';
+    }
+
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: isEn ? '🌿 Your streak continues!' : '🌿 Ta streak continue !',
-        body: isEn ? 'Check your fridge — some items might expire soon.' : 'Vérifie ton frigo — des aliments pourraient bientôt expirer.',
-        data: { type: 'daily_reminder' },
+        title,
+        body,
+        data: { type: notifType, ...(foodName ? { foodName } : {}) },
         sound: 'default',
       },
       trigger: {
@@ -265,7 +302,7 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
     });
 
     await AsyncStorage.setItem(WELCOME_BACK_NOTIF_KEY, 'true');
-    logger.info('D+1 welcome-back notification scheduled');
+    logger.info('D+1 welcome-back notification scheduled', { expiringCount: count });
   } catch (error) {
     logger.error('Error scheduling welcome-back notification:', error);
   }
