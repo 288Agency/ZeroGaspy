@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import logger from '../utils/logger';
+import { getMonthlySavings } from '../services/monthlySavingsService';
 
 interface FoodItem {
   id: string;
@@ -82,17 +83,20 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
 // Sauvegarder les données pour le widget (appelé depuis l'app)
 export async function updateWidgetData(): Promise<void> {
   try {
-    const expiringFoods = await getExpiringFoods(7);
+    const [expiringFoods, monthlySavings] = await Promise.all([
+      getExpiringFoods(7),
+      getMonthlySavings(),
+    ]);
     const widgetData = {
       expiringFoods,
+      monthlySavings,
       lastUpdated: new Date().toISOString(),
     };
 
-    // Sauvegarder dans AsyncStorage (pour l'app)
+    // Sauvegarder dans AsyncStorage (cache interne)
     await AsyncStorage.setItem('@zerogaspy_widget_data', JSON.stringify(widgetData));
 
     if (Platform.OS === 'android') {
-      // Demander au widget Android de se mettre à jour
       try {
         const { requestWidgetUpdate } = require('react-native-android-widget');
         await requestWidgetUpdate({
@@ -103,11 +107,19 @@ export async function updateWidgetData(): Promise<void> {
             return React.createElement(ExpiringFoodsWidget, { expiringFoods });
           },
         });
-      } catch (widgetError) {
+      } catch {
         logger.info('Android widget update skipped (not installed)');
       }
+    } else if (Platform.OS === 'ios') {
+      try {
+        const DefaultPreference = require('react-native-default-preference').default;
+        await DefaultPreference.setName('group.com.zerogaspy.app.widget');
+        await DefaultPreference.set('widgetData', JSON.stringify(widgetData));
+        logger.info('iOS widget data written to App Group UserDefaults');
+      } catch {
+        logger.info('iOS widget update skipped (App Group not configured)');
+      }
     }
-    // iOS : les données sont dans AsyncStorage, le widget Swift les lira via App Group (à implémenter)
   } catch (error) {
     logger.error('Erreur update widget data:', error);
   }

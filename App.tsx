@@ -151,6 +151,14 @@ function RootNavigator() {
       const { url } = event;
       logger.info('Deep link reçu:', url);
 
+      // Widget iOS tap → aliments expirants
+      if (url.includes('expiring-soon')) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('ExpiringSoon' as any);
+        }
+        return;
+      }
+
       const inviteMatch = url.match(/invite\/([A-Z0-9-]+)/i);
       if (inviteMatch) {
         await savePendingReferralCode(inviteMatch[1]);

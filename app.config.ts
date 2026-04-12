@@ -95,7 +95,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   scheme: 'zerogaspy',
   plugins: [
     ['react-native-android-widget', widgetConfig],
-    // '@bacons/apple-targets', // Désactivé temporairement - incompatible avec Expo SDK 54
+    './plugins/withIOSWidget',
     [
       '@sentry/react-native/expo',
       {
