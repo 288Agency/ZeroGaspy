@@ -121,10 +121,6 @@ export function trackPaywallDismissed(source: string) {
   track('paywall_dismissed', { source });
 }
 
-export function trackPurchaseCompleted(plan: string) {
-  track('purchase_completed', { plan });
-}
-
 // Gamification
 export function trackBadgeUnlocked(badgeId: string, tier: string) {
   track('badge_unlocked', { badge_id: badgeId, tier });
@@ -205,8 +201,8 @@ export function trackPurchaseStarted(plan: string): void {
   track('purchase_started', { plan });
 }
 
-export function trackPurchaseCompleted(plan: string, price: number): void {
-  track('purchase_completed', { plan, price });
+export function trackPurchaseCompleted(plan: string, price?: number): void {
+  track('purchase_completed', { plan, ...(price !== undefined ? { price } : {}) });
 }
 
 export function trackDinnerNotificationTapped(): void {
