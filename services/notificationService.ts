@@ -374,3 +374,79 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
     logger.error('scheduleDinnerReminderNotification error:', error);
   }
 }
+
+const WEEKLY_RECAP_NOTIF_ID = 'weekly_recap_sunday';
+
+export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Promise<void> {
+  try {
+    // Annuler l'ancienne pour éviter les doublons si on reschedule
+    await Notifications.cancelScheduledNotificationAsync(WEEKLY_RECAP_NOTIF_ID).catch(() => {});
+
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) return;
+
+    // Calculer les stats de la semaine courante
+    const lists = await loadLists();
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - 7);
+
+    let consumedCount = 0;
+    let thrownCount = 0;
+    let savedAmount = 0;
+
+    for (const list of lists) {
+      for (const item of list.items) {
+        const date = item.consumedAt ? new Date(item.consumedAt) : null;
+        if (!date || date < weekStart) continue;
+        if (item.status === 'consumed') {
+          consumedCount++;
+          const price = item.price && item.price > 0 ? item.price : 3.00;
+          savedAmount += price * (item.quantity || 1);
+        } else if (item.status === 'thrown') {
+          thrownCount++;
+        }
+      }
+    }
+
+    const isEn = lang.startsWith('en');
+    const savedRounded = Math.round(savedAmount);
+
+    const title = isEn ? '🌱 Your weekly recap is ready!' : '🌱 Ton bilan de la semaine !';
+    let body: string;
+
+    if (consumedCount > 0 && thrownCount === 0) {
+      body = isEn
+        ? `Perfect week! ${consumedCount} items used, ~${savedRounded}€ saved — zero waste 🎉`
+        : `Semaine parfaite ! ${consumedCount} aliment${consumedCount > 1 ? 's' : ''} utilisé${consumedCount > 1 ? 's' : ''}, ~${savedRounded} € économisés — zéro gaspi 🎉`;
+    } else if (consumedCount > 0) {
+      body = isEn
+        ? `This week: ${consumedCount} items used, ~${savedRounded}€ saved. ${thrownCount} wasted — let's do better!`
+        : `Cette semaine : ${consumedCount} utilisé${consumedCount > 1 ? 's' : ''}, ~${savedRounded} € économisés. ${thrownCount} jeté${thrownCount > 1 ? 's' : ''} — on fait mieux !`;
+    } else {
+      body = isEn
+        ? 'Check your fridge — start saving money this week!'
+        : 'Jette un œil au frigo — commence à économiser cette semaine !';
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: WEEKLY_RECAP_NOTIF_ID,
+      content: {
+        title,
+        body,
+        data: { type: 'weekly_recap' },
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+        weekday: 1, // 1 = dimanche
+        hour: 20,
+        minute: 0,
+      },
+    });
+
+    logger.info('Weekly recap notification scheduled', { consumedCount, thrownCount, savedRounded });
+  } catch (error) {
+    logger.error('scheduleWeeklyRecapNotification error:', error);
+  }
+}

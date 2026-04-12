@@ -29,6 +29,7 @@ import {
   addNotificationResponseListener,
   scheduleWelcomeBackNotification,
   scheduleDinnerReminderNotification,
+  scheduleWeeklyRecapNotification,
 } from './services/notificationService';
 import { registerPushToken, updateLastOpenedAt } from './services/pushTokenService';
 import logger from './utils/logger';
@@ -204,6 +205,7 @@ function RootNavigator() {
       // Initialiser les notifications seulement après l'onboarding et auth
       checkAndScheduleNotifications();
       scheduleDinnerReminderNotification(i18n.language);
+      scheduleWeeklyRecapNotification(i18n.language);
 
       // Enregistrer le push token et tracker l'ouverture (users connectés uniquement)
       if (user?.id) {
