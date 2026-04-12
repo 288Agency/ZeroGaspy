@@ -33,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
-  version: '2.0.6',
+  version: '2.0.7',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
@@ -67,7 +67,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       CFBundleLocalizations: ['fr', 'en'],
     },
     entitlements: {
-      'com.apple.security.application-groups': ['group.com.zerogaspy.app'],
+      'com.apple.security.application-groups': ['group.com.zerogaspy.app.widget'],
     },
   },
   android: {

@@ -4,7 +4,7 @@
 
 **Goal:** Ajouter un widget iOS natif (WidgetKit / SwiftUI) en 2 tailles (small + medium) affichant les aliments expirants et les économies du mois, via un Expo Config Plugin qui génère et injecte l'extension Xcode automatiquement au build EAS.
 
-**Architecture:** Un Config Plugin TypeScript (`plugins/withIOSWidget.ts`) manipule le projet Xcode généré par Expo pour ajouter une widget extension target. Les données transitent via `UserDefaults` avec App Group (`group.com.zerogaspy.app`) — côté RN via `react-native-default-preference`, côté Swift via `UserDefaults(suiteName:)`. Le tap sur le widget envoie le deep link `zerogaspy://expiring-soon` → `ExpiringSoon` screen.
+**Architecture:** Un Config Plugin TypeScript (`plugins/withIOSWidget.ts`) manipule le projet Xcode généré par Expo pour ajouter une widget extension target. Les données transitent via `UserDefaults` avec App Group (`group.com.zerogaspy.app.widget`) — côté RN via `react-native-default-preference`, côté Swift via `UserDefaults(suiteName:)`. Le tap sur le widget envoie le deep link `zerogaspy://expiring-soon` → `ExpiringSoon` screen.
 
 **Tech Stack:** Swift 5.9, SwiftUI, WidgetKit, `@expo/config-plugins`, `react-native-default-preference` (déjà installé), EAS Build, Xcode 15+
 
@@ -36,18 +36,18 @@
 
   Sur [developer.apple.com](https://developer.apple.com) → Certificates, Identifiers & Profiles → App Groups → `+`
 
-  - Identifier : `group.com.zerogaspy.app`
+  - Identifier : `group.com.zerogaspy.app.widget`
   - Description : `ZeroGaspy Shared Data`
 
 - [ ] **Step 2 : Associer au main App ID**
 
-  Identifiers → `com.zerogaspy.app` → App Groups → cocher `group.com.zerogaspy.app`
+  Identifiers → `com.zerogaspy.app` → App Groups → cocher `group.com.zerogaspy.app.widget`
 
 - [ ] **Step 3 : Créer l'App ID du widget**
 
   Identifiers → `+` → App IDs → App
   - Bundle ID : `com.zerogaspy.app.widget`
-  - Capabilities : App Groups → cocher `group.com.zerogaspy.app`
+  - Capabilities : App Groups → cocher `group.com.zerogaspy.app.widget`
 
 ---
 
@@ -91,7 +91,7 @@
   // MARK: - Data Loading
 
   func loadWidgetPayload() -> WidgetPayload? {
-      guard let defaults = UserDefaults(suiteName: "group.com.zerogaspy.app"),
+      guard let defaults = UserDefaults(suiteName: "group.com.zerogaspy.app.widget"),
             let jsonString = defaults.string(forKey: "widgetData"),
             let jsonData = jsonString.data(using: .utf8) else {
           return nil
@@ -386,7 +386,7 @@
   <dict>
     <key>com.apple.security.application-groups</key>
     <array>
-      <string>group.com.zerogaspy.app</string>
+      <string>group.com.zerogaspy.app.widget</string>
     </array>
   </dict>
   </plist>
@@ -424,7 +424,7 @@
   import * as fs from 'fs';
   import * as path from 'path';
 
-  const APP_GROUP = 'group.com.zerogaspy.app';
+  const APP_GROUP = 'group.com.zerogaspy.app.widget';
   const WIDGET_TARGET_NAME = 'ZeroGaspyWidget';
   const WIDGET_BUNDLE_ID = 'com.zerogaspy.app.widget';
   const SWIFT_FILES = [
@@ -644,7 +644,7 @@
   } else if (Platform.OS === 'ios') {
     try {
       const DefaultPreference = require('react-native-default-preference').default;
-      await DefaultPreference.setName('group.com.zerogaspy.app');
+      await DefaultPreference.setName('group.com.zerogaspy.app.widget');
       await DefaultPreference.set('widgetData', JSON.stringify(widgetData));
       logger.info('iOS widget data written to App Group UserDefaults');
     } catch (iosError) {
@@ -760,7 +760,7 @@
 ## Notes importantes
 
 **App Group dans Xcode (si erreur de signature) :**
-Si EAS Build échoue sur les entitlements, ouvrir `ios/ZeroGaspyLocal.xcworkspace` dans Xcode → sélectionner la target `ZeroGaspyWidget` → Signing & Capabilities → `+` Capability → App Groups → cocher `group.com.zerogaspy.app`.
+Si EAS Build échoue sur les entitlements, ouvrir `ios/ZeroGaspyLocal.xcworkspace` dans Xcode → sélectionner la target `ZeroGaspyWidget` → Signing & Capabilities → `+` Capability → App Groups → cocher `group.com.zerogaspy.app.widget`.
 
 **Dépendance `@expo/config-plugins` :**
 Déjà disponible via `expo` — pas d'installation supplémentaire requise.
