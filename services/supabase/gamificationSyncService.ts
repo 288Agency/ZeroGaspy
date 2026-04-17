@@ -1,0 +1,97 @@
+import { supabase } from '../../config/supabase';
+import {
+  UserGamification,
+  UserBadge,
+  getLevelFromXp,
+  getGamificationData,
+  saveGamificationData,
+} from '../gamificationService';
+import {
+  WeeklyChallengesState,
+  ChallengeProgress,
+  WeeklyHistory,
+  getOrInitChallenges,
+  saveChallengesState,
+} from '../challengeService';
+import logger from '../../utils/logger';
+
+/**
+ * Pousse la progression gamification vers Supabase (upsert).
+ * Fire-and-forget — ne jamais await dans l'UI.
+ */
+export async function pushGamificationToCloud(
+  userId: string,
+  data: UserGamification
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_gamification')
+    .upsert(
+      { user_id: userId, data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+
+  if (error) {
+    logger.warn('[GamificationSync] Push gamification error:', error.message);
+  }
+}
+
+/**
+ * Tire la progression gamification depuis Supabase.
+ * Retourne null si pas de données cloud.
+ */
+export async function pullGamificationFromCloud(
+  userId: string
+): Promise<UserGamification | null> {
+  const { data, error } = await supabase
+    .from('user_gamification')
+    .select('data')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    logger.warn('[GamificationSync] Pull gamification error:', error.message);
+    return null;
+  }
+
+  return (data?.data as UserGamification) ?? null;
+}
+
+/**
+ * Pousse l'état des challenges hebdomadaires vers Supabase.
+ */
+export async function pushChallengesStateToCloud(
+  userId: string,
+  state: WeeklyChallengesState
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_gamification')
+    .upsert(
+      { user_id: userId, challenges: state, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+
+  if (error) {
+    logger.warn('[GamificationSync] Push challenges error:', error.message);
+  }
+}
+
+/**
+ * Tire l'état des challenges hebdomadaires depuis Supabase.
+ * Retourne null si pas de données cloud.
+ */
+export async function pullChallengesStateFromCloud(
+  userId: string
+): Promise<WeeklyChallengesState | null> {
+  const { data, error } = await supabase
+    .from('user_gamification')
+    .select('challenges')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    logger.warn('[GamificationSync] Pull challenges error:', error.message);
+    return null;
+  }
+
+  return (data?.challenges as WeeklyChallengesState) ?? null;
+}
