@@ -118,10 +118,10 @@ export function mergeGamificationData(
 
   // Badges : union par badgeId — local gagne si doublon (plus récent)
   const badgeMap = new Map<string, UserBadge>();
-  for (const badge of cloud.badges) {
+  for (const badge of (cloud.badges ?? [])) {
     badgeMap.set(badge.badgeId, badge);
   }
-  for (const badge of local.badges) {
+  for (const badge of (local.badges ?? [])) {
     badgeMap.set(badge.badgeId, badge); // local écrase cloud
   }
   const badges = Array.from(badgeMap.values());
@@ -160,7 +160,7 @@ export function mergeGamificationData(
     badges,
     stats,
     streaks,
-    streakFreezes: local.streakFreezes, // local = état le plus récent
+    streakFreezes: local.streakFreezes ?? cloud.streakFreezes ?? { available: 0, lastWeeklyGrant: '', usedThisWeek: 0, totalUsed: 0 }, // local = état le plus récent
   };
 }
 
@@ -181,10 +181,10 @@ export function mergeChallengesState(
 
   // Même semaine : merger les challenges (currentValue max)
   const challengeMap = new Map<string, ChallengeProgress>();
-  for (const c of cloud.challenges) {
+  for (const c of (cloud.challenges ?? [])) {
     challengeMap.set(c.challengeId, c);
   }
-  for (const c of local.challenges) {
+  for (const c of (local.challenges ?? [])) {
     const cloudC = challengeMap.get(c.challengeId);
     if (cloudC && cloudC.currentValue > c.currentValue) {
       challengeMap.set(c.challengeId, cloudC);
@@ -206,10 +206,10 @@ function mergeHistory(
   cloudHistory: WeeklyHistory[]
 ): WeeklyHistory[] {
   const historyMap = new Map<string, WeeklyHistory>();
-  for (const h of cloudHistory) {
+  for (const h of (cloudHistory ?? [])) {
     historyMap.set(h.weekKey, h);
   }
-  for (const h of localHistory) {
+  for (const h of (localHistory ?? [])) {
     const cloudH = historyMap.get(h.weekKey);
     if (!cloudH || h.completedCount >= cloudH.completedCount) {
       historyMap.set(h.weekKey, h);

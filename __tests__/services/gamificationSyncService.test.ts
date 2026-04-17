@@ -242,6 +242,21 @@ describe('mergeChallengesState', () => {
     expect(add5?.currentValue).toBe(5);
   });
 
+  it('recupere un challenge present uniquement dans le cloud (meme weekKey)', () => {
+    const local = makeState('2026-W16', [
+      { challengeId: 'save_5', currentValue: 3, completed: false },
+    ]);
+    const cloud = makeState('2026-W16', [
+      { challengeId: 'save_5', currentValue: 1, completed: false },
+      { challengeId: 'cloud_only', currentValue: 4, completed: false },
+    ]);
+    const merged = mergeChallengesState(local, cloud);
+    expect(merged.challenges).toHaveLength(2);
+    expect(merged.challenges.find((c: any) => c.challengeId === 'cloud_only')).toBeDefined();
+    // save_5 : local gagne (currentValue 3 > 1)
+    expect(merged.challenges.find((c: any) => c.challengeId === 'save_5')?.currentValue).toBe(3);
+  });
+
   it('union history avec completedCount max par weekKey', () => {
     const local = makeState('2026-W16', [], [
       { weekKey: '2026-W15', completedCount: 2, totalXpEarned: 300 },
