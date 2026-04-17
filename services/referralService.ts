@@ -156,7 +156,7 @@ export async function completeReferral(userId: string): Promise<{ success: boole
         }).then(({ error: grantError }) => {
           if (grantError) logger.warn('grant-referral-premium error:', grantError);
           else logger.info('Referral premium grant attempted for', result.referrer_id);
-        });
+        }).catch((e: unknown) => logger.warn('grant-referral-premium threw:', e));
       }
     }
 
