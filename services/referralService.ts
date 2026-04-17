@@ -133,12 +133,15 @@ export async function completeReferral(userId: string): Promise<{ success: boole
       p_code: pendingCode,
     });
 
-    await clearPendingReferralCode();
-
     if (error) {
       logger.error('Error completing referral:', error);
+      // Ne PAS effacer le code — erreur réseau, on peut réessayer
       return { success: false, reason: error.message };
     }
+
+    // Le RPC a répondu (succès ou échec business) : effacer le code pending
+    // pour éviter les doubles appels
+    await clearPendingReferralCode();
 
     const result = data as { success: boolean; reason?: string; referrer_id?: string };
 
@@ -146,6 +149,15 @@ export async function completeReferral(userId: string): Promise<{ success: boole
       await syncBonusScanCredits(userId);
       trackReferralCompleted(result.referrer_id ?? '');
       logger.info('Referral completed successfully');
+
+      if (result.referrer_id) {
+        supabase.functions.invoke('grant-referral-premium', {
+          body: { referrer_id: result.referrer_id },
+        }).then(({ error: grantError }) => {
+          if (grantError) logger.warn('grant-referral-premium error:', grantError);
+          else logger.info('Referral premium grant attempted for', result.referrer_id);
+        });
+      }
     }
 
     return { success: result.success, reason: result.reason };
