@@ -102,7 +102,7 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     if (user || isLocalMode) {
       init();
     }
-  }, [user, isLocalMode]);
+  }, [user, isLocalMode, isPremium]);
 
   // Gerer la file d'attente des toasts
   useEffect(() => {
