@@ -1,6 +1,8 @@
 import { supabase } from '../../config/supabase';
 import {
   UserGamification,
+  // Les imports suivants sont utilisés par mergeGamificationData (Task 3)
+  // et syncGamificationOnLogin (Task 4) qui seront ajoutés à ce fichier.
   UserBadge,
   getLevelFromXp,
   getGamificationData,
@@ -8,6 +10,8 @@ import {
 } from '../gamificationService';
 import {
   WeeklyChallengesState,
+  // Les imports suivants sont utilisés par mergeGamificationData (Task 3)
+  // et syncGamificationOnLogin (Task 4) qui seront ajoutés à ce fichier.
   ChallengeProgress,
   WeeklyHistory,
   getOrInitChallenges,
@@ -53,7 +57,9 @@ export async function pullGamificationFromCloud(
     return null;
   }
 
-  return (data?.data as UserGamification) ?? null;
+  const raw = data?.data;
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as UserGamification;
 }
 
 /**
@@ -93,5 +99,7 @@ export async function pullChallengesStateFromCloud(
     return null;
   }
 
-  return (data?.challenges as WeeklyChallengesState) ?? null;
+  const raw = data?.challenges;
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as WeeklyChallengesState;
 }

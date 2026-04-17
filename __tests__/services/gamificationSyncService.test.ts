@@ -93,4 +93,33 @@ describe('gamificationSyncService', () => {
       );
     });
   });
+
+  describe('pullChallengesStateFromCloud', () => {
+    it('retourne null si pas de donnees challenges', async () => {
+      (supabase.from as jest.Mock).mockReturnValue({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+          })),
+        })),
+      });
+      const result = await pullChallengesStateFromCloud(userId);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('pushChallengesStateToCloud', () => {
+    it('appelle upsert avec user_id et challenges', async () => {
+      const mockUpsert = jest.fn().mockResolvedValue({ error: null });
+      (supabase.from as jest.Mock).mockReturnValue({ upsert: mockUpsert });
+
+      const state = { weekKey: '2026-W16', challenges: [], history: [] } as any;
+      await pushChallengesStateToCloud(userId, state);
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: userId, challenges: state }),
+        { onConflict: 'user_id' }
+      );
+    });
+  });
 });
