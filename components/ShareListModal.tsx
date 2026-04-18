@@ -98,6 +98,7 @@ export default function ShareListModal({
       case 'OWN_LIST': return t('sharing.errorOwnList');
       case 'LIST_NOT_FOUND': return t('sharing.errorGeneric');
       case 'NOT_OWNER': return t('sharing.errorGeneric');
+      case 'QUOTA_EXCEEDED': return t('sharing.errorQuotaExceeded');
       default: return err;
     }
   };

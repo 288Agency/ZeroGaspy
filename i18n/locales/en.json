@@ -338,6 +338,11 @@
     "loadError": "Unable to load recipes. Please try again.",
     "sortAntiWaste": "Anti-waste",
     "sortBestMatch": "Best match",
+    "aiGenerate": "AI Recipe with expiring items",
+    "aiGenerating": "Generating...",
+    "aiError": "Unable to generate an AI recipe. Please try again later.",
+    "aiNoIngredients": "No expiring items",
+    "aiNoIngredientsHint": "Add items with an upcoming expiration date to generate an AI recipe.",
     "antiWasteBadge": "Anti-waste",
     "expiringCount": "{{count}} item expiring soon",
     "expiringCount_plural": "{{count}} items expiring soon",
@@ -729,7 +734,9 @@
       "perYear": "/year",
       "perMonth": "/month",
       "equivalent": "that's",
-      "flexibility": "Maximum flexibility"
+      "flexibility": "Maximum flexibility",
+      "family": "Family",
+      "familyMembers": "Up to 6 members"
     },
     "accountWarning": "Create a free account to subscribe and sync your data",
     "trust": {
@@ -1078,6 +1085,7 @@
     "errorAlreadyMember": "This person is already a member of this list.",
     "errorOwnList": "You cannot invite yourself.",
     "errorGeneric": "An error occurred. Please try again.",
+    "errorQuotaExceeded": "Sharing limit reached. Remove a member before inviting a new one.",
     "sharedWithMe": "Shared with me",
     "sharedBy": "By {{name}}",
     "noMembers": "No members",

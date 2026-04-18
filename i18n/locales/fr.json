@@ -338,6 +338,11 @@
     "loadError": "Impossible de charger les recettes. Veuillez réessayer.",
     "sortAntiWaste": "Anti-gaspi",
     "sortBestMatch": "Meilleur match",
+    "aiGenerate": "Recette IA avec mes expirants",
+    "aiGenerating": "Génération en cours...",
+    "aiError": "Impossible de générer une recette IA. Réessaie plus tard.",
+    "aiNoIngredients": "Aucun aliment expirant",
+    "aiNoIngredientsHint": "Ajoute des aliments avec une date d'expiration proche pour générer une recette IA.",
     "antiWasteBadge": "Anti-gaspi",
     "expiringCount": "{{count}} aliment expire bientôt",
     "expiringCount_plural": "{{count}} aliments expirent bientôt",
@@ -729,7 +734,9 @@
       "perYear": "/an",
       "perMonth": "/mois",
       "equivalent": "soit",
-      "flexibility": "Flexibilité maximale"
+      "flexibility": "Flexibilité maximale",
+      "family": "Famille",
+      "familyMembers": "Jusqu'à 6 membres"
     },
     "accountWarning": "Créez un compte gratuit pour vous abonner et synchroniser vos données",
     "trust": {
@@ -1078,6 +1085,7 @@
     "errorAlreadyMember": "Cette personne fait déjà partie de la liste.",
     "errorOwnList": "Vous ne pouvez pas vous inviter vous-même.",
     "errorGeneric": "Une erreur est survenue. Veuillez réessayer.",
+    "errorQuotaExceeded": "Limite de partages atteinte. Retirez un membre avant d'en inviter un nouveau.",
     "sharedWithMe": "Partagées avec moi",
     "sharedBy": "Par {{name}}",
     "noMembers": "Aucun membre",
