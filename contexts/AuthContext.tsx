@@ -5,6 +5,8 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 import { migrateLocalDataToCloud, syncWithCloud } from '../services/supabase/syncService';
+import { migrateLocalRecipesToCloud, syncRecipes } from '../services/supabase/recipeSyncService';
+import { assignAndStoreVariant, clearRecipeCache } from '../services/recipeService';
 import {
   validateEmail,
   validatePassword,
@@ -90,11 +92,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userId = session.user.id;
           InteractionManager.runAfterInteractions(async () => {
             try {
-              await migrateLocalDataToCloud(userId);
-              await syncWithCloud(userId);
-              await initCloudNotificationPrefs(userId);
-              await completeReferral(userId);
-              await syncBonusScanCredits(userId);
+              const syncData = async () => { await migrateLocalDataToCloud(userId); await syncWithCloud(userId); };
+              const syncRecipeData = async () => { await migrateLocalRecipesToCloud(userId); await syncRecipes(userId); };
+              await Promise.all([
+                syncData(),
+                syncRecipeData(),
+                assignAndStoreVariant(userId),
+                initCloudNotificationPrefs(userId),
+                completeReferral(userId),
+                syncBonusScanCredits(userId),
+              ]);
               await AsyncStorage.removeItem(SKIP_AUTH_KEY);
               setSkippedAuth(false);
             } catch (error) {
@@ -263,7 +270,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await deactivatePushTokens(user.id);
       }
       await supabase.auth.signOut();
-      await AsyncStorage.removeItem(SKIP_AUTH_KEY);
+      // Clear user-specific cached data so next user starts fresh.
+      // Sans ça, un second utilisateur sur le même device voit l'inventaire/XP/streaks du précédent.
+      await clearRecipeCache(user?.id);
+      await AsyncStorage.multiRemove([
+        SKIP_AUTH_KEY,
+        'user_recipes',
+        'inventory_lists',
+        '@zerogaspy_gamification',
+        '@zerogaspy_challenges',
+        '@zerogaspy_savings_goal',
+        '@zerogaspy_pending_referral',
+        '@zerogaspy_bonus_scans',
+      ]);
       setSkippedAuth(false);
       resetAnalytics();
     } catch (error) {

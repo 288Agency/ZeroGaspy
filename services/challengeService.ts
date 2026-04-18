@@ -362,13 +362,21 @@ function weekKeyToSeed(weekKey: string): number {
   return Math.abs(hash);
 }
 
-function getPreviousWeekKey(weekKey: string): string {
+// Une année ISO a 53 semaines si son 1er janvier tombe un jeudi, ou si elle
+// est bissextile et que son 1er janvier tombe un mercredi (ex: 2020, 2026).
+export function getISOWeeksInYear(year: number): number {
+  const jan1Day = new Date(year, 0, 1).getDay(); // 0=Dim, 4=Jeu
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return jan1Day === 4 || (isLeap && jan1Day === 3) ? 53 : 52;
+}
+
+export function getPreviousWeekKey(weekKey: string): string {
   const [yearStr, weekStr] = weekKey.split('-W');
   let year = parseInt(yearStr, 10);
   let week = parseInt(weekStr, 10) - 1;
   if (week < 1) {
     year--;
-    week = 52;
+    week = getISOWeeksInYear(year);
   }
   return `${year}-W${String(week).padStart(2, '0')}`;
 }

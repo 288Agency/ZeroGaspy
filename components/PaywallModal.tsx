@@ -26,12 +26,13 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import Svg, { Path, Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
 import PressableScale from './PressableScale';
-import { PREMIUM_FEATURES, FALLBACK_PRICES } from '../constants/subscription';
+import { PREMIUM_FEATURES, FAMILY_FEATURES, FALLBACK_PRICES } from '../constants/subscription';
 import * as Linking from 'expo-linking';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
@@ -50,11 +51,16 @@ interface PaywallModalProps {
 }
 
 // Composant feuille organique animée
-const AnimatedLeaf = ({ delay = 0, size = 40, style }: { delay?: number; size?: number; style?: any }) => {
+const AnimatedLeaf = ({ delay = 0, size = 40, active = true, style }: { delay?: number; size?: number; active?: boolean; style?: any }) => {
   const rotation = useSharedValue(0);
   const scale = useSharedValue(0.8);
 
   useEffect(() => {
+    if (!active) {
+      cancelAnimation(rotation);
+      cancelAnimation(scale);
+      return;
+    }
     rotation.value = withDelay(
       delay,
       withRepeat(
@@ -77,7 +83,11 @@ const AnimatedLeaf = ({ delay = 0, size = 40, style }: { delay?: number; size?: 
         true
       )
     );
-  }, []);
+    return () => {
+      cancelAnimation(rotation);
+      cancelAnimation(scale);
+    };
+  }, [active, delay]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -112,11 +122,16 @@ const AnimatedLeaf = ({ delay = 0, size = 40, style }: { delay?: number; size?: 
 };
 
 // Cercles décoratifs flottants
-const FloatingCircle = ({ delay = 0, size = 20, color = COLORS.secondary.sage, style }: any) => {
+const FloatingCircle = ({ delay = 0, size = 20, active = true, color = COLORS.secondary.sage, style }: any) => {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {
+    if (!active) {
+      cancelAnimation(translateY);
+      cancelAnimation(opacity);
+      return;
+    }
     translateY.value = withDelay(
       delay,
       withRepeat(
@@ -139,7 +154,11 @@ const FloatingCircle = ({ delay = 0, size = 20, color = COLORS.secondary.sage, s
         true
       )
     );
-  }, []);
+    return () => {
+      cancelAnimation(translateY);
+      cancelAnimation(opacity);
+    };
+  }, [active, delay]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -198,6 +217,7 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
   const { user } = useAuth();
   const { t } = useTranslation();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [planType, setPlanType] = useState<'solo' | 'family'>('solo');
   const [selectedPackage, setSelectedPackage] = useState<'monthly' | 'yearly'>('yearly');
 
   // Animations
@@ -229,17 +249,29 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
   }));
 
   const monthlyPackage = packages.find(p =>
-    p.identifier.includes('monthly') || p.packageType === 'MONTHLY'
+    !p.identifier.includes('family') && (p.identifier.includes('monthly') || p.packageType === 'MONTHLY')
   );
   const yearlyPackage = packages.find(p =>
-    p.identifier.includes('yearly') || p.identifier.includes('annual') || p.identifier.includes('years') || p.packageType === 'ANNUAL'
+    !p.identifier.includes('family') && (p.identifier.includes('yearly') || p.identifier.includes('annual') || p.identifier.includes('years') || p.packageType === 'ANNUAL')
   );
+  const familyMonthlyPackage = packages.find(p => p.identifier.includes('family') && p.identifier.includes('monthly'));
+  const familyYearlyPackage = packages.find(p => p.identifier.includes('family') && (p.identifier.includes('yearly') || p.identifier.includes('annual')));
 
-  const monthlyPrice = monthlyPackage?.product.priceString || FALLBACK_PRICES.MONTHLY;
-  const yearlyPrice = yearlyPackage?.product.priceString || FALLBACK_PRICES.YEARLY;
+  const isFamily = planType === 'family';
 
-  const monthlyPriceNum = monthlyPackage?.product.price || 3.99;
-  const yearlyPriceNum = yearlyPackage?.product.price || 39.99;
+  const monthlyPrice = isFamily
+    ? (familyMonthlyPackage?.product.priceString || FALLBACK_PRICES.FAMILY_MONTHLY)
+    : (monthlyPackage?.product.priceString || FALLBACK_PRICES.MONTHLY);
+  const yearlyPrice = isFamily
+    ? (familyYearlyPackage?.product.priceString || FALLBACK_PRICES.FAMILY_YEARLY)
+    : (yearlyPackage?.product.priceString || FALLBACK_PRICES.YEARLY);
+
+  const monthlyPriceNum = isFamily
+    ? (familyMonthlyPackage?.product.price || 6.49)
+    : (monthlyPackage?.product.price || 3.49);
+  const yearlyPriceNum = isFamily
+    ? (familyYearlyPackage?.product.price || 49.99)
+    : (yearlyPackage?.product.price || 29.99);
   const yearlySavings = Math.round(((monthlyPriceNum * 12 - yearlyPriceNum) / (monthlyPriceNum * 12)) * 100);
 
   const getFeatureMessage = () => {
@@ -256,7 +288,9 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
   };
 
   const handlePurchase = async () => {
-    const pkg = selectedPackage === 'monthly' ? monthlyPackage : yearlyPackage;
+    const pkg = isFamily
+      ? (selectedPackage === 'monthly' ? familyMonthlyPackage : familyYearlyPackage)
+      : (selectedPackage === 'monthly' ? monthlyPackage : yearlyPackage);
 
     // Si pas de packages chargés, tenter de recharger
     if (!pkg) {
@@ -305,11 +339,11 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
       <View style={styles.container}>
         {/* Background décoratif */}
         <View style={styles.backgroundDecoration}>
-          <FloatingCircle delay={0} size={80} style={{ top: 60, left: -20 }} color={COLORS.secondary.sage} />
-          <FloatingCircle delay={500} size={50} style={{ top: 120, right: 20 }} color={COLORS.secondary.mint} />
-          <FloatingCircle delay={1000} size={35} style={{ top: 200, left: 50 }} color={COLORS.primary[50]} />
-          <AnimatedLeaf delay={0} size={50} style={{ position: 'absolute', top: 80, right: -10, opacity: 0.6 }} />
-          <AnimatedLeaf delay={300} size={35} style={{ position: 'absolute', top: 150, left: 10, opacity: 0.4 }} />
+          <FloatingCircle active={visible} delay={0} size={80} style={{ top: 60, left: -20 }} color={COLORS.secondary.sage} />
+          <FloatingCircle active={visible} delay={500} size={50} style={{ top: 120, right: 20 }} color={COLORS.secondary.mint} />
+          <FloatingCircle active={visible} delay={1000} size={35} style={{ top: 200, left: 50 }} color={COLORS.primary[50]} />
+          <AnimatedLeaf active={visible} delay={0} size={50} style={{ position: 'absolute', top: 80, right: -10, opacity: 0.6 }} />
+          <AnimatedLeaf active={visible} delay={300} size={35} style={{ position: 'absolute', top: 150, left: 10, opacity: 0.4 }} />
         </View>
 
         {/* Header */}
@@ -381,6 +415,46 @@ export default function PaywallModal({ visible, onClose, feature = 'general' }: 
             style={styles.pricingSection}
           >
             <Text style={styles.pricingTitle}>{t('paywall.pricing.title')}</Text>
+
+            {/* Sélecteur Solo / Famille */}
+            <View style={styles.planTypeSelector}>
+              <PressableScale
+                onPress={() => setPlanType('solo')}
+                style={[styles.planTypeButton, planType === 'solo' && styles.planTypeButtonActive]}
+                hapticType="light"
+              >
+                <Ionicons name="person-outline" size={16} color={planType === 'solo' ? COLORS.neutral.white : COLORS.primary[500]} />
+                <Text style={[styles.planTypeText, planType === 'solo' && styles.planTypeTextActive]}>Solo</Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => setPlanType('family')}
+                style={[styles.planTypeButton, planType === 'family' && styles.planTypeButtonActive]}
+                hapticType="light"
+              >
+                <Ionicons name="people-outline" size={16} color={planType === 'family' ? COLORS.neutral.white : COLORS.primary[500]} />
+                <Text style={[styles.planTypeText, planType === 'family' && styles.planTypeTextActive]}>
+                  {t('paywall.pricing.family')}
+                </Text>
+              </PressableScale>
+            </View>
+
+            {/* Features Famille */}
+            {planType === 'family' && (
+              <View style={styles.familyFeaturesList}>
+                {FAMILY_FEATURES.map(f => (
+                  <View key={f.title} style={styles.familyFeatureRow}>
+                    <View style={styles.familyFeatureIcon}>
+                      <Ionicons name={f.icon} size={16} color={COLORS.primary[500]} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.familyFeatureTitle}>{f.title}</Text>
+                      <Text style={styles.familyFeatureDesc}>{f.description}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
 
             {/* Yearly Plan - Recommended */}
             <PressableScale
@@ -832,6 +906,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.primary[500],
+  },
+  planTypeSelector: {
+    flexDirection: 'row',
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    gap: 4,
+  },
+  planTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  planTypeButtonActive: {
+    backgroundColor: COLORS.primary[500],
+  },
+  planTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary[500],
+  },
+  planTypeTextActive: {
+    color: COLORS.neutral.white,
+  },
+  familyFeaturesList: {
+    gap: 10,
+    marginBottom: 16,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.04),
+    borderRadius: 12,
+    padding: 14,
+  },
+  familyFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  familyFeatureIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  familyFeatureTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: 1,
+  },
+  familyFeatureDesc: {
+    fontSize: 12,
+    color: COLORS.text.secondary,
+    lineHeight: 16,
   },
   warningCard: {
     flexDirection: 'row',
