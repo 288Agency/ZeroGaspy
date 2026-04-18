@@ -40,28 +40,24 @@ export async function migrateLocalRecipesToCloud(userId: string): Promise<void> 
 
     logger.debug(`[RecipeSync] Migrating ${userRecipes.length} local recipes to cloud...`);
 
-    for (const recipe of userRecipes) {
-      try {
-        const { error } = await supabase.from('user_recipes').insert({
-          user_id: userId,
-          name: recipe.name,
-          description: recipe.description || '',
-          ingredients: recipe.ingredients,
-          preparation_time: recipe.preparationTime,
-          difficulty: recipe.difficulty,
-          category: appCategoryToDb(recipe.category),
-          image_emoji: recipe.imageEmoji,
-          instructions: recipe.instructions,
-          tips: recipe.tips || null,
-          tags: recipe.tags || null,
-        });
+    const rows = userRecipes.map(recipe => ({
+      user_id: userId,
+      name: recipe.name,
+      description: recipe.description || '',
+      ingredients: recipe.ingredients,
+      preparation_time: recipe.preparationTime,
+      difficulty: recipe.difficulty,
+      category: appCategoryToDb(recipe.category),
+      image_emoji: recipe.imageEmoji,
+      instructions: recipe.instructions,
+      tips: recipe.tips || null,
+      tags: recipe.tags || null,
+    }));
 
-        if (error) {
-          logger.error(`[RecipeSync] Migration error for "${recipe.name}":`, error);
-        }
-      } catch (err) {
-        logger.error(`[RecipeSync] Migration failed for "${recipe.name}":`, err);
-      }
+    const { error } = await supabase.from('user_recipes').insert(rows);
+    if (error) {
+      logger.error('[RecipeSync] Batch migration error:', error);
+      return; // ne pas marquer comme migré si échec
     }
 
     await AsyncStorage.setItem(`${RECIPE_MIGRATION_KEY}_${userId}`, 'true');
