@@ -345,3 +345,4 @@ Add food -> See recipe using what's expiring -> Cook it -> Zero waste -> Badge/X
 ```
 
 Every feature added should strengthen one link in this chain.
+
