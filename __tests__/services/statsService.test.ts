@@ -67,9 +67,10 @@ describe('StatsService - Calcul des économies', () => {
       const stats = await calculateUserStats();
 
       expect(stats.itemsConsumed).toBe(2);
-      expect(stats.totalSaved).toBe(9.0); // (2.5 × 3) + (1.5 × 1) = 7.5 + 1.5
+      // price est le prix total de la quantité (cf. UI "Price for total quantity")
+      expect(stats.totalSaved).toBe(4.0); // 2.5 + 1.5
       expect(stats.totalWasted).toBe(0);
-      expect(stats.netSavings).toBe(9.0);
+      expect(stats.netSavings).toBe(4.0);
     });
 
     it('devrait calculer les pertes avec des aliments jetés', async () => {
@@ -98,9 +99,10 @@ describe('StatsService - Calcul des économies', () => {
       const stats = await calculateUserStats();
 
       expect(stats.itemsThrown).toBe(1);
-      expect(stats.totalWasted).toBe(4.0); // 2.0 × 2
+      // price est le prix total, pas unitaire
+      expect(stats.totalWasted).toBe(2.0);
       expect(stats.totalSaved).toBe(0);
-      expect(stats.netSavings).toBe(-4.0);
+      expect(stats.netSavings).toBe(-2.0);
     });
 
     it('devrait calculer le bilan net (économies - pertes)', async () => {
@@ -138,12 +140,12 @@ describe('StatsService - Calcul des économies', () => {
 
       const stats = await calculateUserStats();
 
-      expect(stats.totalSaved).toBe(10.0); // 2.5 × 4
-      expect(stats.totalWasted).toBe(1.5); // 1.5 × 1
-      expect(stats.netSavings).toBe(8.5); // 10.0 - 1.5
+      expect(stats.totalSaved).toBe(2.5);
+      expect(stats.totalWasted).toBe(1.5);
+      expect(stats.netSavings).toBe(1.0);
     });
 
-    it('devrait estimer les prix si non fournis', async () => {
+    it('ne devrait pas estimer de prix pour un item sans prix défini', async () => {
       const mockLists: List[] = [
         {
           id: '1',
@@ -157,7 +159,7 @@ describe('StatsService - Calcul des économies', () => {
               quantity: 2,
               category: 'fruits',
               status: 'consumed',
-              // Pas de prix fourni
+              // Pas de prix fourni → exclu des stats d'argent
               consumedAt: '2024-01-12T15:00:00Z',
             },
           ],
@@ -168,8 +170,8 @@ describe('StatsService - Calcul des économies', () => {
 
       const stats = await calculateUserStats();
 
-      // Prix moyen fruits = 2.50€ × 2 = 5.00€
-      expect(stats.totalSaved).toBe(5.0);
+      // Seuls les items avec prix défini comptent — les autres sont ignorés
+      expect(stats.totalSaved).toBe(0);
     });
 
     it('devrait compter uniquement les items actifs (ignorer consumed/thrown)', async () => {
@@ -527,8 +529,8 @@ describe('StatsService - Calcul des économies', () => {
       const thisMonthStats = monthlyStats.find(s => s.month === thisMonth);
       expect(thisMonthStats?.itemsConsumed).toBe(1);
       expect(thisMonthStats?.itemsThrown).toBe(1);
-      expect(thisMonthStats?.saved).toBe(7.5); // 2.5 × 3
-      expect(thisMonthStats?.wasted).toBe(4.0); // 2.0 × 2
+      expect(thisMonthStats?.saved).toBe(2.5);
+      expect(thisMonthStats?.wasted).toBe(2.0);
     });
 
     it('devrait inclure le calcul CO2 dans les stats mensuelles', async () => {
@@ -665,7 +667,7 @@ describe('StatsService - Calcul des économies', () => {
       expect(stats.itemsActive).toBe(0);
     });
 
-    it('devrait gérer des items sans catégorie (prix par défaut)', async () => {
+    it('devrait ignorer les items sans prix défini dans les stats argent', async () => {
       const mockLists: List[] = [
         {
           id: '1',
@@ -679,7 +681,7 @@ describe('StatsService - Calcul des économies', () => {
               quantity: 1,
               status: 'consumed',
               consumedAt: '2024-01-15T10:00:00Z',
-              // Pas de catégorie
+              // Ni prix ni catégorie → exclu des stats argent
             },
           ],
         },
@@ -689,8 +691,8 @@ describe('StatsService - Calcul des économies', () => {
 
       const stats = await calculateUserStats();
 
-      // Prix par défaut = 3.00€
-      expect(stats.totalSaved).toBe(3.0);
+      // Sans prix défini, aucune économie comptée
+      expect(stats.totalSaved).toBe(0);
     });
 
     it('devrait gérer des items sans consumedAt (stats quotidiennes)', async () => {
@@ -779,6 +781,7 @@ describe('StatsService - Calcul des économies', () => {
               quantity: 100,
               category: 'fruits',
               status: 'consumed',
+              price: 250,
               consumedAt: '2024-01-15T10:00:00Z',
             },
           ],
@@ -789,7 +792,7 @@ describe('StatsService - Calcul des économies', () => {
 
       const stats = await calculateUserStats();
 
-      // Prix fruits = 2.50€ × 100 = 250€
+      // price est le prix total (pour la quantité entière)
       expect(stats.totalSaved).toBe(250.0);
       // Poids fruits = 0.5 kg × 100 = 50 kg
       expect(stats.foodSavedKg).toBe(50.0);

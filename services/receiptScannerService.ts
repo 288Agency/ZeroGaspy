@@ -552,8 +552,10 @@ function isProductNameLine(line: string): boolean {
   // Longueur minimale
   if (trimmed.length < 5) return false;
   // Ne doit pas contenir certains mots-clés d'en-tête
-  const headerKeywords = /^(>>>>|total|sous-total|tva|paiement|carte|especes|rendu|merci|ticket|caisse)/i;
+  const headerKeywords = /^(>>>>|total|sous-total|tva|paiement|carte|especes|rendu|merci|ticket|caisse|siret|siren|tel|tél|fax|email|www|recu|reçu|transaction|date|montant)/i;
   if (headerKeywords.test(trimmed)) return false;
+  // Ligne contenant un numéro long sans format prix (SIRET/SIREN/téléphone)
+  if (/\d{9,}/.test(trimmed) && !/\d+[.,]\d{2}\s*[€E]?/.test(trimmed)) return false;
   return true;
 }
 
