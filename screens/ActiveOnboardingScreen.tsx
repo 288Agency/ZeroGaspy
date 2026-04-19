@@ -48,18 +48,7 @@ import { setMonthlySavingsGoal } from '../services/monthlySavingsService';
 
 export const ONBOARDING_KEY = 'onboarding_completed';
 
-type Step = 'welcome' | 'addFood' | 'addMore' | 'recipes' | 'savings' | 'ready';
-
-const CATEGORIES = [
-  { key: 'fruits', icon: 'nutrition' as const, color: '#FFE4E1' },
-  { key: 'vegetables', icon: 'leaf' as const, color: '#E8F5E9' },
-  { key: 'meat', icon: 'restaurant' as const, color: '#FFEBEE' },
-  { key: 'dairy', icon: 'water' as const, color: '#E3F2FD' },
-  { key: 'bakery', icon: 'pizza' as const, color: '#FFF8E1' },
-  { key: 'condiments', icon: 'flask' as const, color: '#FFF3E0' },
-  { key: 'frozen', icon: 'snow' as const, color: '#E1F5FE' },
-  { key: 'other', icon: 'cube' as const, color: '#ECEFF1' },
-];
+type Step = 'welcome' | 'savings' | 'addFood' | 'recipes' | 'ready';
 
 const EXPIRATION_OPTIONS = [
   { key: 'threeDays', days: 3 },
@@ -69,13 +58,8 @@ const EXPIRATION_OPTIONS = [
   { key: 'customDate', days: -1 },
 ];
 
-const SAVINGS_BY_CATEGORY: Record<string, number> = {
-  fruits: 0.80, vegetables: 0.70, meat: 2.50, dairy: 1.20,
-  bakery: 0.90, condiments: 1.50, frozen: 1.80, other: 1.00,
-};
-
 const STEP_PROGRESS: Record<string, number> = {
-  welcome: 0, addFood: 40, addMore: 60, recipes: 80, savings: 90, ready: 100,
+  welcome: 0, savings: 25, addFood: 50, recipes: 75, ready: 100,
 };
 
 const WASTE_OPTIONS = [
@@ -96,8 +80,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
 
   // Food form state
   const [foodName, setFoodName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedExpiration, setSelectedExpiration] = useState('');
+  const [selectedExpiration, setSelectedExpiration] = useState('oneWeek');
   const [customDate, setCustomDate] = useState('');
   const [showCustomDate, setShowCustomDate] = useState(false);
 
@@ -109,26 +92,11 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const [listId, setListId] = useState<string | null>(null);
   const [recipes, setRecipes] = useState<RecipeMatch[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [showAhaMoment, setShowAhaMoment] = useState(false);
   const { trackFoodAdded } = useGamification();
-
-  const getCategoryLabel = (key: string) => {
-    const map: Record<string, string> = {
-      fruits: t('onboarding.categoryFruits'),
-      vegetables: t('onboarding.categoryVegetables'),
-      meat: t('onboarding.categoryMeat'),
-      dairy: t('onboarding.categoryDairy'),
-      bakery: t('onboarding.categoryBakery'),
-      condiments: t('onboarding.categoryGrocery'),
-      frozen: t('onboarding.categoryFrozen'),
-      other: t('onboarding.categoryOther'),
-    };
-    return map[key] || key;
-  };
 
   const transitionTo = useCallback((nextStep: Step) => {
     const stepIndexMap: Record<Step, number> = {
-      welcome: 0, addFood: 1, addMore: 2, recipes: 3, savings: 4, ready: 5,
+      welcome: 0, savings: 1, addFood: 2, recipes: 3, ready: 4,
     };
     trackOnboardingStep(stepIndexMap[nextStep], nextStep);
     Animated.timing(fadeAnim, {
@@ -188,50 +156,40 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         id: Date.now().toString(),
         name: foodName.trim(),
         expirationDate: getExpirationDate(),
-        category: selectedCategory || undefined,
+        category: undefined,
         quantity: 1,
         status: 'active',
       };
 
       await addItemToList(currentListId, newItem);
-      setAddedItems(prev => [...prev, newItem]);
+      const updatedItems = [...addedItems, newItem];
+      setAddedItems(updatedItems);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       trackFoodAdded(currentListId ?? undefined);
-      trackOnboardingFoodAdded(addedItems.length + 1);
+      trackOnboardingFoodAdded(updatedItems.length);
       trackOnboardingStepCompleted('addFood');
-
-      if (addedItems.length === 0) {
-        setShowAhaMoment(true);
-      }
 
       // Reset form
       setFoodName('');
-      setSelectedCategory('');
-      setSelectedExpiration('');
+      setSelectedExpiration('oneWeek');
       setCustomDate('');
       setShowCustomDate(false);
 
-      transitionTo('addMore');
+      // Aller directement aux recettes
+      const matches = findMatchingRecipesForOnboarding(updatedItems);
+      setRecipes(matches);
+      trackOnboardingRecipeViewed();
+      transitionTo('recipes');
+      fetchRecipesFromCloud().then(() => {
+        setRecipes(findMatchingRecipesForOnboarding(updatedItems));
+      }).catch(() => {});
     } catch (error) {
       logger.error('Error adding food during onboarding:', error);
       Alert.alert(t('common.error'), t('addFood.saveError'));
     } finally {
       setIsAdding(false);
     }
-  };
-
-  const handleSeeRecipes = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const matches = findMatchingRecipesForOnboarding(addedItems);
-    setRecipes(matches);
-    trackOnboardingRecipeViewed();
-    trackOnboardingStepCompleted('recipes');
-    transitionTo('recipes');
-    fetchRecipesFromCloud().then(() => {
-      const updatedMatches = findMatchingRecipesForOnboarding(addedItems);
-      setRecipes(updatedMatches);
-    }).catch(() => {});
   };
 
   const handleComplete = async () => {
@@ -251,11 +209,10 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const backMap: Record<Step, Step> = {
       welcome: 'welcome',
-      addFood: 'welcome',
-      addMore: 'addFood',
-      recipes: 'addMore',
-      savings: 'recipes',
-      ready: 'savings',
+      savings: 'welcome',
+      addFood: 'savings',
+      recipes: 'addFood',
+      ready: 'recipes',
     };
     transitionTo(backMap[step]);
   };
@@ -263,7 +220,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const canAddFood = foodName.trim().length > 0;
 
   // Step indicator
-  const stepIndex = ['welcome', 'addFood', 'addMore', 'recipes', 'savings', 'ready'].indexOf(step);
+  const stepIndex = ['welcome', 'savings', 'addFood', 'recipes', 'ready'].indexOf(step);
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
@@ -310,7 +267,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           trackOnboardingStepCompleted('welcome');
-          transitionTo('addFood');
+          transitionTo('savings');
         }}
         activeOpacity={0.9}
         style={styles.primaryButton}
@@ -350,40 +307,6 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
           returnKeyType="done"
           onSubmitEditing={() => Keyboard.dismiss()}
         />
-
-        {/* Category chips */}
-        <Text style={styles.sectionLabel}>{t('onboarding.category')}</Text>
-        <View style={styles.chipGrid}>
-          {CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat.key}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSelectedCategory(selectedCategory === cat.key ? '' : cat.key);
-              }}
-              activeOpacity={0.7}
-              style={[
-                styles.categoryChip,
-                { backgroundColor: cat.color },
-                selectedCategory === cat.key && styles.categoryChipSelected,
-              ]}
-            >
-              <Ionicons
-                name={cat.icon as any}
-                size={scaleSize(16)}
-                color={selectedCategory === cat.key ? COLORS.primary[500] : COLORS.text.secondary}
-              />
-              <Text
-                style={[
-                  styles.chipText,
-                  selectedCategory === cat.key && styles.chipTextSelected,
-                ]}
-              >
-                {getCategoryLabel(cat.key)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         {/* Expiration quick-pick */}
         <Text style={styles.sectionLabel}>{t('onboarding.expiresIn')}</Text>
@@ -448,93 +371,6 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
     </KeyboardAvoidingView>
   );
 
-  const renderAddMore = () => {
-    const lastItem = addedItems[addedItems.length - 1];
-    return (
-      <View style={styles.addMoreContainer}>
-        {/* Success card */}
-        <View style={styles.successCard}>
-          <View style={styles.checkCircle}>
-            <Text style={styles.checkMark}>✓</Text>
-          </View>
-          <Text style={styles.successTitle}>{t('onboarding.foodAdded')}</Text>
-          {lastItem && (
-            <View style={styles.itemPreview}>
-              <Text style={styles.itemPreviewName}>{lastItem.name}</Text>
-              {lastItem.category && (
-                <Text style={styles.itemPreviewCategory}>
-                  {getCategoryLabel(lastItem.category)}
-                </Text>
-              )}
-            </View>
-          )}
-          {(() => {
-            const item = addedItems[addedItems.length - 1];
-            if (!item) return null;
-            const savings = SAVINGS_BY_CATEGORY[item.category ?? 'other'] ?? 1.00;
-            const catLabel = item.category ? getCategoryLabel(item.category) : null;
-            const daysLeft = item.expirationDate
-              ? Math.round((new Date(item.expirationDate.split('/').reverse().join('-')).getTime() - Date.now()) / 86400000)
-              : null;
-            return (
-              <>
-                <View style={styles.itemPill}>
-                  <Text style={styles.itemPillText}>
-                    {catLabel ?? t('onboarding.categoryOther')}
-                    {daysLeft !== null ? ` · ${t('onboarding.itemPillLabel', { days: daysLeft })}` : ''}
-                  </Text>
-                </View>
-                <Text style={styles.savingsText}>
-                  {t('onboarding.savingsEstimate', { amount: savings.toFixed(2) })}
-                </Text>
-              </>
-            );
-          })()}
-          <Text style={styles.itemCount}>
-            {t('onboarding.itemsAdded', { count: addedItems.length })}
-          </Text>
-        </View>
-
-        {showAhaMoment && (
-          <View style={styles.ahaMomentBanner}>
-            <Text style={styles.ahaMomentEmoji}>🌍</Text>
-            <Text style={styles.ahaMomentText}>
-              {t('onboarding.ahaMoment')}
-            </Text>
-          </View>
-        )}
-
-        {/* Action buttons */}
-        <View style={styles.addMoreButtons}>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              transitionTo('addFood');
-            }}
-            activeOpacity={0.9}
-            style={styles.secondaryButton}
-          >
-            <Ionicons name="add" size={scaleSize(20)} color={COLORS.primary[500]} />
-            <Text style={styles.secondaryButtonText}>
-              {t('onboarding.addAnother')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSeeRecipes}
-            activeOpacity={0.9}
-            style={styles.primaryButton}
-          >
-            <Ionicons name="restaurant" size={scaleSize(18)} color={COLORS.neutral.white} />
-            <Text style={[styles.primaryButtonText, { marginLeft: SPACING.sm }]}>
-              {t('onboarding.seeRecipes')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
   const renderRecipes = () => (
     <ScrollView
       style={styles.flex}
@@ -597,7 +433,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           trackOnboardingStepCompleted('recipes');
-          transitionTo('savings');
+          transitionTo('ready');
         }}
         activeOpacity={0.9}
         style={[styles.primaryButton, { marginTop: SPACING['2xl'] }]}
@@ -635,12 +471,12 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       <TouchableOpacity
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          transitionTo('ready');
+          transitionTo('addFood');
         }}
         activeOpacity={0.9}
         style={[styles.primaryButton, { marginTop: scaleSpacing(32) }]}
       >
-        <Text style={styles.primaryButtonText}>Continuer</Text>
+        <Text style={styles.primaryButtonText}>Ajouter mon premier aliment</Text>
         <View style={styles.buttonIconContainer}>
           <Ionicons name="arrow-forward" size={scaleSize(18)} color={COLORS.neutral.white} />
         </View>
@@ -679,10 +515,9 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const renderStep = () => {
     switch (step) {
       case 'welcome': return renderWelcome();
-      case 'addFood': return renderAddFood();
-      case 'addMore': return renderAddMore();
-      case 'recipes': return renderRecipes();
       case 'savings': return renderSavings();
+      case 'addFood': return renderAddFood();
+      case 'recipes': return renderRecipes();
       case 'ready': return renderReady();
     }
   };

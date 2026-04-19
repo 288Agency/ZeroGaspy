@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,43 +17,33 @@ import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import Card from '../components/Card';
 import ExpirationBadge from '../components/ExpirationBadge';
+import PressableScale from '../components/PressableScale';
+import { SkeletonExpiringList } from '../components/Skeleton';
 import logger from '../utils/logger';
-import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
+import { getDaysUntilExpiration } from '../utils/dateUtils';
+import { COLORS, SPACING } from '../utils/designSystem';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ExpiringSoonScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<List[]>([]);
   const [expiringItems, setExpiringItems] = useState<Array<FoodItem & { listTitle: string; listId: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fonction pour calculer les jours jusqu'à expiration
-  const getDaysUntilExpiration = (dateString: string): number | null => {
+  const loadExpiringItems = async (isRefresh = false) => {
     try {
-      const [day, month, year] = dateString.split('/').map(Number);
-      const expiration = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      expiration.setHours(0, 0, 0, 0);
-
-      const diffTime = expiration.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      return diffDays;
-    } catch {
-      return null;
-    }
-  };
-
-  const loadExpiringItems = async () => {
-    try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const data = await loadLists();
       setLists(data);
 
-      // Récupérer tous les aliments bientôt périmés (≤ 7 jours) de toutes les listes
       const items: Array<FoodItem & { listTitle: string; listId: string }> = [];
 
       data.forEach((list) => {
@@ -74,7 +64,6 @@ export default function ExpiringSoonScreen() {
         });
       });
 
-      // Trier par date d'expiration (les plus urgents en premier)
       items.sort((a, b) => {
         const daysA = getDaysUntilExpiration(a.expirationDate) || 999;
         const daysB = getDaysUntilExpiration(b.expirationDate) || 999;
@@ -91,14 +80,19 @@ export default function ExpiringSoonScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useFocusEffect(
-    React.useCallback(() => {
-      loadExpiringItems();
+    useCallback(() => {
+      loadExpiringItems(false);
     }, [])
   );
+
+  const onRefresh = useCallback(() => {
+    loadExpiringItems(true);
+  }, []);
 
   const handleItemPress = (listId: string, listTitle: string) => {
     navigation.navigate('InventoryList', { listId, listTitle });
@@ -108,10 +102,12 @@ export default function ExpiringSoonScreen() {
     const days = getDaysUntilExpiration(item.expirationDate);
 
     return (
-      <TouchableOpacity
+      <PressableScale
         onPress={() => handleItemPress(item.listId, item.listTitle)}
-        activeOpacity={0.7}
+        hapticType="light"
+        activeScale={0.98}
         accessibilityRole="button"
+        accessibilityLabel={item.name}
       >
         <Card variant="elevated" style={styles.cardItem}>
           <View style={styles.itemRow}>
@@ -147,32 +143,47 @@ export default function ExpiringSoonScreen() {
             <Ionicons name="chevron-forward" size={24} color={COLORS.primary[500]} />
           </View>
         </Card>
-      </TouchableOpacity>
+      </PressableScale>
     );
   };
 
+  const headerPaddingTop = Math.max(insets.top, SPACING.lg) + SPACING.sm;
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+          <PressableScale
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hapticType="light"
+            accessibilityLabel={t('common.back')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+          </PressableScale>
+          <Text style={styles.headerTitle}>
+            {t('home.expiringSoonTitle')}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <SkeletonExpiringList />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+        <PressableScale
           onPress={() => navigation.goBack()}
           style={styles.backButton}
-          activeOpacity={0.7}
+          hapticType="light"
           accessibilityLabel={t('common.back')}
           accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>
           {t('home.expiringSoonTitle')}
         </Text>
@@ -183,7 +194,15 @@ export default function ExpiringSoonScreen() {
         data={expiringItems}
         renderItem={renderItem}
         keyExtractor={(item) => `${item.id}-${item.listId}`}
-        contentContainerStyle={{ padding: SPACING.xl }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['3xl'] }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary[500]}
+            colors={[COLORS.primary[500]]}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="checkmark-circle-outline" size={64} color={COLORS.secondary.sage} />
@@ -205,22 +224,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.secondary.cream,
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: COLORS.primary[500],
-    marginTop: SPACING.lg,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
-    paddingTop: 64,
     paddingBottom: SPACING['2xl'],
   },
   backButton: {

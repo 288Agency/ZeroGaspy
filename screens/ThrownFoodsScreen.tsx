@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,23 +16,30 @@ import { loadLists } from '../utils/localStorage';
 import { FoodItem } from '../types';
 import { useTranslation } from 'react-i18next';
 import Card from '../components/Card';
+import PressableScale from '../components/PressableScale';
+import { SkeletonExpiringList } from '../components/Skeleton';
 import logger from '../utils/logger';
-import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
+import { COLORS, SPACING } from '../utils/designSystem';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ThrownFoodsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const [thrownItems, setThrownItems] = useState<Array<FoodItem & { listTitle: string; listId: string; listColor?: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadThrownItems = async () => {
+  const loadThrownItems = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const data = await loadLists();
 
-      // Récupérer tous les aliments jetés de toutes les listes
       const items: Array<FoodItem & { listTitle: string; listId: string; listColor?: string }> = [];
 
       data.forEach((list) => {
@@ -58,14 +65,19 @@ export default function ThrownFoodsScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useFocusEffect(
-    React.useCallback(() => {
-      loadThrownItems();
+    useCallback(() => {
+      loadThrownItems(false);
     }, [])
   );
+
+  const onRefresh = useCallback(() => {
+    loadThrownItems(true);
+  }, []);
 
   const renderItem = ({ item }: { item: FoodItem & { listTitle: string; listId: string; listColor?: string } }) => {
     return (
@@ -104,28 +116,43 @@ export default function ThrownFoodsScreen() {
     );
   };
 
+  const headerPaddingTop = Math.max(insets.top, SPACING.lg) + SPACING.sm;
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+          <PressableScale
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hapticType="light"
+            accessibilityLabel={t('common.back')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+          </PressableScale>
+          <Text style={styles.headerTitle}>
+            {t('home.thrownFoodsTitle')}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <SkeletonExpiringList />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+        <PressableScale
           onPress={() => navigation.goBack()}
           style={styles.backButton}
-          activeOpacity={0.7}
+          hapticType="light"
           accessibilityLabel={t('common.back')}
           accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>
           {t('home.thrownFoodsTitle')}
         </Text>
@@ -136,7 +163,15 @@ export default function ThrownFoodsScreen() {
         data={thrownItems}
         renderItem={renderItem}
         keyExtractor={(item) => `${item.id}-${item.listId}`}
-        contentContainerStyle={{ padding: SPACING.xl }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['3xl'] }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary[500]}
+            colors={[COLORS.primary[500]]}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="leaf-outline" size={64} color={COLORS.secondary.sage} />
@@ -158,22 +193,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.secondary.cream,
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: COLORS.primary[500],
-    marginTop: SPACING.lg,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
-    paddingTop: 64,
     paddingBottom: SPACING['2xl'],
   },
   backButton: {
@@ -204,24 +228,26 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
     marginBottom: SPACING.sm,
   },
   itemName: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.primary[500],
+    flexShrink: 1,
   },
   thrownBadge: {
-    marginLeft: SPACING.sm,
+    backgroundColor: COLORS.semantic.dangerLight,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surface.dangerBgMuted,
+    borderRadius: 8,
   },
   thrownBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.danger,
+    color: COLORS.semantic.danger,
   },
   itemDetail: {
     fontSize: 14,
