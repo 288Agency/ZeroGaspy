@@ -7,8 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FoodItem } from '../types';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
+import { supabase, CloudRecipe, CloudUserRecipe, dbCategoryToApp, appCategoryToDb } from '../config/supabase';
+import { trackRecipeVariantAssigned } from './analytics';
 
 const USER_RECIPES_KEY = 'user_recipes';
+const CLOUD_RECIPES_CACHE_KEY = 'cloud_recipes_cache';
+const CLOUD_RECIPES_CACHE_TS_KEY = 'cloud_recipes_cache_ts';
+const RECIPE_VARIANT_KEY = 'recipe_variant_group';
+const CLOUD_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 // Seuil minimum de correspondance pour suggérer une recette (en %)
 // 50% = L'utilisateur doit avoir au moins la moitié des ingrédients
@@ -2193,7 +2199,7 @@ export function findMatchingRecipesForOnboarding(foodItems: FoodItem[], threshol
 }
 
 /**
- * Récupère toutes les recettes disponibles
+ * Récupère toutes les recettes disponibles (synchrone, fallback local uniquement)
  */
 export function getAllRecipes(): Recipe[] {
   return RECIPES_DATABASE;
@@ -2221,27 +2227,183 @@ export function getRecipesByDifficulty(difficulty: Recipe['difficulty']): Recipe
 }
 
 // ============================================
+// CLOUD RECIPES (SUPABASE)
+// ============================================
+
+function convertCloudRecipeToLocal(cloud: CloudRecipe): Recipe {
+  return {
+    id: cloud.id,
+    name: cloud.name,
+    description: cloud.description ?? '',
+    ingredients: cloud.ingredients,
+    preparationTime: cloud.preparation_time,
+    difficulty: cloud.difficulty,
+    category: dbCategoryToApp(cloud.category),
+    imageEmoji: cloud.image_emoji ?? '🍳',
+    instructions: cloud.instructions,
+    tips: cloud.tips ?? undefined,
+    tags: cloud.tags ?? undefined,
+  };
+}
+
+export function convertCloudUserRecipeToLocal(cloud: CloudUserRecipe): Recipe {
+  return {
+    id: cloud.id,
+    name: cloud.name,
+    description: cloud.description ?? '',
+    ingredients: cloud.ingredients,
+    preparationTime: cloud.preparation_time,
+    difficulty: cloud.difficulty,
+    category: dbCategoryToApp(cloud.category),
+    imageEmoji: cloud.image_emoji ?? '🍳',
+    instructions: cloud.instructions,
+    tips: cloud.tips ?? undefined,
+    tags: cloud.tags ?? undefined,
+    isUserRecipe: true,
+    createdAt: cloud.created_at,
+  };
+}
+
+/**
+ * Fetches built-in recipes from Supabase with 24h AsyncStorage cache.
+ * Falls back to RECIPES_DATABASE when offline.
+ */
+export async function fetchRecipesFromCloud(variantGroup?: string | null): Promise<Recipe[]> {
+  // Cache key includes variant so different variants don't overwrite each other
+  const cacheKey = `${CLOUD_RECIPES_CACHE_KEY}_${variantGroup || 'default'}`;
+  const cacheTsKey = `${CLOUD_RECIPES_CACHE_TS_KEY}_${variantGroup || 'default'}`;
+
+  try {
+    const [[, cachedTs], [, cached]] = await AsyncStorage.multiGet([cacheTsKey, cacheKey]);
+    if (cachedTs) {
+      const age = Date.now() - parseInt(cachedTs, 10);
+      if (age < CLOUD_CACHE_TTL_MS && cached) {
+        return JSON.parse(cached) as Recipe[];
+      }
+    }
+
+    let query = supabase
+      .from('recipes')
+      .select('*')
+      .eq('is_active', true);
+
+    if (variantGroup) {
+      query = query.or(`variant_group.is.null,variant_group.eq.${encodeURIComponent(variantGroup)}`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      logger.error('[RecipeService] Cloud fetch error:', error);
+      return await getCachedOrFallback(cacheKey);
+    }
+
+    const recipes = (data as CloudRecipe[]).map(convertCloudRecipeToLocal);
+
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(recipes));
+    await AsyncStorage.setItem(cacheTsKey, Date.now().toString());
+
+    return recipes;
+  } catch (err) {
+    logger.error('[RecipeService] fetchRecipesFromCloud failed:', err);
+    return await getCachedOrFallback(cacheKey);
+  }
+}
+
+async function getCachedOrFallback(cacheKey?: string): Promise<Recipe[]> {
+  try {
+    const key = cacheKey ?? CLOUD_RECIPES_CACHE_KEY;
+    const cached = await AsyncStorage.getItem(key);
+    if (cached) return JSON.parse(cached) as Recipe[];
+  } catch { /* ignore */ }
+  return RECIPES_DATABASE;
+}
+
+/**
+ * Returns the user's stored variant group, or null.
+ */
+export async function getStoredVariantGroup(userId?: string): Promise<string | null> {
+  const key = userId ? `${RECIPE_VARIANT_KEY}_${userId}` : RECIPE_VARIANT_KEY;
+  return AsyncStorage.getItem(key);
+}
+
+/**
+ * Clears all recipe cache keys for a user on sign-out.
+ */
+export async function clearRecipeCache(userId?: string): Promise<void> {
+  const variantKey = userId ? `${RECIPE_VARIANT_KEY}_${userId}` : RECIPE_VARIANT_KEY;
+  const variantGroup = await AsyncStorage.getItem(variantKey);
+  const suffix = variantGroup || 'default';
+  const keysToRemove = [
+    `${CLOUD_RECIPES_CACHE_KEY}_${suffix}`,
+    `${CLOUD_RECIPES_CACHE_TS_KEY}_${suffix}`,
+    RECIPE_VARIANT_KEY,
+    variantKey,
+  ];
+  await AsyncStorage.multiRemove(keysToRemove);
+}
+
+/**
+ * Assigns a variant group via Supabase RPC, stores it locally (per user).
+ */
+export async function assignAndStoreVariant(userId?: string): Promise<string> {
+  const key = userId ? `${RECIPE_VARIANT_KEY}_${userId}` : RECIPE_VARIANT_KEY;
+  try {
+    const existing = await AsyncStorage.getItem(key);
+    if (existing) return existing;
+
+    const { data, error } = await supabase.rpc('assign_recipe_variant');
+
+    if (error) {
+      logger.error('[RecipeService] assign_recipe_variant error:', error);
+      return 'default';
+    }
+
+    const variant = data as string;
+    await AsyncStorage.setItem(key, variant);
+    trackRecipeVariantAssigned(variant);
+    return variant;
+  } catch (err) {
+    logger.error('[RecipeService] assignAndStoreVariant failed:', err);
+    return 'default';
+  }
+}
+
+// ============================================
 // GESTION DES RECETTES UTILISATEUR
 // ============================================
 
 /**
- * Charge les recettes personnalisées de l'utilisateur
+ * Loads user recipes from Supabase, with AsyncStorage fallback for offline.
  */
-export async function loadUserRecipes(): Promise<Recipe[]> {
-  try {
-    const data = await AsyncStorage.getItem(USER_RECIPES_KEY);
-    if (data) {
-      return JSON.parse(data);
-    }
-    return [];
-  } catch (error) {
-    logger.error('Erreur lors du chargement des recettes utilisateur:', error);
-    return [];
+export async function loadUserRecipes(userId?: string): Promise<Recipe[]> {
+  if (userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_recipes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_deleted', false);
+
+      if (!error && data) {
+        const recipes = (data as CloudUserRecipe[]).map(convertCloudUserRecipeToLocal);
+        await AsyncStorage.setItem(USER_RECIPES_KEY, JSON.stringify(recipes));
+        return recipes;
+      }
+    } catch { /* fall through to local */ }
   }
+
+  try {
+    const local = await AsyncStorage.getItem(USER_RECIPES_KEY);
+    if (local) return JSON.parse(local);
+  } catch (err) {
+    logger.error('Erreur chargement recettes utilisateur:', err);
+  }
+  return [];
 }
 
 /**
- * Sauvegarde les recettes personnalisées
+ * Sauvegarde les recettes personnalisées (local cache only)
  */
 export async function saveUserRecipes(recipes: Recipe[]): Promise<void> {
   try {
@@ -2252,46 +2414,126 @@ export async function saveUserRecipes(recipes: Recipe[]): Promise<void> {
 }
 
 /**
- * Ajoute une nouvelle recette personnalisée
+ * Adds a user recipe to Supabase + local cache.
  */
-export async function addUserRecipe(recipe: Omit<Recipe, 'id' | 'isUserRecipe' | 'createdAt'>): Promise<Recipe> {
-  const userRecipes = await loadUserRecipes();
+export async function addUserRecipe(
+  recipe: Omit<Recipe, 'id' | 'isUserRecipe' | 'createdAt'>,
+  userId?: string
+): Promise<Recipe> {
+  if (userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_recipes')
+        .insert({
+          user_id: userId,
+          name: recipe.name,
+          description: recipe.description || '',
+          ingredients: recipe.ingredients,
+          preparation_time: recipe.preparationTime,
+          difficulty: recipe.difficulty,
+          category: appCategoryToDb(recipe.category),
+          image_emoji: recipe.imageEmoji,
+          instructions: recipe.instructions,
+          tips: recipe.tips || null,
+          tags: recipe.tags || null,
+        })
+        .select()
+        .single();
 
+      if (!error && data) {
+        const newRecipe = convertCloudUserRecipeToLocal(data as CloudUserRecipe);
+        // Read local cache directly — do not re-fetch from cloud to avoid stale data
+        const cached = await AsyncStorage.getItem(USER_RECIPES_KEY);
+        const existing: Recipe[] = cached ? JSON.parse(cached) : [];
+        await saveUserRecipes([...existing, newRecipe]);
+        return newRecipe;
+      }
+    } catch (err) {
+      logger.error('[RecipeService] addUserRecipe cloud error:', err);
+    }
+  }
+
+  const userRecipes = await loadUserRecipes();
   const newRecipe: Recipe = {
     ...recipe,
     id: `user_${Date.now()}`,
     isUserRecipe: true,
     createdAt: new Date().toISOString(),
   };
-
   userRecipes.push(newRecipe);
   await saveUserRecipes(userRecipes);
-
   return newRecipe;
 }
 
 /**
- * Met à jour une recette personnalisée
+ * Updates a user recipe in Supabase + local cache.
  */
-export async function updateUserRecipe(recipeId: string, updates: Partial<Recipe>): Promise<Recipe | null> {
-  const userRecipes = await loadUserRecipes();
-  const index = userRecipes.findIndex(r => r.id === recipeId);
+export async function updateUserRecipe(
+  recipeId: string,
+  updates: Partial<Recipe>,
+  userId?: string
+): Promise<Recipe | null> {
+  if (userId && !recipeId.startsWith('user_')) {
+    try {
+      const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.ingredients !== undefined) payload.ingredients = updates.ingredients;
+      if (updates.preparationTime !== undefined) payload.preparation_time = updates.preparationTime;
+      if (updates.difficulty !== undefined) payload.difficulty = updates.difficulty;
+      if (updates.category !== undefined) payload.category = appCategoryToDb(updates.category);
+      if (updates.imageEmoji !== undefined) payload.image_emoji = updates.imageEmoji;
+      if (updates.instructions !== undefined) payload.instructions = updates.instructions;
+      if (updates.tips !== undefined) payload.tips = updates.tips;
+      if (updates.tags !== undefined) payload.tags = updates.tags;
 
+      const { error } = await supabase
+        .from('user_recipes')
+        .update(payload)
+        .eq('id', recipeId)
+        .eq('user_id', userId);
+
+      if (error) {
+        logger.error('[RecipeService] updateUserRecipe cloud error:', error);
+      }
+    } catch (err) {
+      logger.error('[RecipeService] updateUserRecipe failed:', err);
+    }
+  }
+
+  const cached = await AsyncStorage.getItem(USER_RECIPES_KEY);
+  const userRecipes: Recipe[] = cached ? JSON.parse(cached) : [];
+  const index = userRecipes.findIndex(r => r.id === recipeId);
   if (index === -1) return null;
 
   userRecipes[index] = { ...userRecipes[index], ...updates };
   await saveUserRecipes(userRecipes);
-
   return userRecipes[index];
 }
 
 /**
- * Supprime une recette personnalisée
+ * Soft-deletes a user recipe in Supabase + removes from local cache.
  */
-export async function deleteUserRecipe(recipeId: string): Promise<boolean> {
-  const userRecipes = await loadUserRecipes();
-  const filteredRecipes = userRecipes.filter(r => r.id !== recipeId);
+export async function deleteUserRecipe(recipeId: string, userId?: string): Promise<boolean> {
+  if (userId && !recipeId.startsWith('user_')) {
+    try {
+      const { error } = await supabase
+        .from('user_recipes')
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .eq('id', recipeId)
+        .eq('user_id', userId);
 
+      if (error) {
+        logger.error('[RecipeService] deleteUserRecipe cloud error:', error);
+      }
+    } catch (err) {
+      logger.error('[RecipeService] deleteUserRecipe failed:', err);
+    }
+  }
+
+  const cached = await AsyncStorage.getItem(USER_RECIPES_KEY);
+  const userRecipes: Recipe[] = cached ? JSON.parse(cached) : [];
+  const filteredRecipes = userRecipes.filter(r => r.id !== recipeId);
   if (filteredRecipes.length === userRecipes.length) return false;
 
   await saveUserRecipes(filteredRecipes);
@@ -2299,22 +2541,23 @@ export async function deleteUserRecipe(recipeId: string): Promise<boolean> {
 }
 
 /**
- * Récupère toutes les recettes (intégrées + utilisateur)
+ * Retrieves all recipes: cloud catalog + user recipes, with offline fallback.
  */
-export async function getAllRecipesWithUser(): Promise<Recipe[]> {
-  const userRecipes = await loadUserRecipes();
-  return [...RECIPES_DATABASE, ...userRecipes];
+export async function getAllRecipesWithUser(userId?: string): Promise<Recipe[]> {
+  const variantGroup = await getStoredVariantGroup(userId);
+  const [cloudRecipes, userRecipes] = await Promise.all([
+    fetchRecipesFromCloud(variantGroup),
+    loadUserRecipes(userId),
+  ]);
+  return [...cloudRecipes, ...userRecipes];
 }
 
 /**
- * Trouve les recettes possibles incluant les recettes utilisateur
+ * Finds matching recipes including user recipes, using cloud catalog.
  */
-export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promise<RecipeMatch[]> {
-  // Filtrer les aliments actifs uniquement
+export async function findMatchingRecipesWithUser(foodItems: FoodItem[], userId?: string): Promise<RecipeMatch[]> {
   const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
-
-  // Récupérer toutes les recettes (intégrées + utilisateur)
-  const allRecipes = await getAllRecipesWithUser();
+  const allRecipes = await getAllRecipesWithUser(userId);
   const matches: RecipeMatch[] = [];
 
   for (const recipe of allRecipes) {
@@ -2328,7 +2571,6 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
 
       if (matchedItem) {
         matchingIngredients.push(ingredient);
-        // Calculer l'urgence pour cet ingrédient
         const daysLeft = getDaysUntilExpiration(matchedItem.expirationDate);
         if (daysLeft !== null && daysLeft <= 7) {
           expiringIngredients.push(matchedItem.name);
@@ -2339,10 +2581,8 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
       }
     }
 
-    // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
     if (matchPercentage >= MIN_MATCH_THRESHOLD) {
       matches.push({
         recipe,
@@ -2355,7 +2595,6 @@ export async function findMatchingRecipesWithUser(foodItems: FoodItem[]): Promis
     }
   }
 
-  // Trier par urgencyScore décroissant, puis matchPercentage en cas d'égalité
   return matches.sort((a, b) => b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage);
 }
 

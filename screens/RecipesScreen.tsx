@@ -29,6 +29,8 @@ import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/
 import { loadLists } from '../utils/localStorage';
 import { List, FoodItem } from '../types';
 import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } from '../services/recipeService';
+import { generateAIRecipe } from '../services/aiRecipeService';
+import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { useGamification } from '../contexts/GamificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -406,6 +408,7 @@ export default function RecipesScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'user' | Recipe['category']>('all');
   const [sortMode, setSortMode] = useState<'antiWaste' | 'bestMatch'>('antiWaste');
   const [showRecipeOnboarding, setShowRecipeOnboarding] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -492,6 +495,56 @@ export default function RecipesScreen() {
           },
         ]
       );
+    }
+  };
+
+  const handleGenerateAIRecipe = async () => {
+    if (!isPremium) {
+      setShowPaywall(true);
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      // Récupérer les ingrédients qui expirent dans les 7 prochains jours
+      const expiringItems = lists
+        .flatMap(l => l.items)
+        .filter(item => {
+          if (item.status !== 'active' || !item.expirationDate) return false;
+          const days = getDaysUntilExpiration(item.expirationDate as string);
+          return days !== null && days <= 7;
+        })
+        .map(item => item.name)
+        .slice(0, 8); // max 8 ingrédients pour le prompt
+
+      if (expiringItems.length === 0) {
+        Alert.alert(
+          t('recipes.aiNoIngredients'),
+          t('recipes.aiNoIngredientsHint')
+        );
+        return;
+      }
+
+      const result = await generateAIRecipe(expiringItems);
+      if (!result) {
+        Alert.alert(t('common.error'), t('recipes.aiError'));
+        return;
+      }
+
+      // Afficher via le modal existant en créant un RecipeMatch factice
+      const fakeMatch: RecipeMatch = {
+        recipe: result.recipe,
+        matchingIngredients: expiringItems,
+        missingIngredients: [],
+        matchPercentage: 100,
+        urgencyScore: 100,
+        expiringIngredients: expiringItems,
+      };
+      setSelectedMatch(fakeMatch);
+      setModalVisible(true);
+    } catch {
+      Alert.alert(t('common.error'), t('recipes.aiError'));
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -633,6 +686,28 @@ export default function RecipesScreen() {
             </Text>
           </PressableScale>
         </View>
+
+        {/* Bouton Recette IA (Premium) */}
+        <PressableScale
+          onPress={handleGenerateAIRecipe}
+          style={styles.aiButton}
+          hapticType="medium"
+          disabled={aiGenerating}
+        >
+          {aiGenerating ? (
+            <ActivityIndicator size="small" color={COLORS.neutral.white} />
+          ) : (
+            <Ionicons name="sparkles" size={scaleSize(16)} color={COLORS.neutral.white} />
+          )}
+          <Text style={styles.aiButtonText}>
+            {aiGenerating ? t('recipes.aiGenerating') : t('recipes.aiGenerate')}
+          </Text>
+          {!isPremium && (
+            <View style={styles.aiBadge}>
+              <Text style={styles.aiBadgeText}>PRO</Text>
+            </View>
+          )}
+        </PressableScale>
 
         {/* Recipe list */}
         <ScrollView
@@ -852,6 +927,37 @@ const styles = StyleSheet.create({
   sortButtonMatchActive: {
     backgroundColor: COLORS.primary[500],
     borderColor: COLORS.primary[500],
+  },
+  aiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[600],
+    borderRadius: RADIUS.xl,
+    paddingVertical: scaleSpacing(12),
+    paddingHorizontal: scaleSpacing(20),
+    marginHorizontal: scaleSpacing(16),
+    marginBottom: scaleSpacing(8),
+    gap: scaleSpacing(8),
+    ...SHADOWS.md,
+  },
+  aiButtonText: {
+    fontSize: scaleFontSize(15),
+    fontWeight: '700',
+    color: COLORS.neutral.white,
+    letterSpacing: 0.3,
+  },
+  aiBadge: {
+    backgroundColor: COLORS.accent.lemon,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: scaleSpacing(6),
+    paddingVertical: 2,
+  },
+  aiBadgeText: {
+    fontSize: scaleFontSize(10),
+    fontWeight: '800',
+    color: COLORS.primary[700],
+    letterSpacing: 0.5,
   },
   sortButtonMatchText: {
     color: COLORS.primary[500],

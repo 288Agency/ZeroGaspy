@@ -128,3 +128,71 @@ export interface CloudFoodItem {
   is_deleted: boolean;
   consumed_at: string | null;
 }
+
+export interface CloudRecipe {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  ingredients: string[];
+  preparation_time: number;
+  difficulty: 'facile' | 'moyen' | 'difficile';
+  category: string;
+  image_emoji: string;
+  image_url: string | null;
+  instructions: string[];
+  tips: string | null;
+  tags: string[] | null;
+  is_active: boolean;
+  variant_group: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CloudUserRecipe {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  ingredients: string[];
+  preparation_time: number;
+  difficulty: 'facile' | 'moyen' | 'difficile';
+  category: string;
+  image_emoji: string;
+  image_url: string | null;
+  instructions: string[];
+  tips: string | null;
+  tags: string[] | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RecipeCategoryDb = 'entree' | 'plat' | 'dessert' | 'snack' | 'boisson' | 'petit-dejeuner';
+export type RecipeCategoryApp = 'entrée' | 'plat' | 'dessert' | 'snack' | 'boisson' | 'petit-déjeuner';
+
+const DB_TO_APP_CATEGORY: Record<RecipeCategoryDb, RecipeCategoryApp> = {
+  'entree': 'entrée',
+  'plat': 'plat',
+  'dessert': 'dessert',
+  'snack': 'snack',
+  'boisson': 'boisson',
+  'petit-dejeuner': 'petit-déjeuner',
+};
+
+const APP_TO_DB_CATEGORY: Record<RecipeCategoryApp, RecipeCategoryDb> = {
+  'entrée': 'entree',
+  'plat': 'plat',
+  'dessert': 'dessert',
+  'snack': 'snack',
+  'boisson': 'boisson',
+  'petit-déjeuner': 'petit-dejeuner',
+};
+
+export function dbCategoryToApp(cat: string): RecipeCategoryApp {
+  return DB_TO_APP_CATEGORY[cat as RecipeCategoryDb] ?? (cat as RecipeCategoryApp);
+}
+
+export function appCategoryToDb(cat: string): RecipeCategoryDb {
+  return APP_TO_DB_CATEGORY[cat as RecipeCategoryApp] ?? (cat as RecipeCategoryDb);
+}
