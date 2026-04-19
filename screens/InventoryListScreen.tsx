@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,16 +46,17 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
 import { supabase } from '../config/supabase';
 import { useGamification } from '../contexts/GamificationContext';
-import { useAds } from '../contexts/AdContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import PaywallModal from '../components/PaywallModal';
 import ListMembersModal from '../components/ListMembersModal';
 import ShareListModal from '../components/ShareListModal';
-import { getMyPermission, getMemberCount, loadSharedListFromCloud, resolveCloudListId } from '../services/listSharingService';
+import { loadSharedListFromCloud } from '../services/listSharingService';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
 import { trackFoodConsumed as analyticsTrackFoodConsumed, trackFoodThrown as analyticsTrackFoodThrown } from '../services/analytics';
+import { useInventoryFilters } from '../hooks/useInventoryFilters';
+import { useListSharing } from '../hooks/useListSharing';
 
 type RoutePropType = RouteProp<RootStackParamList, 'InventoryList'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'InventoryList'>;
@@ -560,16 +561,23 @@ export default function InventoryListScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodConsumed, trackFoodThrown } = useGamification();
-  const { incrementActionCount } = useAds();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const { user } = useAuth();
   const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
   const [list, setList] = useState<List | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedExpirationFilter, setSelectedExpirationFilter] = useState<string | null>(null);
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    selectedExpirationFilter,
+    setSelectedExpirationFilter,
+    activeItems,
+    availableCategories,
+    filteredItems,
+  } = useInventoryFilters(list);
   const [markAsOpenedModalVisible, setMarkAsOpenedModalVisible] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItemName, setSelectedItemName] = useState<string>('');
@@ -600,12 +608,10 @@ export default function InventoryListScreen() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailSelectedItem, setDetailSelectedItem] = useState<FoodItem | null>(null);
 
-  // Sharing state
+  // Sharing state (modals local; permission/member state in hook)
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [myPermission, setMyPermission] = useState<'owner' | 'edit' | 'view' | null>(null);
-  const [memberCount, setMemberCount] = useState(0);
-  const [cloudListId, setCloudListId] = useState<string | null>(null);
+  const { cloudListId, myPermission, memberCount, isViewOnly, refresh: refreshSharing } = useListSharing(listId, user);
 
   const emptyFade = useRef(new Animated.Value(0)).current;
 
@@ -619,21 +625,6 @@ export default function InventoryListScreen() {
     });
     return unsubscribe;
   }, [navigation, listId]);
-
-  // Resolve cloud list ID for Realtime + sharing
-  useEffect(() => {
-    const resolve = async () => {
-      if (!user) return;
-      const cid = await resolveCloudListId(listId);
-      setCloudListId(cid);
-      // Load sharing info
-      const perm = await getMyPermission(listId);
-      setMyPermission(perm);
-      const count = await getMemberCount(listId);
-      setMemberCount(count);
-    };
-    resolve();
-  }, [listId, user]);
 
   // Synchronisation temps réel avec Supabase Realtime
   useEffect(() => {
@@ -663,8 +654,6 @@ export default function InventoryListScreen() {
       supabase.removeChannel(channel);
     };
   }, [cloudListId]);
-
-  const isViewOnly = myPermission === 'view';
 
   // Set navigation header
   useEffect(() => {
@@ -759,69 +748,6 @@ export default function InventoryListScreen() {
     }
   };
 
-  // Filter active items
-  const activeItems = useMemo(() => {
-    if (!list) return [];
-    return list.items.filter(
-      (item) => item.status !== 'consumed' && item.status !== 'thrown'
-    );
-  }, [list]);
-
-  // Get unique categories from active items
-  const availableCategories = useMemo(() => {
-    const categories = new Set<string>();
-    activeItems.forEach(item => {
-      if (item.category) {
-        categories.add(item.category);
-      }
-    });
-    return Array.from(categories).sort();
-  }, [activeItems]);
-
-  // Filter by search query, category, and expiration
-  const filteredItems = useMemo(() => {
-    let items = activeItems;
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      items = items.filter((item) => {
-        const nameMatch = item.name.toLowerCase().includes(query);
-        const categoryMatch = item.category?.toLowerCase().includes(query);
-        return nameMatch || categoryMatch;
-      });
-    }
-
-    // Category filter
-    if (selectedCategory) {
-      items = items.filter(item => item.category === selectedCategory);
-    }
-
-    // Expiration filter
-    if (selectedExpirationFilter) {
-      items = items.filter(item => {
-        const days = getDaysUntilExpiration(item.expirationDate);
-
-        switch (selectedExpirationFilter) {
-          case 'expired':
-            return days !== null && days < 0;
-          case 'today':
-            return days !== null && days === 0;
-          case 'soon': // Expires in 3 days or less
-            return days !== null && days >= 0 && days <= 3;
-          case 'week': // Expires in 7 days or less
-            return days !== null && days >= 0 && days <= 7;
-          case 'fresh': // More than 7 days
-            return days === null || days > 7;
-          default:
-            return true;
-        }
-      });
-    }
-
-    return items;
-  }, [activeItems, searchQuery, selectedCategory, selectedExpirationFilter]);
-
   const handleMarkAsConsumed = (item: FoodItem) => {
     const quantity = item.quantity || 1;
     if (quantity > 1) {
@@ -886,7 +812,6 @@ export default function InventoryListScreen() {
         category: item?.category,
         daysBeforeExpiry: item?.expirationDate ? getDaysUntilExpiration(item.expirationDate as string) ?? undefined : undefined,
       });
-      incrementActionCount();
     } catch (error) {
       Alert.alert(t('common.error'), t('inventory.consumedError'));
     }
@@ -905,7 +830,6 @@ export default function InventoryListScreen() {
         category: thrownItem?.category,
         daysExpired: thrownItem?.expirationDate ? Math.abs(getDaysUntilExpiration(thrownItem.expirationDate as string) ?? 0) : undefined,
       });
-      incrementActionCount();
     } catch (error) {
       Alert.alert(t('common.error'), t('inventory.thrownError'));
     }
@@ -1041,7 +965,6 @@ export default function InventoryListScreen() {
           daysBeforeExpiry: item?.expirationDate ? getDaysUntilExpiration(item.expirationDate as string) ?? undefined : undefined,
         });
       }
-      incrementActionCount();
       exitSelectionMode();
       await loadListData();
       setShowSavedPulse(true);
@@ -1063,7 +986,6 @@ export default function InventoryListScreen() {
           daysExpired: item?.expirationDate ? Math.abs(getDaysUntilExpiration(item.expirationDate as string) ?? 0) : undefined,
         });
       }
-      incrementActionCount();
       exitSelectionMode();
       await loadListData();
     } catch (error) {
@@ -1740,8 +1662,7 @@ export default function InventoryListScreen() {
         visible={shareModalVisible}
         onClose={() => {
           setShareModalVisible(false);
-          // Refresh member count
-          getMemberCount(listId).then(setMemberCount);
+          refreshSharing();
         }}
         listId={listId}
         listTitle={listTitle}
