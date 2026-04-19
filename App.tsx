@@ -20,8 +20,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
-import { ConsentProvider } from './contexts/ConsentContext';
-import { AdProvider } from './contexts/AdContext';
 import { supabase } from './config/supabase';
 import {
   checkAndScheduleNotifications,
@@ -335,13 +333,9 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <SubscriptionProvider>
-            <ConsentProvider>
-              <AdProvider>
-                <GamificationProvider>
-                  <RootNavigator />
-                </GamificationProvider>
-              </AdProvider>
-            </ConsentProvider>
+            <GamificationProvider>
+              <RootNavigator />
+            </GamificationProvider>
           </SubscriptionProvider>
         </AuthProvider>
       </ThemeProvider>

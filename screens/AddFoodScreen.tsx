@@ -30,7 +30,6 @@ import DateScannerModal from '../components/DateScannerModal';
 import PressableScale from '../components/PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, SPACING, hexToRgba } from '../utils/designSystem';
 import { useGamification } from '../contexts/GamificationContext';
-import { useAds } from '../contexts/AdContext';
 import logger from '../utils/logger';
 import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAdded } from '../services/analytics';
 
@@ -56,7 +55,6 @@ export default function AddFoodScreen() {
   const route = useRoute<RoutePropType>();
   const navigation = useNavigation<NavigationProp>();
   const { trackFoodAdded } = useGamification();
-  const { incrementActionCount } = useAds();
   const { listId, editItem } = route.params;
 
   const isEditMode = !!editItem;
@@ -158,8 +156,6 @@ export default function AddFoodScreen() {
           hasPrice: !!price.trim(),
           source: isEditMode ? 'edit' : 'manual',
         });
-        // Compteur pour les pubs interstitielles
-        incrementActionCount();
       }
       navigation.goBack();
     } catch (error) {
