@@ -23,6 +23,8 @@ import {
   getCategoryIcon,
   getLevelTitle,
   markAllBadgesAsSeen,
+  getBadgeName,
+  getBadgeDescription,
 } from '../services/gamificationService';
 import PressableScale from './PressableScale';
 import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
@@ -272,7 +274,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
                   <View style={styles.flex1}>
                     <View style={styles.badgeNameRow}>
                       <Text style={[styles.badgeName, unlocked ? styles.badgeNameUnlocked : styles.badgeNameLocked]}>
-                        {badge.name}
+                        {getBadgeName(badge, t)}
                       </Text>
                       {isBadgeNew(badge) && (
                         <View style={styles.newBadgeTag}>
@@ -281,7 +283,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
                       )}
                     </View>
                     <Text style={[styles.badgeDesc, unlocked ? styles.badgeDescUnlocked : styles.badgeDescLocked]}>
-                      {badge.description}
+                      {getBadgeDescription(badge, t)}
                     </Text>
                     {!unlocked && (
                       <View style={styles.progressSection}>

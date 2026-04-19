@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logger from '../utils/logger';
+import i18n from '../i18n';
 
 // ==================== TYPES ====================
 
@@ -376,8 +377,9 @@ export function getLevelFromXp(totalXp: number): { level: number; xp: number; xp
 }
 
 export function getLevelTitle(level: number): string {
-  if (level >= 12) return LEVEL_TITLES[12];
-  return LEVEL_TITLES[level] || 'Debutant';
+  const clamped = level >= 12 ? 12 : level;
+  const fallback = LEVEL_TITLES[clamped] || LEVEL_TITLES[1];
+  return i18n.t(`levelTitles.${clamped}`, { defaultValue: fallback });
 }
 
 // ==================== STORAGE ====================
@@ -758,15 +760,18 @@ export function getTierBackgroundColor(tier: BadgeTier): string {
 }
 
 export function getCategoryName(category: BadgeCategory): string {
-  switch (category) {
-    case 'zero_waste': return 'Zero Gaspillage';
-    case 'saver': return 'Aliments Sauves';
-    case 'explorer': return 'Explorateur';
-    case 'organizer': return 'Organisation';
-    case 'streak': return 'Series';
-    case 'milestone': return 'Jalons';
-    default: return category;
-  }
+  const fallback = ((): string => {
+    switch (category) {
+      case 'zero_waste': return 'Zero Gaspillage';
+      case 'saver': return 'Aliments Sauves';
+      case 'explorer': return 'Explorateur';
+      case 'organizer': return 'Organisation';
+      case 'streak': return 'Series';
+      case 'milestone': return 'Jalons';
+      default: return category;
+    }
+  })();
+  return i18n.t(`badgeCategories.${category}`, { defaultValue: fallback });
 }
 
 export function getCategoryIcon(category: BadgeCategory): string {
@@ -787,4 +792,16 @@ export async function grantChallengeXp(amount: number): Promise<GamificationResu
     xpGained: amount,
     newBadges: [],
   }));
+}
+
+// ==================== I18N HELPERS ====================
+
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
+export function getBadgeName(badge: Badge, t: TFn): string {
+  return t(`badges.${badge.id}.name`, { defaultValue: badge.name });
+}
+
+export function getBadgeDescription(badge: Badge, t: TFn): string {
+  return t(`badges.${badge.id}.description`, { defaultValue: badge.description });
 }

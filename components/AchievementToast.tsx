@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Badge, getTierBackgroundColor, getTierColor } from '../services/gamificationService';
+import { Badge, getBadgeName, getTierBackgroundColor, getTierColor } from '../services/gamificationService';
 import { ChallengeCompletionResult } from '../services/challengeService';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../utils/designSystem';
 
@@ -179,7 +179,7 @@ export default function AchievementToast({
                 {t('achievementToast.newBadge')}
               </Text>
               <Text style={styles.titleText}>
-                {badge.name}
+                {getBadgeName(badge, t)}
               </Text>
               <Text style={styles.xpText}>
                 +{badge.xpReward} XP
