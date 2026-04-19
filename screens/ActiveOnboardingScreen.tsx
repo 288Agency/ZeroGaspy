@@ -45,6 +45,7 @@ import {
 } from '../services/analytics';
 import logger from '../utils/logger';
 import { setMonthlySavingsGoal } from '../services/monthlySavingsService';
+import { requestNotificationPermissions } from '../services/notificationService';
 
 export const ONBOARDING_KEY = 'onboarding_completed';
 
@@ -63,9 +64,9 @@ const STEP_PROGRESS: Record<string, number> = {
 };
 
 const WASTE_OPTIONS = [
-  { label: 'Peu', sublabel: '(~10 €/mois)', goal: 20 },
-  { label: 'Régulièrement', sublabel: '(~40 €/mois)', goal: 50 },
-  { label: 'Souvent', sublabel: '(~80 €/mois)', goal: 80 },
+  { labelKey: 'onboarding.wasteLittle', subKey: 'onboarding.wasteLittleSub', goal: 20 },
+  { labelKey: 'onboarding.wasteRegular', subKey: 'onboarding.wasteRegularSub', goal: 50 },
+  { labelKey: 'onboarding.wasteOften', subKey: 'onboarding.wasteOftenSub', goal: 80 },
 ];
 
 interface ActiveOnboardingScreenProps {
@@ -92,6 +93,8 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
   const [listId, setListId] = useState<string | null>(null);
   const [recipes, setRecipes] = useState<RecipeMatch[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const [requestingNotif, setRequestingNotif] = useState(false);
   const { trackFoodAdded } = useGamification();
 
   const transitionTo = useCallback((nextStep: Step) => {
@@ -156,7 +159,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         id: Date.now().toString(),
         name: foodName.trim(),
         expirationDate: getExpirationDate(),
-        category: undefined,
+        category: 'other',
         quantity: 1,
         status: 'active',
       };
@@ -170,17 +173,16 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       trackOnboardingFoodAdded(updatedItems.length);
       trackOnboardingStepCompleted('addFood');
 
-      // Reset form
+      // Reset form, show choice view (add another / see recipes)
       setFoodName('');
       setSelectedExpiration('oneWeek');
       setCustomDate('');
       setShowCustomDate(false);
+      setJustAdded(true);
 
-      // Aller directement aux recettes
+      // Prefetch recipes so seeing them is instant
       const matches = findMatchingRecipesForOnboarding(updatedItems);
       setRecipes(matches);
-      trackOnboardingRecipeViewed();
-      transitionTo('recipes');
       fetchRecipesFromCloud().then(() => {
         setRecipes(findMatchingRecipesForOnboarding(updatedItems));
       }).catch(() => {});
@@ -203,6 +205,31 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
       logger.error('Error saving onboarding state:', error);
       onComplete();
     }
+  };
+
+  const handleAllowNotificationsAndComplete = async () => {
+    if (requestingNotif) return;
+    setRequestingNotif(true);
+    try {
+      await requestNotificationPermissions();
+    } catch (error) {
+      logger.error('Error requesting notification permissions:', error);
+    } finally {
+      setRequestingNotif(false);
+      handleComplete();
+    }
+  };
+
+  const handleAddAnother = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setJustAdded(false);
+  };
+
+  const handleSeeRecipes = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    trackOnboardingRecipeViewed();
+    setJustAdded(false);
+    transitionTo('recipes');
   };
 
   const handleBack = () => {
@@ -280,7 +307,44 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
     </View>
   );
 
-  const renderAddFood = () => (
+  const renderAfterAdd = () => {
+    const lastItem = addedItems[addedItems.length - 1];
+    return (
+      <View style={styles.afterAddContainer}>
+        <View style={styles.afterAddIconCircle}>
+          <Ionicons name="checkmark-circle" size={scaleSize(72)} color={COLORS.semantic.success} />
+        </View>
+        <Text style={styles.afterAddTitle}>
+          {t('onboarding.afterAddTitle', { name: lastItem?.name ?? '' })}
+        </Text>
+        <Text style={styles.afterAddSubtitle}>{t('onboarding.afterAddSubtitle')}</Text>
+
+        <TouchableOpacity
+          onPress={handleSeeRecipes}
+          activeOpacity={0.9}
+          style={[styles.primaryButton, { marginTop: SPACING.xl, alignSelf: 'stretch' }]}
+        >
+          <Text style={styles.primaryButtonText}>{t('onboarding.seeRecipes')}</Text>
+          <View style={styles.buttonIconContainer}>
+            <Ionicons name="arrow-forward" size={scaleSize(18)} color={COLORS.neutral.white} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleAddAnother}
+          activeOpacity={0.9}
+          style={[styles.secondaryButton, { marginTop: SPACING.md, alignSelf: 'stretch' }]}
+        >
+          <Ionicons name="add-circle-outline" size={scaleSize(18)} color={COLORS.primary[500]} />
+          <Text style={styles.secondaryButtonText}>{t('onboarding.addAnother')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderAddFood = () => {
+    if (justAdded && addedItems.length > 0) return renderAfterAdd();
+    return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -369,7 +433,8 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
+    );
+  };
 
   const renderRecipes = () => (
     <ScrollView
@@ -448,7 +513,8 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
 
   const renderSavings = () => (
     <View style={styles.savingsSlide}>
-      <Text style={styles.savingsTitle}>Combien tu jettes par semaine ?</Text>
+      <Text style={styles.savingsTitle}>{t('onboarding.savingsTitle')}</Text>
+      <Text style={styles.savingsSubtitle}>{t('onboarding.savingsSubtitle')}</Text>
       <View style={styles.wasteOptions}>
         {WASTE_OPTIONS.map((opt, idx) => (
           <TouchableOpacity
@@ -458,15 +524,17 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
             activeOpacity={0.8}
           >
             <Text style={[styles.wasteOptionLabel, wasteLevel === idx && styles.wasteOptionLabelSelected]}>
-              {opt.label}
+              {t(opt.labelKey)}
             </Text>
-            <Text style={styles.wasteOptionSub}>{opt.sublabel}</Text>
+            <Text style={styles.wasteOptionSub}>{t(opt.subKey)}</Text>
           </TouchableOpacity>
         ))}
       </View>
       <View style={styles.savingsProjection}>
-        <Text style={styles.savingsProjectionText}>ZeroGaspy pourrait te faire économiser</Text>
-        <Text style={styles.savingsProjectionAmount}>~{WASTE_OPTIONS[wasteLevel].goal * 12} €/an</Text>
+        <Text style={styles.savingsProjectionText}>{t('onboarding.savingsProjectionText')}</Text>
+        <Text style={styles.savingsProjectionAmount}>
+          ~{WASTE_OPTIONS[wasteLevel].goal * 10} {t('onboarding.savingsYearly')}
+        </Text>
       </View>
       <TouchableOpacity
         onPress={() => {
@@ -476,7 +544,7 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         activeOpacity={0.9}
         style={[styles.primaryButton, { marginTop: scaleSpacing(32) }]}
       >
-        <Text style={styles.primaryButtonText}>Ajouter mon premier aliment</Text>
+        <Text style={styles.primaryButtonText}>{t('onboarding.savingsCta')}</Text>
         <View style={styles.buttonIconContainer}>
           <Ionicons name="arrow-forward" size={scaleSize(18)} color={COLORS.neutral.white} />
         </View>
@@ -492,22 +560,32 @@ export default function ActiveOnboardingScreen({ onComplete }: ActiveOnboardingS
         <Ionicons name="checkmark-done-circle" size={scaleSize(80)} color={COLORS.primary[500]} />
       </View>
 
-      <Text style={styles.readyTitle}>{t('onboarding.readyTitle')}</Text>
-      <Text style={styles.readySubtitle}>{t('onboarding.readySubtitle')}</Text>
+      <Text style={styles.readyTitle}>{t('onboarding.notifPermTitle')}</Text>
+      <Text style={styles.readySubtitle}>{t('onboarding.notifPermSub')}</Text>
 
       <Text style={styles.readySummary}>
         {t('onboarding.itemsAdded', { count: addedItems.length })}
       </Text>
 
       <TouchableOpacity
-        onPress={handleComplete}
+        onPress={handleAllowNotificationsAndComplete}
         activeOpacity={0.9}
-        style={styles.primaryButton}
+        disabled={requestingNotif}
+        style={[styles.primaryButton, requestingNotif && styles.primaryButtonDisabled]}
       >
-        <Text style={styles.primaryButtonText}>{t('onboarding.exploreApp')}</Text>
-        <View style={styles.buttonIconContainer}>
-          <Ionicons name="rocket" size={scaleSize(18)} color={COLORS.neutral.white} />
-        </View>
+        <Ionicons name="notifications" size={scaleSize(18)} color={COLORS.neutral.white} />
+        <Text style={[styles.primaryButtonText, { marginLeft: SPACING.sm }]}>
+          {t('onboarding.notifAllow')}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleComplete}
+        activeOpacity={0.7}
+        disabled={requestingNotif}
+        style={styles.laterButton}
+      >
+        <Text style={styles.laterButtonText}>{t('onboarding.notifLater')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -977,7 +1055,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: scaleSpacing(24),
+    marginBottom: scaleSpacing(8),
+  },
+  savingsSubtitle: {
+    fontSize: scaleFontSize(14),
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginBottom: scaleSpacing(20),
+    maxWidth: scaleSize(300),
   },
   wasteOptions: {
     width: '100%',
@@ -1059,5 +1144,37 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     overflow: 'hidden',
     marginBottom: SPACING['3xl'],
+  },
+  laterButton: {
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
+  laterButtonText: {
+    ...TYPOGRAPHY.bodySm,
+    color: COLORS.text.tertiary,
+    fontWeight: '500',
+  },
+  afterAddContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scaleSpacing(24),
+  },
+  afterAddIconCircle: {
+    marginBottom: SPACING.xl,
+  },
+  afterAddTitle: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  afterAddSubtitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: scaleSize(300),
   },
 });
