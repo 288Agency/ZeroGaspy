@@ -18,10 +18,11 @@ import logger from '../utils/logger';
 // Pour tester le premium en dev : utiliser RevenueCat sandbox
 const ENABLE_PREMIUM_IN_DEV = false;
 
-export type SubscriptionPlan = 'free' | 'monthly' | 'yearly';
+export type SubscriptionPlan = 'free' | 'monthly' | 'yearly' | 'family_monthly' | 'family_yearly';
 
 interface SubscriptionContextType {
   isPremium: boolean;
+  isFamily: boolean;
   isLoading: boolean;
   currentPlan: SubscriptionPlan;
   expirationDate: Date | null;
@@ -41,6 +42,7 @@ interface SubscriptionProviderProps {
 export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
   const { user } = useAuth();
   const [isPremium, setIsPremium] = useState(ENABLE_PREMIUM_IN_DEV);
+  const [isFamily, setIsFamily] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan>(ENABLE_PREMIUM_IN_DEV ? 'yearly' : 'free');
   const [expirationDate, setExpirationDate] = useState<Date | null>(null);
@@ -198,7 +200,15 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
 
       // Determiner le type d'abonnement
       const productId = entitlement.productIdentifier;
-      if (productId.includes('yearly') || productId.includes('annual') || productId.includes('years')) {
+      const isFamilyProduct = productId.includes('family');
+      setIsFamily(isFamilyProduct);
+      if (isFamilyProduct) {
+        if (productId.includes('yearly') || productId.includes('annual') || productId.includes('years')) {
+          setCurrentPlan('family_yearly');
+        } else {
+          setCurrentPlan('family_monthly');
+        }
+      } else if (productId.includes('yearly') || productId.includes('annual') || productId.includes('years')) {
         setCurrentPlan('yearly');
       } else {
         setCurrentPlan('monthly');
@@ -210,6 +220,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       }
     } else {
       setIsPremium(false);
+      setIsFamily(false);
       setCurrentPlan('free');
       setExpirationDate(null);
       logger.info('No active premium entitlement found');
@@ -320,6 +331,7 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
     <SubscriptionContext.Provider
       value={{
         isPremium,
+        isFamily,
         isLoading,
         currentPlan,
         expirationDate,
