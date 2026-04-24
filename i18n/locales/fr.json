@@ -32,7 +32,9 @@
     "permissionRequired": "Permission requise",
     "syncTitle": "Synchronisation",
     "foodItem": "aliment",
-    "foodItem_plural": "aliments"
+    "foodItem_plural": "aliments",
+    "remove": "Retirer",
+    "share": "Partager"
   },
   "tabs": {
     "home": "Accueil",
@@ -1209,5 +1211,39 @@
     "shareMessage": "Cette semaine sur ZeroGaspy : {{saved}} aliments sauvés, {{euros}}€ économisés ! Streak : {{streak}} jours 🌿",
     "pushTitle": "Ton récap hebdo est prêt !",
     "pushBody": "{{saved}} aliments sauvés, {{euros}}€ économisés cette semaine"
+  },
+  "mealPlan": {
+    "homeCtaTitle": "Planifier ma semaine",
+    "homeCtaSub": "Remplis 7 jours, on te fait la liste de courses",
+    "title": "Planning de la semaine",
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "slot_lunch": "Midi",
+    "slot_dinner": "Soir",
+    "addRecipe": "Ajouter une recette",
+    "pickRecipe": "Choisir une recette",
+    "searchPlaceholder": "Rechercher une recette ou un ingrédient",
+    "noRecipesFound": "Aucune recette trouvée",
+    "urgent": "Urgent",
+    "shoppingList": "Liste de courses",
+    "seeShoppingList": "Voir ma liste de courses",
+    "removeConfirmTitle": "Retirer cette recette ?",
+    "removeConfirmMessage": "Elle sera retirée de ton planning.",
+    "addError": "Impossible d'ajouter la recette au planning"
+  },
+  "shoppingList": {
+    "title": "Liste de courses",
+    "toBuy": "À acheter",
+    "alreadyHave": "Déjà dans ton frigo",
+    "inInventory": "Tu l'as",
+    "missingSummary": "{{count}} ingrédient à acheter",
+    "missingSummary_plural": "{{count}} ingrédients à acheter",
+    "clearChecked": "Effacer les cochés",
+    "clearConfirmTitle": "Effacer les éléments cochés ?",
+    "clearConfirmMessage": "Ils seront décochés et remis dans la liste.",
+    "emptyTitle": "Ta liste est vide",
+    "emptyMessage": "Planifie tes repas de la semaine et on générera ta liste de courses automatiquement.",
+    "goToPlanner": "Aller au planning",
+    "shareHeader": "Ma liste de courses ZeroGaspy :"
   }
 }

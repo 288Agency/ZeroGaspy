@@ -21,6 +21,8 @@ export type RootStackParamList = {
   Stats: undefined;
   Challenges: undefined;
   ListMembers: { listId: string; listTitle: string; listColor?: string };
+  MealPlanner: undefined;
+  ShoppingList: undefined;
 };
 
 // Navigation racine (Auth ou App)

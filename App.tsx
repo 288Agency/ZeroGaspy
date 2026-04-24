@@ -62,6 +62,8 @@ const linking = {
       Account: 'account',
       Recipes: 'recipes',
       Stats: 'stats',
+      MealPlanner: 'meal-planner',
+      ShoppingList: 'shopping-list',
     },
   },
 };

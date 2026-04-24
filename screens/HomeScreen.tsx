@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { List } from '../types';
 import { RootStackParamList } from '../types/navigation';
@@ -35,6 +36,7 @@ import logger from '../utils/logger';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'Home'>>();
   const { challengesState, gamificationData } = useGamification();
@@ -202,6 +204,21 @@ export default function HomeScreen() {
 
               <ProactiveRecipeCard lists={lists} />
 
+              <TouchableOpacity
+                style={styles.plannerCta}
+                onPress={() => navigation.navigate('MealPlanner')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.plannerCtaIcon}>
+                  <Ionicons name="calendar" size={22} color={COLORS.primary[500]} />
+                </View>
+                <View style={styles.plannerCtaContent}>
+                  <Text style={styles.plannerCtaTitle}>{t('mealPlan.homeCtaTitle')}</Text>
+                  <Text style={styles.plannerCtaSub}>{t('mealPlan.homeCtaSub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.primary[500]} />
+              </TouchableOpacity>
+
               {user && (gamificationData?.badges?.length ?? 0) >= 1 && (
                 <ReferralCard userId={user.id} hasBadges={true} />
               )}
@@ -362,6 +379,40 @@ const styles = StyleSheet.create({
   },
   spacesSection: {
     marginBottom: scaleSpacing(isSmallScreen ? 12 : 16),
+  },
+  plannerCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleSpacing(12),
+    marginHorizontal: scaleSpacing(isSmallScreen ? 16 : 24),
+    marginBottom: scaleSpacing(16),
+    paddingHorizontal: scaleSpacing(16),
+    paddingVertical: scaleSpacing(14),
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(60,110,71,0.12)',
+  },
+  plannerCtaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plannerCtaContent: {
+    flex: 1,
+  },
+  plannerCtaTitle: {
+    fontSize: scaleFontSize(15),
+    fontWeight: '700',
+    color: COLORS.text.primary,
+  },
+  plannerCtaSub: {
+    fontSize: scaleFontSize(12),
+    color: COLORS.text.secondary,
+    marginTop: 2,
   },
   sectionLabel: {
     fontSize: scaleFontSize(10),

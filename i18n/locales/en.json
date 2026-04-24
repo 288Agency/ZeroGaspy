@@ -32,7 +32,9 @@
     "permissionRequired": "Permission required",
     "syncTitle": "Synchronization",
     "foodItem": "item",
-    "foodItem_plural": "items"
+    "foodItem_plural": "items",
+    "remove": "Remove",
+    "share": "Share"
   },
   "tabs": {
     "home": "Home",
@@ -1209,5 +1211,39 @@
     "shareMessage": "This week on ZeroGaspy: {{saved}} items saved, {{euros}}€ saved! Streak: {{streak}} days 🌿",
     "pushTitle": "Your weekly recap is ready!",
     "pushBody": "{{saved}} items saved, {{euros}}€ saved this week"
+  },
+  "mealPlan": {
+    "homeCtaTitle": "Plan my week",
+    "homeCtaSub": "Fill 7 days, we'll build your shopping list",
+    "title": "Week planner",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "slot_lunch": "Lunch",
+    "slot_dinner": "Dinner",
+    "addRecipe": "Add recipe",
+    "pickRecipe": "Pick a recipe",
+    "searchPlaceholder": "Search recipe or ingredient",
+    "noRecipesFound": "No recipes found",
+    "urgent": "Urgent",
+    "shoppingList": "Shopping list",
+    "seeShoppingList": "See my shopping list",
+    "removeConfirmTitle": "Remove this recipe?",
+    "removeConfirmMessage": "It will be removed from your planner.",
+    "addError": "Could not add recipe to planner"
+  },
+  "shoppingList": {
+    "title": "Shopping list",
+    "toBuy": "To buy",
+    "alreadyHave": "Already in your fridge",
+    "inInventory": "You have it",
+    "missingSummary": "{{count}} ingredient to buy",
+    "missingSummary_plural": "{{count}} ingredients to buy",
+    "clearChecked": "Clear checked",
+    "clearConfirmTitle": "Clear checked items?",
+    "clearConfirmMessage": "They will be unchecked and put back in the list.",
+    "emptyTitle": "Your list is empty",
+    "emptyMessage": "Plan your meals for the week and we'll build your shopping list automatically.",
+    "goToPlanner": "Go to planner",
+    "shareHeader": "My ZeroGaspy shopping list:"
   }
 }

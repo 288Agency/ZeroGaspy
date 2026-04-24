@@ -56,6 +56,23 @@ export const LIST_ICONS = [
 
 export type Inventory = FoodItem[];
 
+export type MealSlot = 'lunch' | 'dinner';
+
+export interface MealPlanEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  slot: MealSlot;
+  recipeId: string;
+  createdAt: string;
+}
+
+export interface ShoppingListItem {
+  ingredient: string;
+  sourceRecipeIds: string[];
+  checked: boolean;
+  inInventory: boolean;
+}
+
 // ============================================
 // STATISTIQUES UTILISATEUR
 // ============================================
