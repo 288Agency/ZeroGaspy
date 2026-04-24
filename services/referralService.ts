@@ -151,9 +151,9 @@ export async function completeReferral(userId: string): Promise<{ success: boole
       logger.info('Referral completed successfully');
 
       if (result.referrer_id) {
-        supabase.functions.invoke('grant-referral-premium', {
-          body: { referrer_id: result.referrer_id },
-        }).then(({ error: grantError }) => {
+        // referrer_id is derived server-side from the authenticated referee (this user).
+        // No body needed — the Edge Function reads the JWT.
+        supabase.functions.invoke('grant-referral-premium').then(({ error: grantError }) => {
           if (grantError) logger.warn('grant-referral-premium error:', grantError);
           else logger.info('Referral premium grant attempted for', result.referrer_id);
         }).catch((e: unknown) => logger.warn('grant-referral-premium threw:', e));
