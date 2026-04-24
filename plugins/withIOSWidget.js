@@ -99,9 +99,12 @@ const withWidgetTarget = (config) =>
       WIDGET_TARGET_NAME
     );
 
-    // Build settings via le buildConfigurationList propre à la target
+    // Build settings via le buildConfigurationList propre à la target.
+    // On accède au raw hash car `pbxXCConfigurationListSection()` n'existe pas
+    // comme méthode sur toutes les versions du package `xcode`.
     const configListUUID = widgetTarget.pbxNativeTarget.buildConfigurationList;
-    const configList = xcodeProject.pbxXCConfigurationListSection()[configListUUID];
+    const configListSection = xcodeProject.hash.project.objects.XCConfigurationList || {};
+    const configList = configListSection[configListUUID];
     if (configList && configList.buildConfigurations) {
       for (const configRef of configList.buildConfigurations) {
         const configUUID = configRef.value !== undefined ? configRef.value : configRef;
@@ -159,4 +162,4 @@ const withIOSWidget = (config) => {
   return config;
 };
 
-module.exports = createRunOncePlugin(withIOSWidget, 'withIOSWidget', '1.0.0');
+module.exports = createRunOncePlugin(withIOSWidget, 'withIOSWidget', '1.0.1');
