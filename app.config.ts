@@ -31,7 +31,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ...config,
   name: 'ZeroGaspy',
   slug: 'ZeroGaspyLocal',
-  version: '2.0.7',
+  version: '2.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.zerogaspy.app',
-    buildNumber: '13',
+    buildNumber: '14',
     appleTeamId: 'M32LP7D76G',
     infoPlist: {
       NSCameraUsageDescription:
@@ -67,7 +67,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   },
   android: {
     package: 'com.zerogaspy.app',
-    versionCode: 13,
+    versionCode: 14,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#F7F5E6',

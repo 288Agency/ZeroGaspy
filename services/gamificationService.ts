@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logger from '../utils/logger';
 import i18n from '../i18n';
+import { queueGamificationPush } from './supabase/cloudSyncQueue';
 
 // ==================== TYPES ====================
 
@@ -401,6 +402,7 @@ export async function getGamificationData(): Promise<UserGamification> {
 export async function saveGamificationData(data: UserGamification): Promise<void> {
   try {
     await AsyncStorage.setItem(GAMIFICATION_KEY, JSON.stringify(data));
+    queueGamificationPush(data);
   } catch (error) {
     logger.error('Erreur sauvegarde gamification:', error);
   }

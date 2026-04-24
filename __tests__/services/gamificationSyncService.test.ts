@@ -5,8 +5,18 @@ import {
   pullChallengesStateFromCloud,
   mergeGamificationData,
   mergeChallengesState,
+  syncGamificationOnLogin,
+  syncChallengesOnLogin,
 } from '../../services/supabase/gamificationSyncService';
 import { supabase } from '../../config/supabase';
+import {
+  getGamificationData,
+  saveGamificationData,
+} from '../../services/gamificationService';
+import {
+  getChallengesState,
+  saveChallengesState,
+} from '../../services/challengeService';
 
 jest.mock('../../config/supabase', () => ({
   supabase: {
@@ -28,6 +38,7 @@ jest.mock('../../services/gamificationService', () => ({
 
 jest.mock('../../services/challengeService', () => ({
   getOrInitChallenges: jest.fn(),
+  getChallengesState: jest.fn(),
   saveChallengesState: jest.fn(),
 }));
 
@@ -270,5 +281,153 @@ describe('mergeChallengesState', () => {
     const w15 = merged.history.find((h: any) => h.weekKey === '2026-W15');
     expect(w15?.completedCount).toBe(3);
     expect(merged.history.find((h: any) => h.weekKey === '2026-W14')).toBeDefined();
+  });
+});
+
+describe('syncGamificationOnLogin', () => {
+  const userId = 'user-123';
+  const makeGamification = (overrides: Partial<any> = {}): any => ({
+    level: 1, xp: 0, xpToNextLevel: 100, totalXp: 0,
+    badges: [],
+    stats: {
+      totalFoodsAdded: 0, totalFoodsConsumed: 0, totalFoodsThrown: 0,
+      totalFoodsSaved: 0, totalRecipesViewed: 0, totalListsCreated: 0,
+      daysActive: 0, lastActiveDate: '',
+    },
+    streaks: {
+      currentNoWaste: 0, longestNoWaste: 0,
+      currentDaily: 0, longestDaily: 0,
+      lastNoWasteDate: '', lastDailyDate: '',
+    },
+    streakFreezes: { available: 0, lastWeeklyGrant: '', usedThisWeek: 0, totalUsed: 0 },
+    ...overrides,
+  });
+
+  const mockUpsert = jest.fn();
+  const mockMaybeSingle = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpsert.mockResolvedValue({ error: null });
+    (supabase.from as jest.Mock).mockReturnValue({
+      upsert: mockUpsert,
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({ maybeSingle: mockMaybeSingle })),
+      })),
+    });
+  });
+
+  it('pousse le local si le cloud est vide (premier login)', async () => {
+    const local = makeGamification({ totalXp: 250 });
+    (getGamificationData as jest.Mock).mockResolvedValue(local);
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+    await syncGamificationOnLogin(userId);
+
+    expect(saveGamificationData).not.toHaveBeenCalled();
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: userId, data: local }),
+      { onConflict: 'user_id' }
+    );
+  });
+
+  it('merge local + cloud, sauve localement et repush', async () => {
+    const local = makeGamification({ totalXp: 300 });
+    const cloud = makeGamification({ totalXp: 500 });
+    (getGamificationData as jest.Mock).mockResolvedValue(local);
+    mockMaybeSingle.mockResolvedValue({ data: { data: cloud }, error: null });
+
+    await syncGamificationOnLogin(userId);
+
+    expect(saveGamificationData).toHaveBeenCalledTimes(1);
+    const saved = (saveGamificationData as jest.Mock).mock.calls[0][0];
+    expect(saved.totalXp).toBe(500);
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: userId, data: saved }),
+      { onConflict: 'user_id' }
+    );
+  });
+
+  it('ne jette pas si le pull cloud erreur (silencieux)', async () => {
+    (getGamificationData as jest.Mock).mockResolvedValue(makeGamification({ totalXp: 10 }));
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    await expect(syncGamificationOnLogin(userId)).resolves.toBeUndefined();
+    // Cloud null → push local (même comportement que premier login)
+    expect(mockUpsert).toHaveBeenCalled();
+  });
+});
+
+describe('syncChallengesOnLogin', () => {
+  const userId = 'user-123';
+  const makeState = (weekKey: string, challenges: any[] = [], history: any[] = []): any => ({
+    weekKey, challenges, history,
+  });
+
+  const mockUpsert = jest.fn();
+  const mockMaybeSingle = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpsert.mockResolvedValue({ error: null });
+    (supabase.from as jest.Mock).mockReturnValue({
+      upsert: mockUpsert,
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({ maybeSingle: mockMaybeSingle })),
+      })),
+    });
+  });
+
+  it('no-op si ni local ni cloud (jamais lancé les challenges)', async () => {
+    (getChallengesState as jest.Mock).mockResolvedValue(null);
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+    await syncChallengesOnLogin(userId);
+
+    expect(saveChallengesState).not.toHaveBeenCalled();
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('pousse le local si le cloud est vide', async () => {
+    const local = makeState('2026-W16', [{ challengeId: 'save_5', currentValue: 2, completed: false }]);
+    (getChallengesState as jest.Mock).mockResolvedValue(local);
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+    await syncChallengesOnLogin(userId);
+
+    expect(saveChallengesState).not.toHaveBeenCalled();
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: userId, challenges: local }),
+      { onConflict: 'user_id' }
+    );
+  });
+
+  it('sauve le cloud si le local est vide', async () => {
+    const cloud = makeState('2026-W16', [{ challengeId: 'save_5', currentValue: 4, completed: false }]);
+    (getChallengesState as jest.Mock).mockResolvedValue(null);
+    mockMaybeSingle.mockResolvedValue({ data: { challenges: cloud }, error: null });
+
+    await syncChallengesOnLogin(userId);
+
+    expect(saveChallengesState).toHaveBeenCalledWith(cloud);
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('merge local + cloud même semaine, sauve localement et repush', async () => {
+    const local = makeState('2026-W16', [{ challengeId: 'save_5', currentValue: 2, completed: false }]);
+    const cloud = makeState('2026-W16', [{ challengeId: 'save_5', currentValue: 4, completed: false }]);
+    (getChallengesState as jest.Mock).mockResolvedValue(local);
+    mockMaybeSingle.mockResolvedValue({ data: { challenges: cloud }, error: null });
+
+    await syncChallengesOnLogin(userId);
+
+    expect(saveChallengesState).toHaveBeenCalledTimes(1);
+    const saved = (saveChallengesState as jest.Mock).mock.calls[0][0];
+    expect(saved.weekKey).toBe('2026-W16');
+    expect(saved.challenges[0].currentValue).toBe(4);
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: userId, challenges: saved }),
+      { onConflict: 'user_id' }
+    );
   });
 });

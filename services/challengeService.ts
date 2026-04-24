@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logger from '../utils/logger';
+import { queueChallengesPush } from './supabase/cloudSyncQueue';
 
 // ==================== TYPES ====================
 
@@ -579,6 +580,7 @@ export async function getChallengesState(): Promise<WeeklyChallengesState | null
 export async function saveChallengesState(state: WeeklyChallengesState): Promise<void> {
   try {
     await AsyncStorage.setItem(CHALLENGES_KEY, JSON.stringify(state));
+    queueChallengesPush(state);
   } catch (error) {
     logger.error('Error saving challenges state:', error);
   }

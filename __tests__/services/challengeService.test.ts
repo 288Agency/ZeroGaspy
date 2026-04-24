@@ -1,3 +1,10 @@
+jest.mock('../../services/supabase/cloudSyncQueue', () => ({
+  queueGamificationPush: jest.fn(),
+  queueChallengesPush: jest.fn(),
+  setCurrentSyncUserId: jest.fn(),
+  getCurrentSyncUserId: jest.fn(() => null),
+}));
+
 import { getISOWeeksInYear, getPreviousWeekKey } from '../../services/challengeService';
 
 describe('getISOWeeksInYear', () => {

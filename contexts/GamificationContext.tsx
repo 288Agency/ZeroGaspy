@@ -24,6 +24,11 @@ import ConfettiBurst from '../components/ConfettiBurst';
 import { useAuth } from './AuthContext';
 import { useSubscription } from './SubscriptionContext';
 import { maybeRequestReview } from '../services/reviewService';
+import { setCurrentSyncUserId } from '../services/supabase/cloudSyncQueue';
+import {
+  syncGamificationOnLogin,
+  syncChallengesOnLogin,
+} from '../services/supabase/gamificationSyncService';
 
 interface GamificationContextType {
   gamificationData: UserGamification | null;
@@ -68,8 +73,21 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
+    // Enregistre (ou efface) l'userId pour les pushes fire-and-forget
+    // déclenchés depuis saveGamificationData / saveChallengesState.
+    setCurrentSyncUserId(user?.id ?? null);
+
     // Charger les donnees et tracker la visite quotidienne
     const init = async () => {
+      // Si connecté : pull cloud + merge avec local AVANT toute lecture/écriture locale,
+      // pour que les états affichés et les visites quotidiennes partent du merged.
+      if (user?.id) {
+        await Promise.all([
+          syncGamificationOnLogin(user.id),
+          syncChallengesOnLogin(user.id),
+        ]);
+      }
+
       const data = await getGamificationData();
       setGamificationData(data);
 

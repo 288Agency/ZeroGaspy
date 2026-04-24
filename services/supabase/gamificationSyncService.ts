@@ -1,8 +1,6 @@
 import { supabase } from '../../config/supabase';
 import {
   UserGamification,
-  // Les imports suivants sont utilisés par mergeGamificationData (Task 3)
-  // et syncGamificationOnLogin (Task 4) qui seront ajoutés à ce fichier.
   UserBadge,
   getLevelFromXp,
   getGamificationData,
@@ -10,11 +8,9 @@ import {
 } from '../gamificationService';
 import {
   WeeklyChallengesState,
-  // Les imports suivants sont utilisés par mergeGamificationData (Task 3)
-  // et syncGamificationOnLogin (Task 4) qui seront ajoutés à ce fichier.
   ChallengeProgress,
   WeeklyHistory,
-  getOrInitChallenges,
+  getChallengesState,
   saveChallengesState,
 } from '../challengeService';
 import logger from '../../utils/logger';
@@ -218,4 +214,57 @@ function mergeHistory(
   return Array.from(historyMap.values()).sort((a, b) =>
     b.weekKey.localeCompare(a.weekKey)
   );
+}
+
+/**
+ * Orchestrateur login : pull cloud → merge avec local → save local → push merged.
+ * Appelé quand un user s'authentifie (ou au démarrage si déjà connecté).
+ * Silencieux en cas d'échec réseau : le local reste la source de vérité.
+ */
+export async function syncGamificationOnLogin(userId: string): Promise<void> {
+  try {
+    const [cloud, local] = await Promise.all([
+      pullGamificationFromCloud(userId),
+      getGamificationData(),
+    ]);
+
+    if (!cloud) {
+      await pushGamificationToCloud(userId, local);
+      return;
+    }
+
+    const merged = mergeGamificationData(local, cloud);
+    await saveGamificationData(merged);
+    await pushGamificationToCloud(userId, merged);
+  } catch (error) {
+    logger.warn('[GamificationSync] syncGamificationOnLogin failed:', error);
+  }
+}
+
+/**
+ * Orchestrateur login pour les challenges hebdomadaires.
+ */
+export async function syncChallengesOnLogin(userId: string): Promise<void> {
+  try {
+    const [cloud, local] = await Promise.all([
+      pullChallengesStateFromCloud(userId),
+      getChallengesState(),
+    ]);
+
+    if (!cloud) {
+      if (local) await pushChallengesStateToCloud(userId, local);
+      return;
+    }
+
+    if (!local) {
+      await saveChallengesState(cloud);
+      return;
+    }
+
+    const merged = mergeChallengesState(local, cloud);
+    await saveChallengesState(merged);
+    await pushChallengesStateToCloud(userId, merged);
+  } catch (error) {
+    logger.warn('[GamificationSync] syncChallengesOnLogin failed:', error);
+  }
 }
