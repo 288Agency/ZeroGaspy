@@ -19,6 +19,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
 import { ThemeProvider as LegacyThemeProvider } from './contexts/ThemeContext.legacy';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ThemeProvider as DSThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './components/ds';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './config/supabase';
 import {
@@ -331,17 +334,23 @@ function RootNavigator() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <LegacyThemeProvider>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <GamificationProvider>
-              <RootNavigator />
-            </GamificationProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
-      </LegacyThemeProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <LegacyThemeProvider>
+          <DSThemeProvider>
+            <AuthProvider>
+              <SubscriptionProvider>
+                <GamificationProvider>
+                  <ToastProvider bottomOffset={49}>
+                    <RootNavigator />
+                  </ToastProvider>
+                </GamificationProvider>
+              </SubscriptionProvider>
+            </AuthProvider>
+          </DSThemeProvider>
+        </LegacyThemeProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 
