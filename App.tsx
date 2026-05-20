@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
 import { ThemeProvider as LegacyThemeProvider } from './contexts/ThemeContext.legacy';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider as DSThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ds';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -335,21 +336,23 @@ function RootNavigator() {
 function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        <LegacyThemeProvider>
-          <DSThemeProvider>
-            <AuthProvider>
-              <SubscriptionProvider>
-                <GamificationProvider>
-                  <ToastProvider bottomOffset={49}>
-                    <RootNavigator />
-                  </ToastProvider>
-                </GamificationProvider>
-              </SubscriptionProvider>
-            </AuthProvider>
-          </DSThemeProvider>
-        </LegacyThemeProvider>
-      </ErrorBoundary>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <LegacyThemeProvider>
+            <DSThemeProvider>
+              <AuthProvider>
+                <SubscriptionProvider>
+                  <GamificationProvider>
+                    <ToastProvider bottomOffset={49}>
+                      <RootNavigator />
+                    </ToastProvider>
+                  </GamificationProvider>
+                </SubscriptionProvider>
+              </AuthProvider>
+            </DSThemeProvider>
+          </LegacyThemeProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
