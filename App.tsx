@@ -13,7 +13,9 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
-import ActiveOnboardingScreen, { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
+import { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
+import { OnboardingFlow } from './components/ds';
+import { requestNotificationPermissions } from './services/notificationService';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -305,7 +307,10 @@ function RootNavigator() {
   if (showOnboarding) {
     return (
       <>
-        <ActiveOnboardingScreen onComplete={handleOnboardingComplete} />
+        <OnboardingFlow
+          onComplete={handleOnboardingComplete}
+          onRequestNotifications={requestNotificationPermissions}
+        />
         <StatusBar style={statusBarStyle} />
       </>
     );
