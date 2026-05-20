@@ -5,7 +5,8 @@ import { COLORS } from '../utils/designSystem';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../components/Header';
 import StatsDashboard from '../components/StatsDashboard';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 
 /**
  * Écran des statistiques et économies
@@ -13,6 +14,7 @@ import PaywallModal from '../components/PaywallModal';
  */
 export default function StatsScreen() {
   const { t } = useTranslation();
+  const paywallProps = usePaywallSheetProps();
   const [showPaywall, setShowPaywall] = useState(false);
   const shareHandlerRef = useRef<(() => void) | null>(null);
 
@@ -29,10 +31,11 @@ export default function StatsScreen() {
         onOpenPaywall={() => setShowPaywall(true)}
         shareRef={shareHandlerRef}
       />
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
-        feature="general"
+        trigger="addList"
       />
     </SafeAreaView>
   );
