@@ -18,7 +18,7 @@ import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider as LegacyThemeProvider } from './contexts/ThemeContext.legacy';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './config/supabase';
 import {
@@ -332,7 +332,7 @@ function RootNavigator() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
+      <LegacyThemeProvider>
         <AuthProvider>
           <SubscriptionProvider>
             <GamificationProvider>
@@ -340,7 +340,7 @@ function App() {
             </GamificationProvider>
           </SubscriptionProvider>
         </AuthProvider>
-      </ThemeProvider>
+      </LegacyThemeProvider>
     </ErrorBoundary>
   );
 }
