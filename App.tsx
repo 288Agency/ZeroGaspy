@@ -18,7 +18,11 @@ import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GamificationProvider } from './contexts/GamificationContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider as LegacyThemeProvider } from './contexts/ThemeContext.legacy';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider as DSThemeProvider } from './contexts/ThemeContext';
+import { ToastProvider } from './components/ds';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './config/supabase';
 import {
@@ -331,17 +335,25 @@ function RootNavigator() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <GamificationProvider>
-              <RootNavigator />
-            </GamificationProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <LegacyThemeProvider>
+            <DSThemeProvider>
+              <AuthProvider>
+                <SubscriptionProvider>
+                  <GamificationProvider>
+                    <ToastProvider bottomOffset={49}>
+                      <RootNavigator />
+                    </ToastProvider>
+                  </GamificationProvider>
+                </SubscriptionProvider>
+              </AuthProvider>
+            </DSThemeProvider>
+          </LegacyThemeProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -33,7 +33,7 @@ import { generateAIRecipe } from '../services/aiRecipeService';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { useGamification } from '../contexts/GamificationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext.legacy';
 import logger from '../utils/logger';
 import { trackRecipeViewed as analyticsTrackRecipeViewed } from '../services/analytics';
 

@@ -46,7 +46,7 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import { getFoodIcon } from '../services/iconService';
 import { supabase } from '../config/supabase';
 import { useGamification } from '../contexts/GamificationContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext.legacy';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import PaywallModal from '../components/PaywallModal';
 import ListMembersModal from '../components/ListMembersModal';
