@@ -20,7 +20,8 @@ import FeedbackModal from '../components/FeedbackModal';
 import AccountSettingsModal from '../components/AccountSettingsModal';
 import LegalModal from '../components/LegalModal';
 import AchievementsModal from '../components/AchievementsModal';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import PressableScale from '../components/PressableScale';
 import LanguageSelector, { LanguageButton } from '../components/LanguageSelector';
 import { useGamification } from '../contexts/GamificationContext';
@@ -54,6 +55,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
   const { t } = useTranslation();
+  const paywallProps = usePaywallSheetProps();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const { user, signOut, isLocalMode } = useAuth();
@@ -862,10 +864,11 @@ export default function AccountScreen() {
       />
 
       {/* Paywall Modal */}
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        feature="general"
+        trigger="addList"
       />
 
       {/* Language Selector Modal */}

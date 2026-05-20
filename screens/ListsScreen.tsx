@@ -25,7 +25,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import ShareListModal from '../components/ShareListModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +47,7 @@ export default function ListsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { isPremium } = useSubscription();
   const { user, isLocalMode } = useAuth();
+  const paywallProps = usePaywallSheetProps();
   const [lists, setLists] = useState<List[]>([]);
   const [sharedLists, setSharedLists] = useState<SharedListWithMe[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
@@ -391,10 +393,11 @@ export default function ListsScreen() {
       </Pressable>
 
       {/* Paywall Modal */}
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        feature="lists"
+        trigger="addList"
       />
 
       {/* Share List Modal */}

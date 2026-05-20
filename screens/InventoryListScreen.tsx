@@ -48,7 +48,8 @@ import { supabase } from '../config/supabase';
 import { useGamification } from '../contexts/GamificationContext';
 import { useTheme } from '../contexts/ThemeContext.legacy';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import ListMembersModal from '../components/ListMembersModal';
 import ShareListModal from '../components/ShareListModal';
 import { loadSharedListFromCloud } from '../services/listSharingService';
@@ -564,6 +565,7 @@ export default function InventoryListScreen() {
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
   const { user } = useAuth();
+  const paywallProps = usePaywallSheetProps();
   const { listId, listTitle, listColor = colors.primary[500] } = route.params;
 
   const [list, setList] = useState<List | null>(null);
@@ -1651,10 +1653,11 @@ export default function InventoryListScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        feature="scanner"
+        trigger="scanLimit"
       />
 
       {/* Share List Modal */}

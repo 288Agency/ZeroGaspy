@@ -21,7 +21,8 @@ import Header from '../components/Header';
 import PressableScale from '../components/PressableScale';
 import AnimatedListItem from '../components/AnimatedListItem';
 import AddRecipeModal from '../components/AddRecipeModal';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '../components/RecipeOnboardingModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
@@ -397,6 +398,7 @@ export default function RecipesScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { isPremium } = useSubscription();
+  const paywallProps = usePaywallSheetProps();
   const [lists, setLists] = useState<List[]>([]);
   const [recipeMatches, setRecipeMatches] = useState<RecipeMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -805,10 +807,11 @@ export default function RecipesScreen() {
       />
 
       {/* Paywall modal */}
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
-        feature="recipes"
+        trigger="recipes"
       />
 
       {/* Recipe onboarding modal */}

@@ -17,7 +17,8 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import ColorPicker from '../components/ColorPicker';
 import IconPicker from '../components/IconPicker';
-import PaywallModal from '../components/PaywallModal';
+import { PaywallSheet } from '../components/ds';
+import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import { COLORS, SPACING } from '../utils/designSystem';
 import { useGamification } from '../contexts/GamificationContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -31,6 +32,7 @@ export default function CreateListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { trackListCreated } = useGamification();
   const { isPremium } = useSubscription();
+  const paywallProps = usePaywallSheetProps();
   const [listTitle, setListTitle] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(LIST_COLORS[0].value);
   const [selectedIcon, setSelectedIcon] = useState<string>(LIST_ICONS[0].value);
@@ -156,10 +158,11 @@ export default function CreateListScreen() {
       </ScrollView>
 
       {/* Paywall Modal */}
-      <PaywallModal
+      <PaywallSheet
+        {...paywallProps}
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
-        feature="lists"
+        trigger="addList"
       />
     </View>
   );
