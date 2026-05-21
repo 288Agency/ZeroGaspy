@@ -20,7 +20,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import AccountSettingsModal from '../components/AccountSettingsModal';
 import LegalModal from '../components/LegalModal';
 import AchievementsModal from '../components/AchievementsModal';
-import { PaywallSheet } from '../components/ds';
+import { PaywallSheet, DeferredAuthSheet } from '../components/ds';
 import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import PressableScale from '../components/PressableScale';
 import LanguageSelector, { LanguageButton } from '../components/LanguageSelector';
@@ -58,7 +58,7 @@ export default function AccountScreen() {
   const paywallProps = usePaywallSheetProps();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const { user, signOut, isLocalMode } = useAuth();
+  const { user, signOut, isLocalMode, signInWithApple } = useAuth();
   const { isPremium, currentPlan, expirationDate, restorePurchases, refreshSubscriptionStatus, isLoading: subscriptionLoading } = useSubscription();
   const isOnline = useIsOnline();
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
@@ -67,6 +67,7 @@ export default function AccountScreen() {
   const [achievementsVisible, setAchievementsVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [authSheetVisible, setAuthSheetVisible] = useState(false);
   const { gamificationData, refreshData: refreshGamification } = useGamification();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
@@ -390,7 +391,7 @@ export default function AccountScreen() {
                 </View>
 
                 <PressableScale
-                  onPress={() => signOut()}
+                  onPress={() => setAuthSheetVisible(true)}
                   style={styles.createAccountButton}
                   hapticType="medium"
                 >
@@ -875,6 +876,23 @@ export default function AccountScreen() {
       <LanguageSelector
         visible={languageModalVisible}
         onClose={() => setLanguageModalVisible(false)}
+      />
+
+      {/* Deferred auth sheet — backup local data to cloud */}
+      <DeferredAuthSheet
+        visible={authSheetVisible}
+        onClose={() => setAuthSheetVisible(false)}
+        reason="backup"
+        onAppleSignIn={async () => {
+          const { error } = await signInWithApple();
+          if (!error) {
+            setAuthSheetVisible(false);
+          }
+        }}
+        onEmailSignUp={() => {
+          setAuthSheetVisible(false);
+          navigation.navigate('Register');
+        }}
       />
     </View>
   );
