@@ -14,6 +14,7 @@ import StatsScreen from '../screens/StatsScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import MealPlannerScreen from '../screens/MealPlannerScreen';
 import ShoppingListScreen from '../screens/ShoppingListScreen';
+import { RegisterScreen } from '../screens/auth';
 import GlassTabBar from '../components/GlassTabBar';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
@@ -167,6 +168,14 @@ export default function AppNavigator() {
         component={ShoppingListScreen}
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
         }}
       />
     </Stack.Navigator>

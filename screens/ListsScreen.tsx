@@ -25,7 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { PaywallSheet } from '../components/ds';
+import { PaywallSheet, DeferredAuthSheet } from '../components/ds';
 import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
 import ShareListModal from '../components/ShareListModal';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -46,7 +46,7 @@ export default function ListsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { isPremium } = useSubscription();
-  const { user, isLocalMode } = useAuth();
+  const { user, isLocalMode, signInWithApple } = useAuth();
   const paywallProps = usePaywallSheetProps();
   const [lists, setLists] = useState<List[]>([]);
   const [sharedLists, setSharedLists] = useState<SharedListWithMe[]>([]);
@@ -58,6 +58,7 @@ export default function ListsScreen() {
   const [shareListId, setShareListId] = useState('');
   const [shareListTitle, setShareListTitle] = useState('');
   const [shareListColor, setShareListColor] = useState<string | undefined>();
+  const [authSheetVisible, setAuthSheetVisible] = useState(false);
 
   // Charger les listes au démarrage
   useEffect(() => {
@@ -165,7 +166,11 @@ export default function ListsScreen() {
     setShareListId(list.id);
     setShareListTitle(list.title);
     setShareListColor(list.color);
-    setShareModalVisible(true);
+    if (user && !isLocalMode) {
+      setShareModalVisible(true);
+    } else {
+      setAuthSheetVisible(true);
+    }
   };
 
   const handleSelectSharedList = (sharedList: SharedListWithMe) => {
@@ -263,18 +268,16 @@ export default function ListsScreen() {
               </View>
             </View>
             <View style={styles.listActions}>
-              {user && !isLocalMode && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleShareList(list);
-                  }}
-                  style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="share-social-outline" size={18} color={listColor} />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleShareList(list);
+                }}
+                style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-social-outline" size={18} color={listColor} />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={(e) => {
                   e.stopPropagation();
@@ -407,6 +410,24 @@ export default function ListsScreen() {
         listId={shareListId}
         listTitle={shareListTitle}
         listColor={shareListColor}
+      />
+
+      {/* Deferred auth sheet for share trigger */}
+      <DeferredAuthSheet
+        visible={authSheetVisible}
+        onClose={() => setAuthSheetVisible(false)}
+        reason="share"
+        onAppleSignIn={async () => {
+          const { error } = await signInWithApple();
+          if (!error) {
+            setAuthSheetVisible(false);
+            setShareModalVisible(true);
+          }
+        }}
+        onEmailSignUp={() => {
+          setAuthSheetVisible(false);
+          navigation.navigate('Register');
+        }}
       />
 
       {/* Modal pour créer une nouvelle liste */}

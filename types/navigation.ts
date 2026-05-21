@@ -23,6 +23,7 @@ export type RootStackParamList = {
   ListMembers: { listId: string; listTitle: string; listColor?: string };
   MealPlanner: undefined;
   ShoppingList: undefined;
+  Register: undefined;
 };
 
 // Navigation racine (Auth ou App)
