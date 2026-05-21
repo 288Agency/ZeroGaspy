@@ -13,7 +13,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
-import { ONBOARDING_KEY } from './screens/ActiveOnboardingScreen';
+import { ONBOARDING_KEY } from './constants/onboarding';
 import { OnboardingFlow } from './components/ds';
 import { requestNotificationPermissions } from './services/notificationService';
 import SplashScreen from './components/SplashScreen';
@@ -276,9 +276,14 @@ function RootNavigator() {
     }
   };
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     trackOnboardingCompleted();
     scheduleWelcomeBackNotification(i18n.language);
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    } catch (error) {
+      logger.error('Erreur sauvegarde onboarding:', error);
+    }
     if (!user) {
       skipAuth();
     }
