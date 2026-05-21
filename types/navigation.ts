@@ -24,6 +24,7 @@ export type RootStackParamList = {
   MealPlanner: undefined;
   ShoppingList: undefined;
   Register: undefined;
+  ProductDetail: { itemId: string; listId: string };
 };
 
 // Navigation racine (Auth ou App)

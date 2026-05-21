@@ -299,6 +299,15 @@ export async function updateItemStatus(
   });
 }
 
+export const markItemConsumed = (listId: string, itemId: string) =>
+  updateItemStatus(listId, itemId, 'consumed');
+
+export const markItemThrown = (listId: string, itemId: string) =>
+  updateItemStatus(listId, itemId, 'thrown');
+
+export const restoreItem = (listId: string, itemId: string) =>
+  updateItemStatus(listId, itemId, 'active');
+
 export async function markItemAsOpened(
   listId: string,
   itemId: string,
