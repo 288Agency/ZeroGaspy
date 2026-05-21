@@ -110,7 +110,7 @@ function getActiveRouteName(state: NavigationState | undefined): string | undefi
 
 // Composant interne qui gère la navigation basée sur l'auth
 function RootNavigator() {
-  const { user, isLoading: authLoading, isLocalMode } = useAuth();
+  const { user, isLoading: authLoading, isLocalMode, skipAuth } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
@@ -279,6 +279,9 @@ function RootNavigator() {
   const handleOnboardingComplete = () => {
     trackOnboardingCompleted();
     scheduleWelcomeBackNotification(i18n.language);
+    if (!user) {
+      skipAuth();
+    }
     setShowOnboarding(false);
   };
 
