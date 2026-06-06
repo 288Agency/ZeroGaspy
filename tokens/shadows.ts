@@ -1,23 +1,35 @@
 // ============================================================================
-// ZeroGaspy Design System · Elevation / Shadows
+// ZeroGaspy Design System · Elevation / Shadows (handoff port)
 // ============================================================================
-// 5 niveaux + focus ring. Shadows NEUTRES (base Ink/950, pas teintées vert).
-// On a retiré les "colored" et "glow" du DS actuel — trop décoratifs.
+// 5 niveaux + glow accent + focus ring.
 //
-// React Native quirk : iOS prend shadowColor + offset + opacity + radius.
-// Android n'a que `elevation`. On exporte les deux pour cross-platform.
+// Calibration handoff (cf. README §4.4) :
+//   shadow-1 → elevation[2]  cartes au repos
+//   shadow-2 → elevation[3]  cartes élevées
+//   shadow-3 → elevation[4]  sheets, toasts
+//   shadow-glow → glow       hero today-hero, FAB
+//
+// Base de teinte = vert-ink (rgba(30,42,31, X)) plutôt que noir pur, pour
+// rester cohérent avec le canvas crème.
+//
+// React Native quirk : iOS lit shadowColor + offset + opacity + radius.
+// Android n'a que `elevation` (numérique).
 // ============================================================================
 
 import { Platform, ViewStyle } from 'react-native';
 
 type Shadow = ViewStyle;
 
+const SHADOW_INK = '#1E2A1F'; // teinte vert-forêt foncé (vs noir pur)
+const SHADOW_GLOW_GREEN = '#3D7A45'; // forest-500 pour le glow accent
+
 const ios = (
   offsetY: number,
   radius: number,
   opacity: number,
+  color: string = SHADOW_INK,
 ): ViewStyle => ({
-  shadowColor: '#0E0D0B',
+  shadowColor: color,
   shadowOffset: { width: 0, height: offsetY },
   shadowRadius: radius,
   shadowOpacity: opacity,
@@ -30,11 +42,12 @@ const shadow = (
   radius: number,
   opacity: number,
   elevation: number,
+  color?: string,
 ): Shadow =>
   Platform.select({
-    ios:     ios(offsetY, radius, opacity),
+    ios:     ios(offsetY, radius, opacity, color),
     android: android(elevation),
-    default: ios(offsetY, radius, opacity),
+    default: ios(offsetY, radius, opacity, color),
   })!;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -42,26 +55,46 @@ const shadow = (
 // ────────────────────────────────────────────────────────────────────────────
 
 export const elevation = {
-  /** Pressed / inset — quasi-flat, indique un état enfoncé */
-  1: shadow(1, 2, 0.06, 1),
-  /** Card default — repos */
-  2: shadow(2, 6, 0.06, 2),
-  /** Card hover / button raised */
-  3: shadow(6, 16, 0.08, 4),
-  /** Bottom sheet, modal */
-  4: shadow(12, 32, 0.10, 8),
+  /** Pressed / inset — quasi-flat */
+  1: shadow(1, 1, 0.03, 1),
+  /** Card default (handoff shadow-1) */
+  2: shadow(1, 2, 0.04, 2),
+  /** Card élevée (handoff shadow-2) */
+  3: shadow(2, 8, 0.06, 4),
+  /** Bottom sheet, toast (handoff shadow-3) */
+  4: shadow(8, 24, 0.08, 8),
   /** Popover, alert, FAB max */
-  5: shadow(24, 64, 0.14, 16),
+  5: shadow(16, 48, 0.12, 16),
 } as const;
 
 // ────────────────────────────────────────────────────────────────────────────
-// Focus ring — appliqué via borderColor sur le composant focusable.
-// (RN ne supporte pas box-shadow, on simule via border 2px Ink/200 → Ink/900)
+// Glow — uniquement pour today-hero, cook-hero, FAB accent
+// (équivalent handoff `--shadow-glow`)
+// ────────────────────────────────────────────────────────────────────────────
+
+export const glow: ViewStyle = Platform.select({
+  ios: {
+    shadowColor:  SHADOW_GLOW_GREEN,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    shadowOpacity: 0.20,
+  },
+  android: { elevation: 12 },
+  default: {
+    shadowColor:  SHADOW_GLOW_GREEN,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    shadowOpacity: 0.20,
+  },
+})!;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Focus ring — appliqué via borderColor sur le composant focusable
 // ────────────────────────────────────────────────────────────────────────────
 
 export const focusRing = {
   borderWidth: 2,
-  borderColor: '#1C1B17', // Ink/900 — à override avec colors.border.focus selon le scheme
+  borderColor: '#1E2A1F', // ink/900 — override avec colors.border.focus
 } as const;
 
 export type ElevationToken = keyof typeof elevation;

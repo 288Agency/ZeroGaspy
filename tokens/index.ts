@@ -3,13 +3,17 @@
 // ============================================================================
 // Single import path pour tous les tokens :
 //   import { tokens } from '@/tokens';
-//   import { Ink, Sap, typography, space, elevation, radius } from '@/tokens';
+//   import { Sage, Forest, Cream, typography, space, elevation, glow, radius } from '@/tokens';
 // ============================================================================
 
 export {
-  Ink,
-  Sap,
+  Sage,
+  Forest,
+  Cream,
+  InkWarm,
   Signal,
+  Ink,        // alias rétrocompat
+  Sap,        // alias rétrocompat
   lightColors,
   darkColors,
   themes,
@@ -20,6 +24,7 @@ export {
 
 export {
   typography,
+  FONT_HANDOFF,
   type TypographyToken,
 } from './typography';
 
@@ -31,6 +36,7 @@ export {
 
 export {
   elevation,
+  glow,
   focusRing,
   type ElevationToken,
 } from './shadows';
@@ -45,7 +51,7 @@ export {
 import { lightColors } from './colors';
 import { typography } from './typography';
 import { space, layout } from './spacing';
-import { elevation } from './shadows';
+import { elevation, glow } from './shadows';
 import { radius, componentRadius } from './radius';
 
 export const tokens = {
@@ -54,6 +60,7 @@ export const tokens = {
   space,
   layout,
   elevation,
+  glow,
   radius,
   componentRadius,
 } as const;

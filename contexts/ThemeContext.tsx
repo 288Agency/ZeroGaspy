@@ -14,6 +14,7 @@ import {
   space,
   layout,
   elevation,
+  glow,
   radius,
   componentRadius,
   type ColorScheme,
@@ -28,6 +29,7 @@ interface ThemeContextValue {
   space: typeof space;
   layout: typeof layout;
   elevation: typeof elevation;
+  glow: typeof glow;
   radius: typeof radius;
   componentRadius: typeof componentRadius;
 }
@@ -48,6 +50,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       space,
       layout,
       elevation,
+      glow,
       radius,
       componentRadius,
     }),
