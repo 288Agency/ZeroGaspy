@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/v2/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
 import CreateListScreen from '../screens/CreateListScreen';
-import AddFoodScreen from '../screens/AddFoodScreen';
+import AddFoodScreen from '../screens/v2/AddFoodScreen';
 import InventoryListScreen from '../screens/v2/InventoryListScreen';
 import AccountScreen from '../screens/AccountScreen';
 import ExpiringSoonScreen from '../screens/ExpiringSoonScreen';
