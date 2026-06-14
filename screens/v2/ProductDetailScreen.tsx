@@ -21,9 +21,10 @@ import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button, Badge, AlertModal } from '@/components/ds';
-import { loadLists, updateItem, markItemAsOpened } from '@/utils/localStorage';
+import { loadLists, updateItem, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import MarkAsOpenedModal from '@/components/MarkAsOpenedModal';
+import QuantityModal from '@/components/QuantityModal';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 
@@ -40,6 +41,7 @@ export default function ProductDetailScreen() {
   const [item, setItem] = useState<FoodItem | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [openedModalOpen, setOpenedModalOpen] = useState(false);
+  const [partialAction, setPartialAction] = useState<'consumed' | 'thrown' | null>(null);
 
   const reload = React.useCallback(() => {
     loadLists().then(lists => {
@@ -80,6 +82,18 @@ export default function ProductDetailScreen() {
     setOpenedModalOpen(false);
     reload();
   };
+  const handleConfirmPartial = async (qty: number) => {
+    if (!partialAction || !item) return;
+    await updateItemStatusWithQuantity(listId, itemId, partialAction, qty);
+    setPartialAction(null);
+    // Si on a tout consommé/jeté, l'item passe en status final → goBack
+    if (qty >= (item.quantity ?? 1)) {
+      nav.goBack();
+    } else {
+      reload();
+    }
+  };
+  const canPartialAct = (item.quantity ?? 1) > 1;
 
   const quantityLabel = item.quantity != null ? String(item.quantity) : '—';
 
@@ -170,6 +184,11 @@ export default function ProductDetailScreen() {
           <Button variant="primary" size="lg" icon="checkmark" onPress={handleConsume}>
             Marquer comme consommé
           </Button>
+          {canPartialAct && (
+            <Button variant="secondary" size="lg" icon="minus.circle" onPress={() => setPartialAction('consumed')}>
+              Consommer une partie
+            </Button>
+          )}
           {!item.isOpened && (
             <Button variant="secondary" size="lg" icon="seal" onPress={() => setOpenedModalOpen(true)}>
               Marquer comme entamé
@@ -201,6 +220,15 @@ export default function ProductDetailScreen() {
         onClose={() => setOpenedModalOpen(false)}
         onConfirm={handleConfirmOpened}
         itemName={item.name}
+      />
+
+      <QuantityModal
+        visible={partialAction !== null}
+        onClose={() => setPartialAction(null)}
+        onConfirm={handleConfirmPartial}
+        itemName={item.name}
+        maxQuantity={item.quantity ?? 1}
+        actionType={partialAction ?? 'consumed'}
       />
     </View>
   );
