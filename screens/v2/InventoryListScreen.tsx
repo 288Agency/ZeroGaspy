@@ -37,11 +37,22 @@ import {
   getListById,
   markItemConsumed,
   markItemThrown,
+  addItemToList,
 } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem, List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import ReceiptScannerModal from '@/components/ReceiptScannerModal';
+import ReceiptReviewModal from '@/components/ReceiptReviewModal';
+import type { ReceiptScanResult, ReceiptItem } from '@/services/mindeeReceiptService';
+import { canScanReceipt, markFreeReceiptScanAsUsed } from '@/services/premiumFeaturesService';
+import { useBonusScan } from '@/services/referralService';
+import { trackBonusScanUsed } from '@/services/analytics';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { PaywallSheet } from '@/components/ds';
+import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne
@@ -89,9 +100,21 @@ export default function InventoryListScreen() {
   const route = useRoute<Rt>();
   const { listId, listTitle, listColor } = route.params;
 
+  const { user } = useAuth();
+  const { isPremium } = useSubscription();
+  const paywallProps = usePaywallSheetProps();
+
   const [list, setList] = useState<List | null>(null);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [query, setQuery] = useState('');
+
+  // Receipt scanner flow state
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
+  const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
+  const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
+  const [scannedStoreName, setScannedStoreName] = useState<string | undefined>();
+  const [scannedDate, setScannedDate] = useState<string | undefined>();
 
   const refresh = useCallback(async () => {
     try {
@@ -178,6 +201,60 @@ export default function InventoryListScreen() {
     }
   }, [listId, refresh]);
 
+  // ── Receipt scanner flow (premium-gated) ─────────────────────────────────
+  const handleOpenReceiptScan = useCallback(async () => {
+    try {
+      if (!user) {
+        setPaywallVisible(true);
+        return;
+      }
+      const { allowed, source } = await canScanReceipt(user.id, isPremium);
+      if (!allowed) {
+        setPaywallVisible(true);
+        return;
+      }
+      if (source === 'monthly_free') {
+        await markFreeReceiptScanAsUsed(user.id);
+      } else if (source === 'bonus') {
+        await useBonusScan(user.id);
+        trackBonusScanUsed();
+      }
+      setReceiptScannerVisible(true);
+    } catch (err) {
+      logger.error('[InventoryV2] receipt scan gate failed:', err);
+    }
+  }, [user, isPremium]);
+
+  const handleReceiptScanComplete = useCallback((result: ReceiptScanResult) => {
+    setScannedItems(result.items);
+    setScannedStoreName(result.storeName);
+    setScannedDate(result.date);
+    setReceiptScannerVisible(false);
+    setReceiptReviewVisible(true);
+  }, []);
+
+  const handleReceiptItemsConfirm = useCallback(async (items: ReceiptItem[]) => {
+    try {
+      for (const it of items) {
+        const newItem: FoodItem = {
+          id: it.id,
+          name: it.name,
+          quantity: it.quantity,
+          category: it.category,
+          expirationDate: it.expirationDate || '',
+          status: 'active',
+          price: it.price,
+        };
+        await addItemToList(listId, newItem);
+      }
+      setReceiptReviewVisible(false);
+      setScannedItems([]);
+      await refresh();
+    } catch (err) {
+      logger.error('[InventoryV2] receipt items add failed:', err);
+    }
+  }, [listId, refresh]);
+
   // Titre fallback : route.params.listTitle si list pas encore chargée
   const title = list?.title ?? listTitle ?? 'Stock';
   const accentDotColor = list?.color || listColor || Forest[600];
@@ -216,15 +293,26 @@ export default function InventoryListScreen() {
           </Text>
         </View>
 
-        <Pressable
-          onPress={handleAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Ajouter un aliment"
-          hitSlop={8}
-          style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
-        >
-          <SymbolView name="plus" size={24} tintColor={colors.fg.primary} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable
+            onPress={handleOpenReceiptScan}
+            accessibilityRole="button"
+            accessibilityLabel="Scanner un ticket de caisse"
+            hitSlop={8}
+            style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
+          >
+            <SymbolView name="doc.text.viewfinder" size={22} tintColor={colors.fg.primary} />
+          </Pressable>
+          <Pressable
+            onPress={handleAdd}
+            accessibilityRole="button"
+            accessibilityLabel="Ajouter un aliment"
+            hitSlop={8}
+            style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
+          >
+            <SymbolView name="plus" size={24} tintColor={colors.fg.primary} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -386,6 +474,30 @@ export default function InventoryListScreen() {
           onTrash={handleTrash}
         />
       </ScrollView>
+
+      {/* ── Receipt scanner + review ──────────────────────────────────── */}
+      <ReceiptScannerModal
+        visible={receiptScannerVisible}
+        onClose={() => setReceiptScannerVisible(false)}
+        onScanComplete={handleReceiptScanComplete}
+      />
+      <ReceiptReviewModal
+        visible={receiptReviewVisible}
+        items={scannedItems}
+        storeName={scannedStoreName}
+        date={scannedDate}
+        onClose={() => {
+          setReceiptReviewVisible(false);
+          setScannedItems([]);
+        }}
+        onConfirm={handleReceiptItemsConfirm}
+      />
+      <PaywallSheet
+        {...paywallProps}
+        trigger="scanLimit"
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+      />
     </View>
   );
 }
