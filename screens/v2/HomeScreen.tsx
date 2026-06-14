@@ -14,24 +14,26 @@
 // sur `markItemConsumed`/`markItemThrown`.
 // ============================================================================
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   Pressable,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView, SFSymbol } from 'expo-symbols';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
 import { ProductCard, Badge } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import {
   loadLists,
   markItemConsumed,
@@ -42,6 +44,11 @@ import { calculateUserStats } from '@/services/statsService';
 import type { FoodItem, List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+
+// Composants legacy ré-injectés (palette héritée via designSystem.ts retouché)
+import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import ReferralCard from '@/components/ReferralCard';
+import WeeklyRecapModal from '@/components/WeeklyRecapModal';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne — flatten d'items rattachés à leur liste source
@@ -142,15 +149,30 @@ function extractFirstName(authUser: any, fallback = 'toi'): string {
 // ────────────────────────────────────────────────────────────────────────────
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type RoutePropT = RouteProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const { colors, typography, layout, componentRadius, elevation, glow } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RoutePropT>();
   const { user } = useAuth();
+  const { challengesState, gamificationData } = useGamification();
 
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [recapVisible, setRecapVisible] = useState(false);
+
+  // Notification weekly_recap → utils/notificationNavigation.ts route vers
+  // Home { showWeeklyRecap: true }. v1 ouvrait WeeklyRecapModal → on rebrand.
+  useEffect(() => {
+    if (route.params?.showWeeklyRecap) {
+      setRecapVisible(true);
+      navigation.setParams({ showWeeklyRecap: undefined } as any);
+    }
+  }, [route.params?.showWeeklyRecap, navigation]);
+
+  const hasBadges = (gamificationData?.badges?.length ?? 0) >= 1;
 
   const refresh = useCallback(async () => {
     try {
@@ -512,6 +534,57 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* ── 4b. Engagement : Challenge hebdo + MealPlanner CTA + Referral ── */}
+        {challengesState && (
+          <View style={{ marginTop: layout.sectionGap }}>
+            <WeeklyChallengeCard challengesState={challengesState} />
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => navigation.navigate('MealPlanner')}
+          style={({ pressed }) => [
+            styles.plannerCta,
+            {
+              backgroundColor: colors.bg.surface,
+              borderColor: colors.border.default,
+              borderRadius: componentRadius.card,
+              marginTop: 12,
+              opacity: pressed ? 0.85 : 1,
+              ...elevation[1],
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: Sage[100],
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+            }}
+          >
+            <SymbolView name="calendar" size={20} tintColor={Forest[600]} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
+              Planifier les repas
+            </Text>
+            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+              Anticipe la semaine, vide ton frigo
+            </Text>
+          </View>
+          <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
+        </Pressable>
+
+        {user && hasBadges && (
+          <View style={{ marginTop: 12 }}>
+            <ReferralCard userId={user.id} hasBadges={true} />
+          </View>
+        )}
+
         {/* ── 5. Mes espaces ──────────────────────────────────────────── */}
         {spaces.length > 0 && (
           <>
@@ -582,6 +655,12 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Recap hebdo — déclenché par push notif weekly_recap (route param) */}
+      <WeeklyRecapModal
+        visible={recapVisible}
+        onClose={() => setRecapVisible(false)}
+      />
     </View>
   );
 }
@@ -710,6 +789,13 @@ const styles = StyleSheet.create({
   space: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+  },
+  plannerCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderWidth: 1,
   },
 });
