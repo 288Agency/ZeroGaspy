@@ -21,8 +21,9 @@ import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button, Badge, AlertModal } from '@/components/ds';
-import { loadLists, updateItem } from '@/utils/localStorage';
+import { loadLists, updateItem, markItemAsOpened } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
+import MarkAsOpenedModal from '@/components/MarkAsOpenedModal';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 
@@ -38,13 +39,16 @@ export default function ProductDetailScreen() {
 
   const [item, setItem] = useState<FoodItem | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [openedModalOpen, setOpenedModalOpen] = useState(false);
 
-  useEffect(() => {
+  const reload = React.useCallback(() => {
     loadLists().then(lists => {
       const list = lists.find(l => l.id === listId);
       setItem(list?.items.find(i => i.id === itemId) ?? null);
     });
   }, [itemId, listId]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   if (!item) {
     return <View style={{ flex: 1, backgroundColor: colors.bg.canvas }} />;
@@ -71,8 +75,25 @@ export default function ProductDetailScreen() {
     await updateItem(listId, itemId, { status: 'thrown' });
     nav.goBack();
   };
+  const handleConfirmOpened = async (openedDate: string, daysAfterOpening: number) => {
+    await markItemAsOpened(listId, itemId, openedDate, daysAfterOpening);
+    setOpenedModalOpen(false);
+    reload();
+  };
 
   const quantityLabel = item.quantity != null ? String(item.quantity) : '—';
+
+  // Compute "Ouvert il y a Nj" depuis openedDate (DD/MM/YYYY)
+  let openedAgoLabel: string | null = null;
+  if (item.isOpened && item.openedDate) {
+    const m = item.openedDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const [, d, mo, y] = m;
+      const opened = new Date(parseInt(y), parseInt(mo) - 1, parseInt(d));
+      const days = Math.floor((Date.now() - opened.getTime()) / 86400000);
+      openedAgoLabel = days <= 0 ? "Aujourd'hui" : days === 1 ? 'Hier' : `Il y a ${days}j`;
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg.canvas }}>
@@ -138,6 +159,9 @@ export default function ProductDetailScreen() {
           ]}
         >
           <MetaRow icon="calendar" label="Date de péremption" value={item.expirationDate} />
+          {openedAgoLabel && (
+            <MetaRow icon="seal" label="Ouvert depuis" value={openedAgoLabel} />
+          )}
           <MetaRow icon="scalemass" label="Quantité" value={quantityLabel} />
           <MetaRow icon="folder" label="Catégorie" value={item.category ?? 'Autre'} last />
         </View>
@@ -146,6 +170,11 @@ export default function ProductDetailScreen() {
           <Button variant="primary" size="lg" icon="checkmark" onPress={handleConsume}>
             Marquer comme consommé
           </Button>
+          {!item.isOpened && (
+            <Button variant="secondary" size="lg" icon="seal" onPress={() => setOpenedModalOpen(true)}>
+              Marquer comme entamé
+            </Button>
+          )}
           <Button variant="secondary" size="lg" icon="pencil" onPress={() => nav.navigate('AddFood', { listId, editItem: item })}>
             Modifier
           </Button>
@@ -165,6 +194,13 @@ export default function ProductDetailScreen() {
         primaryLabel="Jeter"
         onPrimary={handleTrash}
         secondaryLabel="Annuler"
+      />
+
+      <MarkAsOpenedModal
+        visible={openedModalOpen}
+        onClose={() => setOpenedModalOpen(false)}
+        onConfirm={handleConfirmOpened}
+        itemName={item.name}
       />
     </View>
   );
