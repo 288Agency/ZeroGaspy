@@ -5,7 +5,7 @@ import HomeScreen from '../screens/v2/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
 import CreateListScreen from '../screens/CreateListScreen';
 import AddFoodScreen from '../screens/AddFoodScreen';
-import InventoryListScreen from '../screens/InventoryListScreen';
+import InventoryListScreen from '../screens/v2/InventoryListScreen';
 import AccountScreen from '../screens/AccountScreen';
 import ExpiringSoonScreen from '../screens/ExpiringSoonScreen';
 import ThrownFoodsScreen from '../screens/ThrownFoodsScreen';
@@ -103,17 +103,9 @@ export default function AppNavigator() {
       <Stack.Screen
         name="InventoryList"
         component={InventoryListScreen}
-        options={({ route }) => ({
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: route.params.listColor || COLORS.primary[500],
-          },
-          headerTintColor: COLORS.neutral.white,
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          title: route.params.listTitle,
-        })}
+        options={{
+          headerShown: false,
+        }}
       />
       <Stack.Screen
         name="Account"
