@@ -16,6 +16,7 @@ import MealPlannerScreen from '../screens/MealPlannerScreen';
 import ShoppingListScreen from '../screens/ShoppingListScreen';
 import { RegisterScreen } from '../screens/auth';
 import ProductDetailScreen from '../screens/v2/ProductDetailScreen';
+import CookTonightScreen from '../screens/v2/CookTonightScreen';
 import GlassTabBar from '../components/GlassTabBar';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
@@ -174,6 +175,13 @@ export default function AppNavigator() {
       <Stack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="CookTonight"
+        component={CookTonightScreen}
         options={{
           headerShown: false,
         }}

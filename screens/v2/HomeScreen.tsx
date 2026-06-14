@@ -200,7 +200,7 @@ export default function HomeScreen() {
   }, [navigation]);
 
   const handleCookTonight = useCallback(() => {
-    navigation.navigate('Recipes');
+    navigation.navigate('CookTonight');
   }, [navigation]);
 
   const handleConsume = useCallback(async (itemId: string) => {
