@@ -85,8 +85,7 @@ export default function CookTonightScreen() {
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);
   const handleOpenRecipe = useCallback(
     (recipeId: string) => {
-      // Reroute vers RecipesScreen (legacy) qui gère le détail recette.
-      navigation.navigate('Recipes', undefined);
+      navigation.navigate('RecipeDetail', { recipeId });
     },
     [navigation],
   );
