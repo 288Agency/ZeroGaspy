@@ -1,36 +1,39 @@
 // ============================================
 // ZEROGASPY DESIGN SYSTEM
-// Organic & Natural Theme
+// Brand palette derived from logo: sage + forest + cream
+// Mapped onto the legacy COLORS shape so the 60+ legacy consumers
+// inherit the new handoff palette automatically (cf. tokens/colors.ts).
 // ============================================
 
 export const COLORS = {
-  // Primary palette - Forest greens
+  // Primary palette - Forest greens (handoff: Sage 100..500 then Forest 600..900)
   primary: {
-    50: '#E8F5E9',
-    100: '#C8E6C9',
-    200: '#A5D6A7',
-    300: '#81C784',
-    400: '#66BB6A',
-    500: '#3C6E47', // Main brand color
-    600: '#2E5339',
-    700: '#1F3A27',
-    800: '#152818',
-    900: '#0A1409',
+    50: '#EEF6E2',  // sage-100
+    100: '#DCEDC1', // sage-200
+    200: '#C2DF9C', // sage-300
+    300: '#A8D183', // sage-400 (light Z in logo)
+    400: '#8DBE6B', // sage-500
+    500: '#2F6B3F', // forest-600 — Main brand color (deep G)
+    600: '#225230', // forest-700
+    700: '#173B22', // forest-800
+    800: '#0F2716', // forest-850
+    900: '#0E2517', // forest-900
   },
 
-  // Secondary palette - Warm earthy tones
+  // Secondary palette - Warm cream/ink (handoff)
   secondary: {
-    cream: '#F7F5E6',
-    sand: '#EDE8D0',
-    warmGray: '#D4CFC0',
-    sage: '#A3C9A8',
-    mint: '#B8E0BE',
+    cream: '#F4EFE2',     // cream-100 (logo bg)
+    sand: '#EBE6D8',      // cream-200
+    warmGray: '#DCD6C5',  // cream-300
+    sage: '#A8D183',      // sage-400
+    mint: '#C2DF9C',      // sage-300
   },
 
-  // Accent colors - Organic food-inspired
+  // Accent colors - kept as-is (used sparingly for category accents).
+  // Tomato updated to handoff value (warmer earthy red).
   accent: {
     carrot: '#FF8C42',
-    tomato: '#E74C3C',
+    tomato: '#D85535', // urgent-solid (handoff)
     lemon: '#F1C40F',
     blueberry: '#5D6D9E',
     eggplant: '#6C5B7B',
@@ -39,95 +42,95 @@ export const COLORS = {
     amber: '#B45309',
   },
 
-  // Semantic colors
+  // Semantic colors (handoff status values, kept warmer/more organic)
   semantic: {
-    success: '#4CAF50',
-    successLight: '#10B981',
-    warning: '#FF9800',
-    warningDark: '#E85D04',
-    warningAmber: '#D97706',
-    danger: '#E53935',
-    dangerDark: '#DC2626',
-    dangerLight: '#EF4444',
-    dangerMuted: '#F87171',
-    info: '#2196F3',
+    success: '#3D7A45',      // ok-solid
+    successLight: '#6FA64F', // sage-600
+    warning: '#C68A1E',      // warn-solid
+    warningDark: '#7A5414',  // warn-fg
+    warningAmber: '#7A5414',
+    danger: '#D85535',       // urgent-solid
+    dangerDark: '#B23A1A',   // urgent-fg
+    dangerLight: '#D85535',
+    dangerMuted: '#F0A085',  // urgent-border
+    info: '#1F4A7A',         // info-fg
   },
 
-  // Status indicator colors
+  // Status indicator colors — more muted, brand-aligned
   status: {
-    fresh: '#4ADE80',
-    expiringSoon: '#FB923C',
-    expired: '#EF4444',
+    fresh: '#8DBE6B',         // sage-500
+    expiringSoon: '#C68A1E',  // warn-solid
+    expired: '#D85535',       // urgent-solid
     indigo: '#6366F1',
   },
 
-  // Neutral shades
+  // Neutral shades — warmed up slightly to harmonize with cream canvas
   neutral: {
     white: '#FFFFFF',
-    black: '#1A1A1A',
-    gray50: '#FAFAFA',
-    gray100: '#F5F5F5',
-    gray150: '#E5E7EB',
-    gray200: '#EEEEEE',
-    gray300: '#E0E0E0',
-    gray400: '#BDBDBD',
-    gray500: '#9E9E9E',
-    gray600: '#757575',
-    grayMuted: '#6B7280',
-    grayDisabled: '#9CA3AF',
-    grayBorder: '#D1D5DB',
-    gray700: '#616161',
-    gray800: '#424242',
-    gray900: '#212121',
+    black: '#1E2A1F',         // ink-900 (warm ink)
+    gray50: '#FAF7ED',        // cream-50
+    gray100: '#F4EFE2',       // cream-100
+    gray150: '#EBE6D8',       // cream-200
+    gray200: '#EBE6D8',       // cream-200
+    gray300: '#DCD6C5',       // cream-300
+    gray400: '#B8B2A0',       // cream-400
+    gray500: '#8A8472',       // cream-500
+    gray600: '#6B6657',       // cream-600
+    grayMuted: '#6B7568',     // ink-500
+    grayDisabled: '#B8B2A0',  // cream-400
+    grayBorder: '#DCD6C5',    // cream-300
+    gray700: '#6B7568',       // ink-500
+    gray800: '#2D3A2F',       // ink-700
+    gray900: '#1E2A1F',       // ink-900
   },
 
-  // Text colors
+  // Text colors — handoff ink scale + warm tertiary
   text: {
-    primary: '#2D3436',
-    secondary: '#636E72',
-    tertiary: '#6A8A6E',
-    muted: '#A0A0A0',
-    inverse: '#FFFFFF',
-    brand: '#3C6E47',
-    danger: '#DC2626',
-    warningDark: '#A16207',
-    achievement: '#EA580C',
+    primary: '#1E2A1F',      // ink-900
+    secondary: '#6B7568',    // ink-500
+    tertiary: '#8A8472',     // cream-500 (warm gray-tan)
+    muted: '#B8B2A0',        // cream-400
+    inverse: '#FAF7ED',      // cream-50
+    brand: '#2F6B3F',        // forest-600
+    danger: '#B23A1A',       // urgent-fg
+    warningDark: '#7A5414',  // warn-fg
+    achievement: '#C68A1E',  // warn-solid
   },
 
-  // Surface colors (light mode)
+  // Surface colors — cream-based instead of pure white
   surface: {
-    background: '#F7F5E6',
-    card: '#FFFFFF',
-    elevated: '#FFFFFF',
-    overlay: 'rgba(0, 0, 0, 0.2)',
-    warningBg: '#FFF3E0',
-    successBg: '#E8F5E9',
-    infoBg: '#FFF8E1',
-    dangerBg: '#FFEBEE',
-    dangerBgLight: '#FEF2F2',
-    dangerBgMuted: '#FEE2E2',
-    dangerBorder: '#FECACA',
-    warningLightBg: '#FEF9C3',
-    achievementBg: '#FFF7ED',
-    achievementBorder: '#FED7AA',
-    premiumBg: '#FFF8E1',
-    disabledBg: '#E5E5E5',
+    background: '#F4EFE2',   // cream-100 (canvas)
+    card: '#FAF7ED',         // cream-50 (surface)
+    elevated: '#FFFFFF',     // bg-elevated
+    overlay: 'rgba(30, 42, 31, 0.32)', // ink-tinted scrim
+    warningBg: '#FAE9C3',    // warn-bg
+    successBg: '#DCEDC1',    // ok-bg (sage-200)
+    infoBg: '#DCEAF6',       // info-bg
+    dangerBg: '#FBE5DC',     // urgent-bg
+    dangerBgLight: '#FBE5DC',
+    dangerBgMuted: '#FBE5DC',
+    dangerBorder: '#F0A085', // urgent-border
+    warningLightBg: '#FAE9C3',
+    achievementBg: '#FAE9C3',
+    achievementBorder: '#E5C172',
+    premiumBg: '#FAE9C3',
+    disabledBg: '#EBE6D8',
   },
 
-  // Button colors (light mode)
+  // Button colors
   button: {
-    primary: '#3C6E47',
+    primary: '#2F6B3F',       // forest-600
     primaryText: '#FFFFFF',
-    secondary: '#EDE8D0',
-    secondaryText: '#3C6E47',
+    secondary: '#EBE6D8',     // cream-200
+    secondaryText: '#2F6B3F', // forest-600
   },
 
-  // Interactive elements (light mode)
+  // Interactive elements
   interactive: {
-    primary: '#3C6E47',
-    secondary: '#FF8C42',
-    hover: '#2E5339',
-    active: '#1F3A27',
+    primary: '#2F6B3F',  // forest-600
+    secondary: '#D85535', // tomato (urgent-solid) for accent contrast
+    hover: '#225230',    // forest-700
+    active: '#173B22',   // forest-800
   },
 };
 
@@ -137,35 +140,35 @@ export const COLORS = {
 
 export const SHADOWS = {
   xs: {
-    shadowColor: '#3C6E47',
+    shadowColor: '#1E2A1F',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
   sm: {
-    shadowColor: '#3C6E47',
+    shadowColor: '#1E2A1F',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
   },
   md: {
-    shadowColor: '#3C6E47',
+    shadowColor: '#1E2A1F',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#3C6E47',
+    shadowColor: '#1E2A1F',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 8,
   },
   xl: {
-    shadowColor: '#3C6E47',
+    shadowColor: '#1E2A1F',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.2,
     shadowRadius: 28,
@@ -325,13 +328,13 @@ export const ANIMATION = {
 // ============================================
 
 export const GRADIENTS = {
-  primary: ['#3C6E47', '#2E5339'],
-  primaryLight: ['#4A8C5A', '#3C6E47'],
-  success: ['#6BBF59', '#3C6E47'],
-  warning: ['#FFD93D', '#F4A261'],
-  danger: ['#FF6B6B', '#E53935'],
-  cream: ['#F7F5E6', '#EDE8D0'],
-  sage: ['#B8E0BE', '#A3C9A8'],
+  primary: ['#2F6B3F', '#225230'],       // forest-600 → 700
+  primaryLight: ['#3D7A45', '#2F6B3F'],  // forest-500 → 600
+  success: ['#6FA64F', '#2F6B3F'],       // sage-600 → forest-600
+  warning: ['#E5C172', '#C68A1E'],       // warn-border → warn-solid
+  danger: ['#F0A085', '#D85535'],        // urgent-border → urgent-solid
+  cream: ['#F4EFE2', '#EBE6D8'],         // cream-100 → 200
+  sage: ['#DCEDC1', '#A8D183'],          // sage-200 → 400
 };
 
 // ============================================
