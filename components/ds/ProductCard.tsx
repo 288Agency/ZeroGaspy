@@ -1,33 +1,27 @@
 // ============================================================================
-// ZeroGaspy Design System · ProductCard
+// ZeroGaspy Design System · ProductCard (handoff port)
 // ============================================================================
-// Card produit (frigo). UNE structure, état visuel dérivé de l'expiration.
+// Card produit. UNE structure, état visuel dérivé de l'expiration.
 //
 // État (auto-calculé depuis daysUntilExpiration, ou forcé via `state`) :
-//   · 'expired'   < 0 j   → bordure danger, pattern hachuré, nom barré
-//   · 'urgent'    0–1 j   → bordure danger, halo soft danger
-//   · 'warning'   2–3 j   → bordure warning, halo soft warning
-//   · 'fresh'     > 3 j   → bordure default, neutre
+//   · 'expired'   < 0 j   → bordure danger, nom barré, opacité 0.7
+//   · 'urgent'    0–1 j   → bordure urgent-border, fond gradient urgent-bg→surface
+//   · 'warning'   2–3 j   → bordure warn-border,   fond gradient warn-bg→surface
+//   · 'fresh'     > 3 j   → bordure default, surface neutre
 //
-// Quick actions hybrides (pattern "chips on urgent only") :
-//   Quand `onConsume` ou `onTrash` sont fournis ET state ∈ {urgent, expired},
-//   la card affiche 2 chips inline sous la meta row. Sinon = card propre.
-//   Sur fresh/warning, on garde le swipe comme seul moyen d'action (via
-//   SwipeableProductCard) — découvrabilité sacrifiée pour la densité visuelle.
+// Actions inline ✓/🗑 (handoff §5) :
+//   Quand `onConsume` ou `onTrash` sont fournis, affichées sur la DROITE du
+//   card en tant que carrés 38×38 (hit target HIG). ✓ = pill accent plein,
+//   🗑 = surface élevée + glyph rouge. Visibles sur TOUS les états — pas
+//   uniquement urgent (contrairement au design précédent).
 //
-// Usage :
-//   <ProductCard
-//     name="Yaourt nature Danone"
-//     daysUntilExpiration={0}
-//     quantity="4 pots"
-//     onPress={...}
-//     onConsume={...}        // ← chip Consommé sur urgent/expired
-//     onTrash={...}          // ← chip Jeter sur urgent/expired
-//   />
+// Signature de props identique à la version précédente — pas de breaking
+// change pour les callers existants.
 // ============================================================================
 
 import React, { useMemo } from 'react';
 import { View, Text, Image, ImageSourcePropType, StyleSheet, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 
@@ -48,9 +42,9 @@ export interface ProductCardProps {
   quantity?: string;
   onPress?: () => void;
   onLongPress?: () => void;
-  /** Si fourni ET state ∈ {urgent, expired}, affiche un chip "Consommé" inline */
+  /** Si fourni, affiche un bouton inline ✓ "Consommé" à droite */
   onConsume?: () => void;
-  /** Si fourni ET state ∈ {urgent, expired}, affiche un chip "Jeter" inline */
+  /** Si fourni, affiche un bouton inline 🗑 "Jeter" à droite */
   onTrash?: () => void;
   testID?: string;
 }
@@ -68,8 +62,9 @@ function formatExpirationLabel(days: number | undefined): string {
   if (days < 0) return `Périmé · ${Math.abs(days)}j`;
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return 'Demain';
-  if (days <= 7) return `Dans ${days} jours`;
-  return `Frais · ${days}j`;
+  if (days <= 7) return `Dans ${days}j`;
+  if (days <= 90) return `${days}j`;
+  return `${Math.round(days / 30)} mois`;
 }
 
 export default function ProductCard({
@@ -84,7 +79,7 @@ export default function ProductCard({
   onTrash,
   testID,
 }: ProductCardProps) {
-  const { colors, typography, componentRadius, elevation, space } = useTheme();
+  const { colors, typography, componentRadius, elevation, space, layout } = useTheme();
   const state = stateProp ?? computeState(daysUntilExpiration);
 
   const tone = useMemo(() => {
@@ -93,16 +88,19 @@ export default function ProductCard({
     return null;
   }, [state, colors]);
 
-  const isHighlight = state === 'urgent' || state === 'expired' || state === 'warning';
+  const isTinted = state === 'urgent' || state === 'warning';
   const borderColor = tone ? tone.border : colors.border.default;
-  const haloColor = tone ? tone.bg : 'transparent';
 
   const badgeTone = state === 'fresh' ? 'success' : state === 'warning' ? 'warning' : 'danger';
-  const badgeVariant = state === 'urgent' ? 'solid' : 'soft';
+  const badgeVariant = state === 'urgent' && (daysUntilExpiration ?? 1) <= 0 ? 'solid' : 'soft';
 
-  // Quick actions chips — only on urgent/expired AND when handler(s) provided
-  const showChips =
-    (state === 'urgent' || state === 'expired') && Boolean(onConsume || onTrash);
+  const hasActions = Boolean(onConsume || onTrash);
+
+  // Fond gradient teinté (urgent / warning) — fade horizontal vers la surface
+  // pour que la zone des actions reste lisible.
+  const gradientColors = isTinted && tone
+    ? ([tone.bg, colors.bg.surface] as [string, string])
+    : null;
 
   return (
     <Pressable
@@ -118,47 +116,33 @@ export default function ProductCard({
           backgroundColor: colors.bg.surface,
           borderColor,
           borderRadius: componentRadius.card,
-          borderWidth: isHighlight ? 1.5 : 1,
-          padding: space[3],
-          opacity: state === 'expired' ? 0.7 : 1,
+          borderWidth: 1,
+          padding: space[3], // 12 (handoff pcard padding)
+          opacity: state === 'expired' ? 0.75 : 1,
           transform: [{ scale: pressed ? 0.985 : 1 }],
           ...elevation[2],
         },
       ]}
     >
-      {/* Halo gauche subtil pour les états critiques */}
-      {isHighlight && (
-        <View
+      {/* Gradient teinté pour urgent/warning — overlay sous le contenu */}
+      {gradientColors && (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 0.65, y: 0.5 }}
+          locations={[0, 1]}
+          style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.card }]}
           pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              borderRadius: componentRadius.card,
-              backgroundColor: haloColor,
-              opacity: 0.4,
-            },
-          ]}
-        />
-      )}
-
-      {/* Pattern hachuré pour expired (overlay) */}
-      {state === 'expired' && (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { borderRadius: componentRadius.card, backgroundColor: colors.bg.surface, opacity: 0.5 },
-          ]}
         />
       )}
 
       <View style={styles.row}>
-        {/* Image */}
+        {/* Image / icône catégorie */}
         <View
           style={[
             styles.image,
             {
-              backgroundColor: colors.bg.sunken,
+              backgroundColor: isTinted ? 'rgba(255,255,255,0.5)' : colors.bg.sunken,
               borderRadius: componentRadius.productImg,
             },
           ]}
@@ -166,15 +150,15 @@ export default function ProductCard({
           {image ? (
             <Image source={image} style={styles.imageInner} resizeMode="cover" />
           ) : (
-            <SymbolView name="cube.box" size={24} tintColor={colors.fg.muted} />
+            <SymbolView name="cube.box" size={22} tintColor={colors.fg.tertiary} />
           )}
         </View>
 
-        {/* Body */}
+        {/* Body — name + meta row */}
         <View style={[styles.body, { marginLeft: space[3] }]}>
           <Text
             style={[
-              typography.title3,
+              typography.cardTitle,
               {
                 color: colors.fg.primary,
                 textDecorationLine: state === 'expired' ? 'line-through' : 'none',
@@ -198,7 +182,10 @@ export default function ProductCard({
             {quantity && (
               <>
                 <View style={[styles.metaDot, { backgroundColor: colors.fg.muted }]} />
-                <Text style={[typography.footnote, { color: colors.fg.tertiary }]}>
+                <Text
+                  style={[typography.footnote, { color: colors.fg.secondary }]}
+                  numberOfLines={1}
+                >
                   {quantity}
                 </Text>
               </>
@@ -206,87 +193,90 @@ export default function ProductCard({
           </View>
         </View>
 
-        <SymbolView
-          name="chevron.right"
-          size={14}
-          tintColor={colors.fg.muted}
-          style={{ marginLeft: space[2] }}
-        />
+        {/* Actions inline 38×38 — sur la droite, visibles dès qu'un handler est fourni */}
+        {hasActions ? (
+          <View style={[styles.actions, { marginLeft: space[2] }]}>
+            {onConsume && (
+              <ActionButton
+                icon="checkmark"
+                variant="consume"
+                label="Consommé"
+                onPress={onConsume}
+              />
+            )}
+            {onTrash && (
+              <ActionButton
+                icon="trash"
+                variant="trash"
+                label="Jeter"
+                onPress={onTrash}
+              />
+            )}
+          </View>
+        ) : (
+          <SymbolView
+            name="chevron.right"
+            size={14}
+            tintColor={colors.fg.muted}
+            style={{ marginLeft: space[2] }}
+          />
+        )}
       </View>
-
-      {/* Quick actions — visibles uniquement sur urgent/expired */}
-      {showChips && (
-        <View style={[styles.chipsRow, { marginTop: space[3], gap: space[2] }]}>
-          {onConsume && (
-            <QuickChip
-              icon="checkmark.circle.fill"
-              label="Consommé"
-              tone="success"
-              onPress={onConsume}
-            />
-          )}
-          {onTrash && (
-            <QuickChip
-              icon="trash.fill"
-              label="Jeter"
-              tone="danger"
-              onPress={onTrash}
-            />
-          )}
-        </View>
-      )}
     </Pressable>
   );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// QuickChip — utilisé uniquement par ProductCard, pas exporté
+// ActionButton — bouton carré 38×38 inline (handoff §5 : hit target 38px min)
 // ────────────────────────────────────────────────────────────────────────────
 
-function QuickChip({
+function ActionButton({
   icon,
+  variant,
   label,
-  tone,
   onPress,
 }: {
-  icon: any;
+  icon: 'checkmark' | 'trash';
+  variant: 'consume' | 'trash';
   label: string;
-  tone: 'success' | 'danger';
   onPress: () => void;
 }) {
-  const { colors, typography, componentRadius } = useTheme();
-  const t = tone === 'success' ? colors.feedback.success : colors.feedback.danger;
+  const { colors, componentRadius, layout } = useTheme();
+
+  const isConsume = variant === 'consume';
+  const bg = isConsume ? colors.accent.default : colors.bg.elevated;
+  const fg = isConsume ? colors.fg.onAccent : colors.feedback.danger.solid;
+  const border = isConsume ? colors.accent.default : colors.border.default;
 
   return (
     <Pressable
-      onPress={(e) => {
-        e.stopPropagation?.();
-        Haptics.selectionAsync().catch(() => {});
+      onPress={() => {
+        // Pressable enfant : RN ne propage pas onPress au parent, pas besoin de stop
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress();
       }}
-      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={4}
       style={({ pressed }) => [
-        styles.chip,
+        styles.action,
         {
-          backgroundColor: pressed ? t.border : t.bg,
-          borderColor: t.border,
-          borderRadius: componentRadius.badge,
+          width: layout.quickAction,
+          height: layout.quickAction,
+          backgroundColor: bg,
+          borderColor: border,
+          borderRadius: componentRadius.productImg, // 10 — match image
+          opacity: pressed ? 0.7 : 1,
+          transform: [{ scale: pressed ? 0.92 : 1 }],
         },
       ]}
     >
-      <SymbolView name={icon} type="hierarchical" size={14} tintColor={t.fg} />
-      <Text
-        style={[
-          typography.footnote,
-          {
-            color: t.fg,
-            fontWeight: '600',
-            marginLeft: 6,
-          },
-        ]}
-      >
-        {label}
-      </Text>
+      <SymbolView
+        name={icon === 'checkmark' ? 'checkmark' : 'trash'}
+        size={18}
+        tintColor={fg}
+        weight="semibold"
+      />
     </Pressable>
   );
 }
@@ -294,17 +284,19 @@ function QuickChip({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
+    position: 'relative',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   image: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
   },
   imageInner: {
     width: '100%',
@@ -317,22 +309,19 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   metaDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    marginHorizontal: 2,
   },
-  chipsRow: {
+  actions: {
     flexDirection: 'row',
-    paddingLeft: 56 + 12, // align under body (image width + gap)
+    gap: 6,
+    flexShrink: 0,
   },
-  chip: {
-    flex: 1,
-    height: 36,
-    flexDirection: 'row',
+  action: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
