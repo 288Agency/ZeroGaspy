@@ -41,6 +41,7 @@ import {
 } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import { calculateUserStats } from '@/services/statsService';
+import { getMonthlySavings, getMonthlySavingsGoal } from '@/services/monthlySavingsService';
 import type { FoodItem, List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
@@ -117,7 +118,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
 }
 
 function deriveSpaces(lists: List[], foods: LiveFood[]): LiveSpace[] {
-  return lists.map((list) => {
+  const mapped = lists.map((list) => {
     const items = foods.filter((f) => f.listId === list.id);
     return {
       id: list.id,
@@ -128,6 +129,12 @@ function deriveSpaces(lists: List[], foods: LiveFood[]): LiveSpace[] {
       warn:  items.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3).length,
       color: list.color,
     };
+  });
+  // Tri handoff §6.3 : urgent desc → warn desc → ordre d'origine stable
+  return mapped.sort((a, b) => {
+    if (a.alert !== b.alert) return b.alert - a.alert;
+    if (a.warn !== b.warn) return b.warn - a.warn;
+    return 0;
   });
 }
 
@@ -161,6 +168,8 @@ export default function HomeScreen() {
 
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [monthlySaved, setMonthlySaved] = useState(0);
+  const [monthlyGoal, setMonthlyGoal] = useState(50);
   const [recapVisible, setRecapVisible] = useState(false);
 
   // Notification weekly_recap → utils/notificationNavigation.ts route vers
@@ -176,15 +185,19 @@ export default function HomeScreen() {
 
   const refresh = useCallback(async () => {
     try {
-      const [nextLists, nextStats] = await Promise.all([
+      const [nextLists, nextStats, nextMonthly, nextGoal] = await Promise.all([
         loadLists(),
         calculateUserStats().catch((err) => {
           logger.warn('[HomeV2] calculateUserStats failed:', err);
           return null;
         }),
+        getMonthlySavings().catch(() => 0),
+        getMonthlySavingsGoal().catch(() => 50),
       ]);
       setLists(nextLists);
       setStats(nextStats);
+      setMonthlySaved(nextMonthly);
+      setMonthlyGoal(nextGoal);
     } catch (err) {
       logger.error('[HomeV2] refresh failed:', err);
     }
@@ -248,12 +261,25 @@ export default function HomeScreen() {
   }, [foods, refresh]);
 
   // Stats avec fallbacks visuels si pas encore chargées
-  const savedAmount = stats?.totalSaved ?? 0;
+  // Bento "économisé" = mois en cours (handoff intent + actionnable vs total)
+  const savedAmount = monthlySaved;
   const savedEuros = Math.floor(savedAmount);
   const savedCents = Math.round((savedAmount - savedEuros) * 100);
+  const goalProgress = monthlyGoal > 0 ? Math.min(1, savedAmount / monthlyGoal) : 0;
   const currentStreak = stats?.currentStreak ?? 0;
   const longestStreak = stats?.longestStreak ?? 0;
   const streakRemainingForRecord = Math.max(0, longestStreak - currentStreak);
+
+  // Hero state-aware (v1 HeroSection avait gradient calm/warning/urgent)
+  // calm: 0 urgent · warning: 1-2 · urgent: 3+
+  const heroState: 'calm' | 'warning' | 'urgent' =
+    urgents.length >= 3 ? 'urgent' : urgents.length >= 1 ? 'warning' : 'calm';
+  const heroGradient: readonly [string, string] =
+    heroState === 'urgent'
+      ? ['#7F1D1D', '#DC2626']
+      : heroState === 'warning'
+        ? ['#C2410C', '#F97316']
+        : [Forest[600], Forest[700]];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -313,7 +339,7 @@ export default function HomeScreen() {
           ]}
         >
           <LinearGradient
-            colors={[Forest[600], Forest[700]]}
+            colors={heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.hero }]}
@@ -444,8 +470,27 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Text style={[typography.footnote, { color: Forest[600], opacity: 0.8, marginTop: 2 }]}>
-              depuis le début
+              ce mois / {Math.round(monthlyGoal)}€
             </Text>
+            {/* Progress bar vers objectif mensuel */}
+            <View
+              style={{
+                marginTop: 8,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(34, 82, 48, 0.12)',
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${goalProgress * 100}%`,
+                  height: '100%',
+                  backgroundColor: Forest[600],
+                  borderRadius: 2,
+                }}
+              />
+            </View>
           </View>
 
           {/* Bientôt */}
