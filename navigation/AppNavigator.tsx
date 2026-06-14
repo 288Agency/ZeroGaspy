@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import HomeScreen from '../screens/HomeScreen';
+import HomeScreen from '../screens/v2/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
 import CreateListScreen from '../screens/CreateListScreen';
 import AddFoodScreen from '../screens/AddFoodScreen';

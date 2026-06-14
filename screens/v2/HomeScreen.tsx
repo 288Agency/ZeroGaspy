@@ -1,24 +1,20 @@
 // ============================================================================
 // ZeroGaspy · screens/v2/HomeScreen.tsx (handoff port — "Aujourd'hui")
 // ============================================================================
-// Écran principal, port direct du handoff (reference/screens/Home.jsx).
-//
-// Structure :
+// Écran principal. Structure handoff :
 //   1. TopBar       — logo Z (gauche) · recherche + cloche (droite)
-//   2. Greeting     — « Bonjour Sarah. » + sous-titre date
-//   3. today-hero   — gradient forêt + glow, compteur « 03 trucs » → Cuisiner
+//   2. Greeting     — « Bonjour {prénom}. » + sous-titre date
+//   3. today-hero   — gradient forêt + glow, compteur urgents → Cuisiner
 //   4. À statuer    — liste ProductCard urgents avec actions inline
-//   5. Bento        — économisé / bientôt / série 12 jours
-//   6. Mes espaces  — Frigo / Placard / Congélateur
+//   5. Bento        — économisé / bientôt / série
+//   6. Mes espaces  — listes réelles avec compteurs alert/warn
 //
-// État : utilise des SEED data inline pour le port v1 (juger le rendu réel
-// avant de wirer au store). TODO: brancher sur `loadLists()` une fois le
-// rendu validé par le user.
-//
-// Pas swappé dans la nav — additif, comme ProductDetailScreen v2.
+// Auto-suffisant : charge `loadLists()` + `calculateUserStats()` au focus,
+// dérive urgents/next3, mappe icône Ionicons → SF Symbol, wire les actions
+// sur `markItemConsumed`/`markItemThrown`.
 // ============================================================================
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -28,93 +24,214 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, SFSymbol } from 'expo-symbols';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
 import { ProductCard, Badge } from '@/components/ds';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  loadLists,
+  markItemConsumed,
+  markItemThrown,
+} from '@/utils/localStorage';
+import { getDaysUntilExpiration } from '@/utils/dateUtils';
+import { calculateUserStats } from '@/services/statsService';
+import type { FoodItem, List, UserStats } from '@/types';
+import type { RootStackParamList } from '@/types/navigation';
+import logger from '@/utils/logger';
 
 // ────────────────────────────────────────────────────────────────────────────
-// Seed data (port direct de reference/data.jsx) — à remplacer par le store.
+// Modèle interne — flatten d'items rattachés à leur liste source
 // ────────────────────────────────────────────────────────────────────────────
 
-type SeedFood = {
+type LiveFood = {
   id: string;
+  listId: string;
   name: string;
-  space: 'fridge' | 'pantry' | 'freezer';
-  category: string;
-  quantity: number;
-  unit: string;
+  quantityLabel: string;
   daysLeft: number;
+  imageUri?: string;
 };
 
-const SEED_FOODS: SeedFood[] = [
-  { id: 'f1', name: 'Yaourts nature Danone',  space: 'fridge', category: 'dairy', quantity: 4,   unit: 'pots',   daysLeft: 0 },
-  { id: 'f2', name: 'Crème fraîche épaisse',  space: 'fridge', category: 'dairy', quantity: 120, unit: 'ml',     daysLeft: 1 },
-  { id: 'f3', name: 'Salade verte (sachet)',  space: 'fridge', category: 'veg',   quantity: 1,   unit: 'sachet', daysLeft: 1 },
-  { id: 'f4', name: 'Jambon Fleury Michon',   space: 'fridge', category: 'meat',  quantity: 3,   unit: 'tr.',    daysLeft: 3 },
-  { id: 'f5', name: 'Tomates cerises',        space: 'fridge', category: 'veg',   quantity: 220, unit: 'g',      daysLeft: 3 },
-  { id: 'f6', name: 'Beurre doux Président',  space: 'fridge', category: 'dairy', quantity: 180, unit: 'g',      daysLeft: 12 },
-  { id: 'f7', name: 'Pain de mie',            space: 'pantry', category: 'bakery', quantity: 8,  unit: 'tr.',    daysLeft: 4 },
-  { id: 'f8', name: 'Riz basmati',            space: 'pantry', category: 'other', quantity: 800, unit: 'g',      daysLeft: 180 },
-  { id: 'f9', name: 'Saumon ×2',              space: 'freezer', category: 'meat', quantity: 2,   unit: 'pavés',  daysLeft: 60 },
-];
+type LiveSpace = {
+  id: string;       // listId
+  label: string;    // list.title
+  icon: SFSymbol;
+  count: number;
+  alert: number;    // items <= 1j
+  warn: number;     // items 2..3j
+  color?: string;
+};
 
-const SPACES = [
-  { id: 'fridge',  label: 'Frigo',       icon: 'refrigerator.fill' as const },
-  { id: 'pantry',  label: 'Placard',     icon: 'cabinet.fill' as const },
-  { id: 'freezer', label: 'Congélateur', icon: 'snowflake' as const },
-];
+// Map des icônes Ionicons (LIST_ICONS) → SF Symbols (handoff utilise expo-symbols)
+const ICON_MAP: Record<string, SFSymbol> = {
+  'snow-outline':              'refrigerator.fill',
+  'cube-outline':              'snowflake',
+  'basket-outline':            'basket.fill',
+  'nutrition-outline':         'leaf.fill',
+  'leaf-outline':              'leaf.fill',
+  'restaurant-outline':        'fork.knife',
+  'wine-outline':              'wineglass.fill',
+  'beer-outline':              'mug.fill',
+  'file-tray-stacked-outline': 'cabinet.fill',
+  'briefcase-outline':         'briefcase.fill',
+  'home-outline':              'house.fill',
+  'cart-outline':              'cart.fill',
+};
 
-// ────────────────────────────────────────────────────────────────────────────
-// Helpers (port de data.jsx)
-// ────────────────────────────────────────────────────────────────────────────
+function mapIcon(ionIcon?: string): SFSymbol {
+  if (!ionIcon) return 'tray.fill';
+  return ICON_MAP[ionIcon] ?? 'tray.fill';
+}
 
-const urgentFoods = (foods: SeedFood[]) =>
-  foods.filter((f) => f.daysLeft <= 1).sort((a, b) => a.daysLeft - b.daysLeft);
+function flattenLiveFoods(lists: List[]): LiveFood[] {
+  const out: LiveFood[] = [];
+  for (const list of lists) {
+    for (const item of list.items) {
+      if (item.status === 'consumed' || item.status === 'thrown') continue;
+      const days = getDaysUntilExpiration(item.expirationDate);
+      if (days == null) continue;
+      const qty = item.quantity ?? 1;
+      const unit = item.unit ?? '';
+      out.push({
+        id: item.id,
+        listId: list.id,
+        name: item.name,
+        quantityLabel: unit ? `${qty} ${unit}` : `${qty}`,
+        daysLeft: days,
+        imageUri: item.imageUri,
+      });
+    }
+  }
+  return out;
+}
 
-const foodsInSpace = (foods: SeedFood[], spaceId: string) =>
-  foods.filter((f) => f.space === spaceId);
+function deriveSpaces(lists: List[], foods: LiveFood[]): LiveSpace[] {
+  return lists.map((list) => {
+    const items = foods.filter((f) => f.listId === list.id);
+    return {
+      id: list.id,
+      label: list.title,
+      icon: mapIcon(list.icon),
+      count: items.length,
+      alert: items.filter((f) => f.daysLeft <= 1).length,
+      warn:  items.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3).length,
+      color: list.color,
+    };
+  });
+}
+
+function formatGreetingDate(d: Date): string {
+  const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} · belle journée pour vider ton frigo.`;
+}
+
+function extractFirstName(authUser: any, fallback = 'toi'): string {
+  const meta = authUser?.user_metadata;
+  const full = meta?.full_name || meta?.name || authUser?.email;
+  if (!full || typeof full !== 'string') return fallback;
+  return full.split(/[\s@]/)[0] || fallback;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Screen
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface HomeScreenProps {
-  onPressItem?: (id: string) => void;
-  onPressSpace?: (spaceId: string) => void;
-  onPressCookTonight?: () => void;
-  onPressSearch?: () => void;
-  onPressNotifications?: () => void;
-  /** Callbacks d'action — à wirer sur le store une fois le rendu validé */
-  onConsume?: (id: string) => void;
-  onTrash?: (id: string) => void;
-  /** Données — par défaut, utilise SEED_FOODS (mode démo) */
-  foods?: SeedFood[];
-  userName?: string;
-  dateLabel?: string;
-}
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
-export default function HomeScreen({
-  onPressItem,
-  onPressSpace,
-  onPressCookTonight,
-  onPressSearch,
-  onPressNotifications,
-  onConsume,
-  onTrash,
-  foods = SEED_FOODS,
-  userName = 'Sarah',
-  dateLabel = 'Jeudi 6 juin · belle journée pour vider ton frigo.',
-}: HomeScreenProps) {
-  const { colors, typography, space, layout, componentRadius, elevation, glow } = useTheme();
+export default function HomeScreen() {
+  const { colors, typography, layout, componentRadius, elevation, glow } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
 
-  const urgents = useMemo(() => urgentFoods(foods), [foods]);
+  const [lists, setLists] = useState<List[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [nextLists, nextStats] = await Promise.all([
+        loadLists(),
+        calculateUserStats().catch((err) => {
+          logger.warn('[HomeV2] calculateUserStats failed:', err);
+          return null;
+        }),
+      ]);
+      setLists(nextLists);
+      setStats(nextStats);
+    } catch (err) {
+      logger.error('[HomeV2] refresh failed:', err);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  const foods = useMemo(() => flattenLiveFoods(lists), [lists]);
+  const urgents = useMemo(
+    () => foods.filter((f) => f.daysLeft <= 1).sort((a, b) => a.daysLeft - b.daysLeft),
+    [foods],
+  );
   const next3 = useMemo(
     () => foods.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3),
     [foods],
   );
+  const spaces = useMemo(() => deriveSpaces(lists, foods), [lists, foods]);
+
+  const userName = extractFirstName(user);
+  const dateLabel = useMemo(() => formatGreetingDate(new Date()), []);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  const handlePressItem = useCallback((itemId: string) => {
+    const f = foods.find((x) => x.id === itemId);
+    if (!f) return;
+    navigation.navigate('ProductDetail', { itemId, listId: f.listId });
+  }, [foods, navigation]);
+
+  const handlePressSpace = useCallback((space: LiveSpace) => {
+    navigation.navigate('InventoryList', {
+      listId: space.id,
+      listTitle: space.label,
+      listColor: space.color,
+    });
+  }, [navigation]);
+
+  const handleCookTonight = useCallback(() => {
+    navigation.navigate('Recipes');
+  }, [navigation]);
+
+  const handleConsume = useCallback(async (itemId: string) => {
+    const f = foods.find((x) => x.id === itemId);
+    if (!f) return;
+    try {
+      await markItemConsumed(f.listId, itemId);
+      await refresh();
+    } catch (err) {
+      logger.error('[HomeV2] markItemConsumed failed:', err);
+    }
+  }, [foods, refresh]);
+
+  const handleTrash = useCallback(async (itemId: string) => {
+    const f = foods.find((x) => x.id === itemId);
+    if (!f) return;
+    try {
+      await markItemThrown(f.listId, itemId);
+      await refresh();
+    } catch (err) {
+      logger.error('[HomeV2] markItemThrown failed:', err);
+    }
+  }, [foods, refresh]);
+
+  // Stats avec fallbacks visuels si pas encore chargées
+  const savedAmount = stats?.totalSaved ?? 0;
+  const savedEuros = Math.floor(savedAmount);
+  const savedCents = Math.round((savedAmount - savedEuros) * 100);
+  const currentStreak = stats?.currentStreak ?? 0;
+  const longestStreak = stats?.longestStreak ?? 0;
+  const streakRemainingForRecord = Math.max(0, longestStreak - currentStreak);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -129,8 +246,8 @@ export default function HomeScreen({
           <LogoMonogram size={28} />
         </View>
         <View style={styles.topbarRight}>
-          <IconButton icon="magnifyingglass" onPress={onPressSearch} label="Recherche" />
-          <IconButton icon="bell" onPress={onPressNotifications} label="Notifications" />
+          <IconButton icon="magnifyingglass" label="Recherche" />
+          <IconButton icon="bell" label="Notifications" />
         </View>
       </View>
 
@@ -139,7 +256,7 @@ export default function HomeScreen({
         contentContainerStyle={{
           paddingHorizontal: layout.screenPaddingH,
           paddingTop: 8,
-          paddingBottom: 110 + insets.bottom, // place pour la tabbar flottante
+          paddingBottom: 110 + insets.bottom,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -163,7 +280,7 @@ export default function HomeScreen({
 
         {/* ── 2. today-hero (focus du jour) ───────────────────────────── */}
         <Pressable
-          onPress={onPressCookTonight}
+          onPress={handleCookTonight}
           style={({ pressed }) => [
             styles.hero,
             {
@@ -179,7 +296,6 @@ export default function HomeScreen({
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.hero }]}
           />
-          {/* halo radial sage en haut à droite — simulé par un second gradient */}
           <LinearGradient
             colors={['rgba(168,209,131,0.35)', 'transparent']}
             start={{ x: 0.9, y: 0.1 }}
@@ -202,7 +318,7 @@ export default function HomeScreen({
                   { color: Cream[50], opacity: 0.85, marginLeft: 6, fontSize: 32, letterSpacing: -1.5 },
                 ]}
               >
-                trucs
+                {urgents.length === 1 ? 'truc' : 'trucs'}
               </Text>
             </View>
             <Text
@@ -217,27 +333,37 @@ export default function HomeScreen({
                 },
               ]}
             >
-              {urgents.slice(0, 3).map((f) => f.name.split(' ')[0]).join(', ')}.{'  '}
-              <Text style={{ fontWeight: '700' }}>Touche pour voir l'idée du soir →</Text>
+              {urgents.length > 0
+                ? <>
+                    {urgents.slice(0, 3).map((f) => f.name.split(' ')[0]).join(', ')}.{'  '}
+                    <Text style={{ fontWeight: '700' }}>Touche pour voir l'idée du soir →</Text>
+                  </>
+                : <Text style={{ fontWeight: '700' }}>Rien d'urgent. Touche pour explorer des recettes →</Text>
+              }
             </Text>
           </View>
         </Pressable>
 
         {/* ── 3. À statuer — urgents avec actions inline ──────────────── */}
-        <SectionHead label={`À statuer · ${urgents.length}`} actionLabel="Tout voir" />
-        <View style={{ gap: layout.cardGap, marginBottom: layout.sectionGap }}>
-          {urgents.map((f) => (
-            <ProductCard
-              key={f.id}
-              name={f.name}
-              daysUntilExpiration={f.daysLeft}
-              quantity={`${f.quantity} ${f.unit}`}
-              onPress={() => onPressItem?.(f.id)}
-              onConsume={onConsume ? () => onConsume(f.id) : undefined}
-              onTrash={onTrash ? () => onTrash(f.id) : undefined}
-            />
-          ))}
-        </View>
+        {urgents.length > 0 && (
+          <>
+            <SectionHead label={`À statuer · ${urgents.length}`} />
+            <View style={{ gap: layout.cardGap, marginBottom: layout.sectionGap }}>
+              {urgents.map((f) => (
+                <ProductCard
+                  key={f.id}
+                  name={f.name}
+                  image={f.imageUri ? { uri: f.imageUri } : undefined}
+                  daysUntilExpiration={f.daysLeft}
+                  quantity={f.quantityLabel}
+                  onPress={() => handlePressItem(f.id)}
+                  onConsume={() => handleConsume(f.id)}
+                  onTrash={() => handleTrash(f.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         {/* ── 4. Bento — économisé / bientôt / série ──────────────────── */}
         <SectionHead label="Cette semaine" />
@@ -269,7 +395,7 @@ export default function HomeScreen({
                   lineHeight: 28,
                 }}
               >
-                38
+                {savedEuros}
               </Text>
               <Text
                 style={[
@@ -281,7 +407,7 @@ export default function HomeScreen({
                   },
                 ]}
               >
-                ,40
+                ,{String(savedCents).padStart(2, '0')}
               </Text>
               <Text
                 style={{
@@ -296,7 +422,7 @@ export default function HomeScreen({
               </Text>
             </View>
             <Text style={[typography.footnote, { color: Forest[600], opacity: 0.8, marginTop: 2 }]}>
-              vs. moyenne foyer
+              depuis le début
             </Text>
           </View>
 
@@ -370,10 +496,16 @@ export default function HomeScreen({
                     color: colors.fg.primary,
                   }}
                 >
-                  Série de 12 jours
+                  {currentStreak === 0
+                    ? 'Lance ta série'
+                    : `Série de ${currentStreak} jour${currentStreak > 1 ? 's' : ''}`}
                 </Text>
                 <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                  Plus que 3 jours pour ton record (15j).
+                  {longestStreak > 0 && streakRemainingForRecord > 0
+                    ? `Plus que ${streakRemainingForRecord}j pour ton record (${longestStreak}j).`
+                    : currentStreak > 0 && currentStreak >= longestStreak
+                      ? 'Nouveau record ! Continue.'
+                      : 'Consomme un aliment avant péremption pour démarrer.'}
                 </Text>
               </View>
             </View>
@@ -381,76 +513,74 @@ export default function HomeScreen({
         </View>
 
         {/* ── 5. Mes espaces ──────────────────────────────────────────── */}
-        <SectionHead label="Mes espaces" />
-        <View style={{ gap: layout.cardGap }}>
-          {SPACES.map((s) => {
-            const items = foodsInSpace(foods, s.id);
-            const alert = items.filter((f) => f.daysLeft <= 1).length;
-            const warn = items.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3).length;
-
-            return (
-              <Pressable
-                key={s.id}
-                onPress={() => onPressSpace?.(s.id)}
-                style={({ pressed }) => [
-                  styles.space,
-                  {
-                    backgroundColor: colors.bg.surface,
-                    borderColor: colors.border.default,
-                    borderRadius: componentRadius.card,
-                    padding: layout.cardPaddingLg,
-                    transform: [{ scale: pressed ? 0.985 : 1 }],
-                    ...elevation[2],
-                  },
-                ]}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 10,
-                    backgroundColor: Sage[100],
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+        {spaces.length > 0 && (
+          <>
+            <SectionHead label="Mes espaces" />
+            <View style={{ gap: layout.cardGap }}>
+              {spaces.map((s) => (
+                <Pressable
+                  key={s.id}
+                  onPress={() => handlePressSpace(s)}
+                  style={({ pressed }) => [
+                    styles.space,
+                    {
+                      backgroundColor: colors.bg.surface,
+                      borderColor: colors.border.default,
+                      borderRadius: componentRadius.card,
+                      padding: layout.cardPaddingLg,
+                      transform: [{ scale: pressed ? 0.985 : 1 }],
+                      ...elevation[2],
+                    },
+                  ]}
                 >
-                  <SymbolView name={s.icon} size={22} tintColor={Forest[600]} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text
+                  <View
                     style={{
-                      fontSize: 16,
-                      fontWeight: '600',
-                      letterSpacing: -0.3,
-                      color: colors.fg.primary,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      backgroundColor: Sage[100],
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    {s.label}
-                  </Text>
-                  <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                    {items.length} aliments
-                  </Text>
-                </View>
-                {alert > 0 && (
-                  <Badge tone="danger" variant="solid" dot={false}>
-                    {String(alert)}
-                  </Badge>
-                )}
-                {alert === 0 && warn > 0 && (
-                  <Badge tone="warning" dot={false}>
-                    {String(warn)}
-                  </Badge>
-                )}
-                <SymbolView
-                  name="chevron.right"
-                  size={14}
-                  tintColor={colors.fg.muted}
-                  style={{ marginLeft: 6 }}
-                />
-              </Pressable>
-            );
-          })}
-        </View>
+                    <SymbolView name={s.icon} size={22} tintColor={Forest[600]} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        letterSpacing: -0.3,
+                        color: colors.fg.primary,
+                      }}
+                    >
+                      {s.label}
+                    </Text>
+                    <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+                      {s.count} aliment{s.count > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  {s.alert > 0 && (
+                    <Badge tone="danger" variant="solid" dot={false}>
+                      {String(s.alert)}
+                    </Badge>
+                  )}
+                  {s.alert === 0 && s.warn > 0 && (
+                    <Badge tone="warning" dot={false}>
+                      {String(s.warn)}
+                    </Badge>
+                  )}
+                  <SymbolView
+                    name="chevron.right"
+                    size={14}
+                    tintColor={colors.fg.muted}
+                    style={{ marginLeft: 6 }}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -498,7 +628,7 @@ function IconButton({
   onPress,
   label,
 }: {
-  icon: 'magnifyingglass' | 'bell';
+  icon: SFSymbol;
   onPress?: () => void;
   label: string;
 }) {
