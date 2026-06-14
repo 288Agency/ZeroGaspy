@@ -44,6 +44,7 @@ import {
 } from '../services/exportService';
 import { syncNotificationPrefsToCloud } from '../services/notificationPreferencesSync';
 import * as StoreReview from 'expo-store-review';
+import ProfileImpactHero from '../components/ProfileImpactHero';
 import { useTranslation } from 'react-i18next';
 import logger from '../utils/logger';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
@@ -276,6 +277,9 @@ export default function AccountScreen() {
           />
         }
       >
+        {/* DS handoff — Hero impact (€ economisé + série) */}
+        <ProfileImpactHero />
+
         {/* Section Compte Utilisateur */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
