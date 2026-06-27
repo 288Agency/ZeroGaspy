@@ -1,67 +1,86 @@
-import React, { useState } from 'react';
+// ============================================================================
+// ZeroGaspy · screens/AccountScreen.tsx (handoff port — "Profil")
+// ============================================================================
+// Hub profil & réglages. Iso-features avec tokens DS v2 et topbar handoff.
+// Sections : Hero impact · Compte · Succès · Parrainage · Abonnement ·
+// Notifications · Export · Langue · Support · Réseaux sociaux.
+// ============================================================================
+
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Switch,
   Alert,
   ActivityIndicator,
   StyleSheet,
+  Pressable,
   Linking,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList } from '../types/navigation';
-import FeedbackModal from '../components/FeedbackModal';
-import AccountSettingsModal from '../components/AccountSettingsModal';
-import LegalModal from '../components/LegalModal';
-import AchievementsModal from '../components/AchievementsModal';
-import { PaywallSheet, DeferredAuthSheet } from '../components/ds';
-import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
-import PressableScale from '../components/PressableScale';
-import LanguageSelector, { LanguageButton } from '../components/LanguageSelector';
-import { useGamification } from '../contexts/GamificationContext';
-import { getLevelTitle } from '../services/gamificationService';
-import { useAuth } from '../contexts/AuthContext';
-import { useSubscription } from '../contexts/SubscriptionContext';
-import { getPendingChangesCount, syncWithCloud } from '../services/supabase/syncService';
-import { useIsOnline } from '../hooks/useOnlineStatus';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
+import * as StoreReview from 'expo-store-review';
+
+import { useTheme } from '@/contexts/ThemeContext';
+import { Forest, Sage, Cream } from '@/tokens';
+import { Badge, PaywallSheet, DeferredAuthSheet } from '@/components/ds';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/contexts/GamificationContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useIsOnline } from '@/hooks/useOnlineStatus';
+import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
+import FeedbackModal from '@/components/FeedbackModal';
+import AccountSettingsModal from '@/components/AccountSettingsModal';
+import LegalModal from '@/components/LegalModal';
+import AchievementsModal from '@/components/AchievementsModal';
+import LanguageSelector, { LanguageButton } from '@/components/LanguageSelector';
+import ProfileImpactHero from '@/components/ProfileImpactHero';
+import { getLevelTitle } from '@/services/gamificationService';
+import { getPendingChangesCount, syncWithCloud } from '@/services/supabase/syncService';
 import {
   loadNotificationSettings,
   saveNotificationSettings,
   requestNotificationPermissions,
   NotificationSettings,
-} from '../services/notificationService';
+} from '@/services/notificationService';
 import {
   exportAndShareJSON,
   exportAndShareCSV,
   getExportStats,
   cleanupOldExports,
-} from '../services/exportService';
-import { syncNotificationPrefsToCloud } from '../services/notificationPreferencesSync';
-import * as StoreReview from 'expo-store-review';
-import ProfileImpactHero from '../components/ProfileImpactHero';
-import { useTranslation } from 'react-i18next';
-import logger from '../utils/logger';
-import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
-import { scaleFontSize } from '../utils/responsive';
-import { getReferralInfo, shareReferralLink, ReferralInfo } from '../services/referralService';
-import { trackReferralCodeShared } from '../services/analytics';
+} from '@/services/exportService';
+import { syncNotificationPrefsToCloud } from '@/services/notificationPreferencesSync';
+import { getReferralInfo, shareReferralLink, ReferralInfo } from '@/services/referralService';
+import { trackReferralCodeShared } from '@/services/analytics';
+import type { RootStackParamList } from '@/types/navigation';
+import logger from '@/utils/logger';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AccountScreen() {
   const { t } = useTranslation();
-  const paywallProps = usePaywallSheetProps();
+  const { colors, layout } = useTheme();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation<Nav>();
+  const paywallProps = usePaywallSheetProps();
+
   const { user, signOut, isLocalMode, signInWithApple } = useAuth();
-  const { isPremium, currentPlan, expirationDate, restorePurchases, refreshSubscriptionStatus, isLoading: subscriptionLoading } = useSubscription();
+  const {
+    isPremium,
+    currentPlan,
+    expirationDate,
+    restorePurchases,
+    refreshSubscriptionStatus,
+    isLoading: subscriptionLoading,
+  } = useSubscription();
   const isOnline = useIsOnline();
+  const { gamificationData, refreshData: refreshGamification } = useGamification();
+
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [accountSettingsVisible, setAccountSettingsVisible] = useState(false);
   const [legalModalVisible, setLegalModalVisible] = useState(false);
@@ -69,7 +88,6 @@ export default function AccountScreen() {
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [authSheetVisible, setAuthSheetVisible] = useState(false);
-  const { gamificationData, refreshData: refreshGamification } = useGamification();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
     dailyReminder: true,
@@ -87,7 +105,7 @@ export default function AccountScreen() {
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [settings, stats] = await Promise.all([
         loadNotificationSettings(),
@@ -97,801 +115,657 @@ export default function AccountScreen() {
       ]);
       setNotificationSettings(settings);
       setExportStats(stats);
-
       if (user?.id) {
-        const pending = await getPendingChangesCount(user.id);
-        setPendingChanges(pending);
-
-        const refInfo = await getReferralInfo(user.id);
-        setReferralInfo(refInfo);
+        setPendingChanges(await getPendingChangesCount(user.id));
+        setReferralInfo(await getReferralInfo(user.id));
       }
-    } catch (error) {
-      logger.error('Erreur lors du chargement:', error);
+    } catch (err) {
+      logger.error('[AccountV2] loadData failed:', err);
     }
-  };
+  }, [user?.id, refreshGamification, refreshSubscriptionStatus]);
 
-  const onRefresh = async () => {
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await loadData();
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    try { await loadData(); } finally { setRefreshing(false); }
+  }, [loadData]);
 
-  const handleLogout = async () => {
-    Alert.alert(
-      t('account.logout'),
-      t('account.logoutConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('account.logoutAction'),
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-          },
-        },
-      ]
-    );
-  };
+  const handleLogout = useCallback(() => {
+    Alert.alert(t('account.logout'), t('account.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('account.logoutAction'),
+        style: 'destructive',
+        onPress: async () => { await signOut(); },
+      },
+    ]);
+  }, [t, signOut]);
 
-  const handleManualSync = async () => {
+  const handleManualSync = useCallback(async () => {
     if (!user?.id || isSyncing) return;
-
     setIsSyncing(true);
     try {
       await syncWithCloud(user.id);
-      const pending = await getPendingChangesCount(user.id);
-      setPendingChanges(pending);
+      setPendingChanges(await getPendingChangesCount(user.id));
       Alert.alert(t('common.syncTitle'), t('account.syncSuccess'));
-    } catch (error) {
+    } catch {
       Alert.alert(t('common.error'), t('account.syncError'));
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [user?.id, isSyncing, t]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadData();
-    }, [])
-  );
-
-  const handleToggleNotifications = async (value: boolean) => {
-    if (value) {
-      const hasPermission = await requestNotificationPermissions();
-      if (!hasPermission) {
-        Alert.alert(
-          t('account.permissionRequired'),
-          t('account.permissionText')
-        );
-        return;
+  const handleToggleNotifications = useCallback(
+    async (value: boolean) => {
+      if (value) {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) {
+          Alert.alert(t('account.permissionRequired'), t('account.permissionText'));
+          return;
+        }
       }
-    }
-
-    const newSettings = { ...notificationSettings, enabled: value };
-    setNotificationSettings(newSettings);
-    await saveNotificationSettings(newSettings);
-    if (user?.id) {
-      syncNotificationPrefsToCloud(user.id, newSettings);
-    }
-  };
-
-  const handleToggleDailyReminder = async (value: boolean) => {
-    const newSettings = { ...notificationSettings, dailyReminder: value };
-    setNotificationSettings(newSettings);
-    await saveNotificationSettings(newSettings);
-    if (user?.id) {
-      syncNotificationPrefsToCloud(user.id, newSettings);
-    }
-  };
-
-  const handleChangeDaysBeforeExpiration = async (days: number) => {
-    const newSettings = { ...notificationSettings, daysBeforeExpiration: days };
-    setNotificationSettings(newSettings);
-    await saveNotificationSettings(newSettings);
-    if (user?.id) {
-      syncNotificationPrefsToCloud(user.id, newSettings);
-    }
-  };
-
-  const handleExportJSON = async () => {
-    if (isExporting) return;
-
-    setIsExporting(true);
-    try {
-      await exportAndShareJSON();
-      Alert.alert(t('export.success'), t('export.jsonSuccess'));
-      // Nettoyer les anciens exports
-      await cleanupOldExports();
-    } catch (error) {
-      Alert.alert(t('common.error'), t('export.exportError'));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExportCSV = async () => {
-    if (isExporting) return;
-
-    setIsExporting(true);
-    try {
-      await exportAndShareCSV();
-      Alert.alert(t('export.success'), t('export.csvSuccess'));
-      // Nettoyer les anciens exports
-      await cleanupOldExports();
-    } catch (error) {
-      Alert.alert(t('common.error'), t('export.exportError'));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const SettingRow = ({
-    icon,
-    title,
-    subtitle,
-    rightElement,
-  }: {
-    icon: string;
-    title: string;
-    subtitle?: string;
-    rightElement: React.ReactNode;
-  }) => (
-    <View style={styles.settingRow}>
-      <View style={styles.settingIconContainer}>
-        <Ionicons name={icon as any} size={20} color={COLORS.primary[500]} />
-      </View>
-      <View style={styles.settingTextContainer}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle && (
-          <Text style={styles.settingSubtitle}>{subtitle}</Text>
-        )}
-      </View>
-      {rightElement}
-    </View>
+      const next = { ...notificationSettings, enabled: value };
+      setNotificationSettings(next);
+      await saveNotificationSettings(next);
+      if (user?.id) syncNotificationPrefsToCloud(user.id, next);
+    },
+    [notificationSettings, user?.id, t],
   );
 
-  const headerPaddingTop = Math.max(insets.top, SPACING.lg) + SPACING.sm;
+  const handleToggleDailyReminder = useCallback(
+    async (value: boolean) => {
+      const next = { ...notificationSettings, dailyReminder: value };
+      setNotificationSettings(next);
+      await saveNotificationSettings(next);
+      if (user?.id) syncNotificationPrefsToCloud(user.id, next);
+    },
+    [notificationSettings, user?.id],
+  );
+
+  const handleChangeDays = useCallback(
+    async (days: number) => {
+      const next = { ...notificationSettings, daysBeforeExpiration: days };
+      setNotificationSettings(next);
+      await saveNotificationSettings(next);
+      if (user?.id) syncNotificationPrefsToCloud(user.id, next);
+    },
+    [notificationSettings, user?.id],
+  );
+
+  const handleExport = useCallback(
+    async (kind: 'json' | 'csv') => {
+      if (isExporting) return;
+      setIsExporting(true);
+      try {
+        if (kind === 'json') {
+          await exportAndShareJSON();
+          Alert.alert(t('export.success'), t('export.jsonSuccess'));
+        } else {
+          await exportAndShareCSV();
+          Alert.alert(t('export.success'), t('export.csvSuccess'));
+        }
+        await cleanupOldExports();
+      } catch {
+        Alert.alert(t('common.error'), t('export.exportError'));
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [isExporting, t],
+  );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
-        <Text style={styles.headerTitle}>
-          {t('account.title')}
-        </Text>
+    <View style={[styles.root, { backgroundColor: colors.bg.canvas, paddingTop: insets.top }]}>
+      {/* Topbar handoff */}
+      <View style={styles.topbar}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
+            {t('account.eyebrow', { defaultValue: 'Mon profil' })}
+          </Text>
+          <Text style={[styles.title, { color: colors.fg.primary }]}>
+            {t('account.title')}
+          </Text>
+        </View>
       </View>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 100 }}
+        contentContainerStyle={{
+          paddingHorizontal: layout.screenPaddingH,
+          paddingTop: 4,
+          paddingBottom: 120 + insets.bottom,
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.primary[500]}
-            colors={[COLORS.primary[500]]}
+            tintColor={Forest[600]}
           />
         }
       >
-        {/* DS handoff — Hero impact (€ economisé + série) */}
         <ProfileImpactHero />
 
-        {/* Section Compte Utilisateur */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionAccount')}
-          </Text>
-
-          <View style={styles.sectionCard}>
-            {user ? (
-              <>
-                {/* Utilisateur connecte */}
-                <View style={styles.userRow}>
-                  <View style={styles.userAvatar}>
-                    <Text style={styles.userAvatarText}>
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
-                    </Text>
-                  </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>
-                      {user.user_metadata?.full_name || t('account.user')}
-                    </Text>
-                    <Text style={styles.userEmail}>
-                      {user.email}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, isOnline ? styles.statusOnline : styles.statusOffline]}>
-                    <Text style={[styles.statusText, isOnline ? styles.statusTextOnline : styles.statusTextOffline]}>
-                      {isOnline ? t('account.online') : t('account.offline')}
-                    </Text>
-                  </View>
+        {/* ── Compte ──────────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionAccount')}>
+          {user ? (
+            <Card>
+              <View style={styles.userRow}>
+                <View style={[styles.avatar, { backgroundColor: Forest[600] }]}>
+                  <Text style={styles.avatarText}>
+                    {user.email?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
                 </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.userName, { color: colors.fg.primary }]}>
+                    {user.user_metadata?.full_name || t('account.user')}
+                  </Text>
+                  <Text style={[styles.userEmail, { color: colors.fg.secondary }]}>
+                    {user.email}
+                  </Text>
+                </View>
+                <Badge tone={isOnline ? 'success' : 'warning'} variant="soft" dot={false}>
+                  {isOnline ? t('account.online') : t('account.offline')}
+                </Badge>
+              </View>
 
-                {/* Statut de synchronisation */}
-                <View style={styles.syncStatusContainer}>
-                  <View style={styles.syncStatusRow}>
-                    <View style={styles.syncStatusLeft}>
-                      <Ionicons
-                        name={pendingChanges > 0 ? "cloud-upload-outline" : "cloud-done-outline"}
-                        size={20}
-                        color={COLORS.primary[500]}
-                      />
-                      <Text style={styles.syncStatusText}>
-                        {pendingChanges > 0
-                          ? t('account.pendingChanges', { count: pendingChanges })
-                          : t('account.synced')}
-                      </Text>
-                    </View>
-                    {pendingChanges > 0 && isOnline && (
-                      <PressableScale
-                        onPress={handleManualSync}
-                        style={styles.syncButton}
-                        hapticType="light"
-                        disabled={isSyncing}
-                      >
-                        {isSyncing ? (
-                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                        ) : (
-                          <Text style={styles.syncButtonText}>{t('account.sync')}</Text>
-                        )}
-                      </PressableScale>
+              {/* Sync status */}
+              <View style={[styles.syncBox, { backgroundColor: colors.bg.sunken }]}>
+                <View style={styles.syncLeft}>
+                  <SymbolView
+                    name={pendingChanges > 0 ? 'icloud.and.arrow.up' : 'checkmark.icloud.fill'}
+                    size={18}
+                    tintColor={Forest[600]}
+                  />
+                  <Text style={[styles.syncText, { color: colors.fg.primary }]}>
+                    {pendingChanges > 0
+                      ? t('account.pendingChanges', { count: pendingChanges })
+                      : t('account.synced')}
+                  </Text>
+                </View>
+                {pendingChanges > 0 && isOnline && (
+                  <Pressable
+                    onPress={handleManualSync}
+                    disabled={isSyncing}
+                    style={({ pressed }) => [
+                      styles.syncBtn,
+                      { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
+                    ]}
+                  >
+                    {isSyncing ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.syncBtnText}>{t('account.sync')}</Text>
                     )}
-                  </View>
+                  </Pressable>
+                )}
+              </View>
+
+              <RowButton
+                icon="gearshape"
+                label={t('account.accountSettings')}
+                onPress={() => setAccountSettingsVisible(true)}
+              />
+              <RowButton
+                icon="rectangle.portrait.and.arrow.right"
+                label={t('account.logoutAction')}
+                onPress={handleLogout}
+                destructive
+              />
+            </Card>
+          ) : isLocalMode ? (
+            <Card>
+              <View style={styles.userRow}>
+                <View style={[styles.avatar, { backgroundColor: Sage[300] }]}>
+                  <SymbolView name="iphone" size={26} tintColor={Forest[600]} />
                 </View>
-
-                {/* Bouton parametres du compte */}
-                <PressableScale
-                  onPress={() => setAccountSettingsVisible(true)}
-                  style={styles.accountSettingsButton}
-                  hapticType="light"
-                >
-                  <View style={styles.accountSettingsLeft}>
-                    <Ionicons name="settings-outline" size={20} color={COLORS.primary[500]} />
-                    <Text style={styles.accountSettingsText}>
-                      {t('account.accountSettings')}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
-                </PressableScale>
-
-                {/* Bouton deconnexion */}
-                <PressableScale
-                  onPress={handleLogout}
-                  style={styles.logoutButton}
-                  hapticType="medium"
-                >
-                  <Ionicons name="log-out-outline" size={20} color={COLORS.semantic.danger} />
-                  <Text style={styles.logoutText}>
-                    {t('account.logoutAction')}
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.userName, { color: colors.fg.primary }]}>
+                    {t('account.localMode')}
                   </Text>
-                </PressableScale>
-              </>
-            ) : isLocalMode ? (
-              <>
-                {/* Mode local */}
-                <View style={styles.userRow}>
-                  <View style={styles.localAvatar}>
-                    <Ionicons name="phone-portrait-outline" size={24} color={COLORS.primary[500]} />
-                  </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>
-                      {t('account.localMode')}
-                    </Text>
-                    <Text style={styles.userEmail}>
-                      {t('account.localModeDesc')}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.warningBanner}>
-                  <Ionicons name="warning-outline" size={20} color={COLORS.semantic.warningDark} />
-                  <Text style={styles.warningBannerText}>
-                    {t('account.createAccountWarning')}
+                  <Text style={[styles.userEmail, { color: colors.fg.secondary }]}>
+                    {t('account.localModeDesc')}
                   </Text>
                 </View>
+              </View>
+              <View style={[styles.warningBanner, { backgroundColor: '#FFF4E6' }]}>
+                <SymbolView name="exclamationmark.triangle.fill" size={16} tintColor="#B86E00" />
+                <Text style={[styles.warningText, { color: '#7A4A00' }]}>
+                  {t('account.createAccountWarning')}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setAuthSheetVisible(true)}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <SymbolView name="person.crop.circle.badge.plus" size={18} tintColor="#fff" />
+                <Text style={styles.primaryBtnText}>{t('account.createAccount')}</Text>
+              </Pressable>
+            </Card>
+          ) : null}
+        </Section>
 
-                <PressableScale
-                  onPress={() => setAuthSheetVisible(true)}
-                  style={styles.createAccountButton}
-                  hapticType="medium"
-                >
-                  <Ionicons name="person-add-outline" size={20} color={COLORS.neutral.white} />
-                  <Text style={styles.createAccountText}>
-                    {t('account.createAccount')}
-                  </Text>
-                </PressableScale>
-              </>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Section Mes Succes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionAchievements')}
-          </Text>
-
-          <PressableScale
+        {/* ── Succès ──────────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionAchievements')}>
+          <Pressable
             onPress={() => setAchievementsVisible(true)}
-            style={styles.achievementsCard}
-            hapticType="light"
+            style={({ pressed }) => [
+              styles.achievementsCard,
+              { backgroundColor: Forest[600], opacity: pressed ? 0.92 : 1 },
+            ]}
           >
             <View style={styles.achievementsRow}>
-              <View style={styles.achievementsLeft}>
-                <View style={styles.levelCircle}>
-                  <Text style={styles.levelText}>
-                    {gamificationData?.level || 1}
+              <View style={styles.levelCircle}>
+                <Text style={styles.levelText}>{gamificationData?.level || 1}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.levelTitle}>
+                  {getLevelTitle(gamificationData?.level || 1)}
+                </Text>
+                <Text style={styles.xpLabel}>{gamificationData?.totalXp || 0} XP</Text>
+                <View style={styles.streaksRow}>
+                  <Text style={styles.streakText}>
+                    🔥 {gamificationData?.streaks.currentDaily || 0}
+                    {t('common.dayShort')}
+                  </Text>
+                  <Text style={styles.streakText}>
+                    🌱 {gamificationData?.streaks.currentNoWaste || 0}
+                    {t('common.dayShort')}
+                  </Text>
+                  <Text style={styles.streakText}>
+                    🛡️ {gamificationData?.streakFreezes?.available ?? 0}
                   </Text>
                 </View>
-                <View style={styles.achievementsInfo}>
-                  <Text style={styles.levelTitle}>
-                    {getLevelTitle(gamificationData?.level || 1)}
-                  </Text>
-                  <Text style={styles.xpText}>
-                    {gamificationData?.totalXp || 0} XP
-                  </Text>
-                  <View style={styles.streaksRow}>
-                    <Text style={styles.streakText}>
-                      🔥 {gamificationData?.streaks.currentDaily || 0}{t('common.dayShort')}
-                    </Text>
-                    <Text style={styles.streakText}>
-                      🌱 {gamificationData?.streaks.currentNoWaste || 0}{t('common.dayShort')}
-                    </Text>
-                    <Text style={styles.streakText}>
-                      🛡️ {gamificationData?.streakFreezes?.available ?? 0}
-                    </Text>
-                  </View>
-                </View>
               </View>
-              <View style={styles.achievementsRight}>
-                <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.8)" />
-              </View>
+              <SymbolView name="chevron.right" size={18} tintColor="rgba(255,255,255,0.85)" />
             </View>
-
-            {/* Barre XP */}
-            <View style={styles.xpBarContainer}>
-              <View style={styles.xpBarBackground}>
-                <View
-                  style={[
-                    styles.xpBarFill,
-                    {
-                      width: `${gamificationData ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100 : 0}%`,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.xpBarLabel}>
-                {gamificationData?.xp || 0} / {gamificationData?.xpToNextLevel || 100} XP
-              </Text>
+            <View style={styles.xpBarBg}>
+              <View
+                style={[
+                  styles.xpBarFill,
+                  {
+                    width: `${
+                      gamificationData
+                        ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100
+                        : 0
+                    }%`,
+                  },
+                ]}
+              />
             </View>
-          </PressableScale>
-        </View>
-
-        {/* Section Parrainage */}
-        {user && referralInfo?.code && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('account.sectionReferral')}
+            <Text style={styles.xpBarLabel}>
+              {gamificationData?.xp || 0} / {gamificationData?.xpToNextLevel || 100} XP
             </Text>
+          </Pressable>
+        </Section>
 
-            <View style={styles.sectionCard}>
-              <View style={styles.referralCodeBox}>
-                <Text style={styles.referralCodeLabel}>{t('referral.yourCode')}</Text>
-                <Text style={styles.referralCodeValue}>{referralInfo.code}</Text>
+        {/* ── Parrainage ──────────────────────────────────────────────────── */}
+        {user && referralInfo?.code && (
+          <Section title={t('account.sectionReferral')}>
+            <Card>
+              <View style={[styles.referralCodeBox, { backgroundColor: Sage[100] }]}>
+                <Text style={[styles.referralLabel, { color: colors.fg.secondary }]}>
+                  {t('referral.yourCode')}
+                </Text>
+                <Text style={[styles.referralValue, { color: Forest[600] }]}>
+                  {referralInfo.code}
+                </Text>
               </View>
-
-              <View style={styles.referralStatsRow}>
-                <View style={styles.referralStatItem}>
-                  <Text style={styles.referralStatValue}>{referralInfo.referralCount}/5</Text>
-                  <Text style={styles.referralStatLabel}>{t('referral.referrals')}</Text>
+              <View style={styles.referralStats}>
+                <View style={styles.referralStat}>
+                  <Text style={[styles.referralStatValue, { color: Forest[600] }]}>
+                    {referralInfo.referralCount}/5
+                  </Text>
+                  <Text style={[styles.referralStatLabel, { color: colors.fg.tertiary }]}>
+                    {t('referral.referrals')}
+                  </Text>
                 </View>
-                <View style={styles.referralStatDivider} />
-                <View style={styles.referralStatItem}>
-                  <Text style={styles.referralStatValue}>{referralInfo.bonusScansRemaining}</Text>
-                  <Text style={styles.referralStatLabel}>{t('referral.bonusScans')}</Text>
+                <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
+                <View style={styles.referralStat}>
+                  <Text style={[styles.referralStatValue, { color: Forest[600] }]}>
+                    {referralInfo.bonusScansRemaining}
+                  </Text>
+                  <Text style={[styles.referralStatLabel, { color: colors.fg.tertiary }]}>
+                    {t('referral.bonusScans')}
+                  </Text>
                 </View>
               </View>
-
-              <Text style={styles.referralDescription}>{t('referral.description')}</Text>
-
-              <PressableScale
+              <Text style={[styles.referralDesc, { color: colors.fg.secondary }]}>
+                {t('referral.description')}
+              </Text>
+              <Pressable
                 onPress={async () => {
                   if (referralInfo.code) {
                     const shared = await shareReferralLink(referralInfo.code);
                     if (shared) trackReferralCodeShared();
                   }
                 }}
-                style={styles.referralShareButton}
-                hapticType="medium"
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1, marginTop: 14 },
+                ]}
               >
-                <Ionicons name="share-outline" size={20} color={COLORS.neutral.white} />
-                <Text style={styles.referralShareText}>{t('referral.inviteFriend')}</Text>
-              </PressableScale>
-            </View>
-          </View>
+                <SymbolView name="square.and.arrow.up" size={18} tintColor="#fff" />
+                <Text style={styles.primaryBtnText}>{t('referral.inviteFriend')}</Text>
+              </Pressable>
+            </Card>
+          </Section>
         )}
 
-        {/* Section Abonnement */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionSubscription')}
-          </Text>
-
-          <View style={styles.sectionCard}>
+        {/* ── Abonnement ──────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionSubscription')}>
+          <Card>
             {isPremium ? (
               <>
-                {/* Utilisateur Premium */}
                 <View style={styles.userRow}>
-                  <View style={styles.premiumAvatar}>
-                    <Ionicons name="star" size={28} color={COLORS.neutral.white} />
+                  <View style={[styles.avatar, { backgroundColor: '#D4A017' }]}>
+                    <SymbolView name="star.fill" size={26} tintColor="#fff" />
                   </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>
-                      {t('account.premium.title')} {currentPlan === 'yearly' ? t('account.premium.yearly') : t('account.premium.monthly')}
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.userName, { color: colors.fg.primary }]}>
+                      {t('account.premium.title')}{' '}
+                      {currentPlan === 'yearly'
+                        ? t('account.premium.yearly')
+                        : t('account.premium.monthly')}
                     </Text>
                     {expirationDate && (
-                      <Text style={styles.userEmail}>
-                        {t('account.premium.validUntil')} {expirationDate.toLocaleDateString()}
+                      <Text style={[styles.userEmail, { color: colors.fg.secondary }]}>
+                        {t('account.premium.validUntil')}{' '}
+                        {expirationDate.toLocaleDateString()}
                       </Text>
                     )}
                   </View>
-                  <View style={styles.premiumBadge}>
-                    <Text style={styles.premiumBadgeText}>{t('account.premium.active')}</Text>
-                  </View>
+                  <Badge tone="reward" variant="solid" dot={false}>
+                    {t('account.premium.active')}
+                  </Badge>
                 </View>
-
-                <View style={styles.premiumInfoBox}>
-                  <Text style={styles.premiumInfoText}>
+                <View style={[styles.premiumInfoBox, { backgroundColor: Sage[100] }]}>
+                  <Text style={[styles.premiumInfoText, { color: colors.fg.secondary }]}>
                     {t('account.premiumInfo')}
                   </Text>
                 </View>
               </>
             ) : (
               <>
-                {/* Utilisateur Gratuit */}
                 <View style={styles.userRow}>
-                  <View style={styles.freeAvatar}>
-                    <Ionicons name="person-outline" size={28} color={COLORS.primary[500]} />
+                  <View style={[styles.avatar, { backgroundColor: Sage[300] }]}>
+                    <SymbolView name="person.fill" size={26} tintColor={Forest[600]} />
                   </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.userName, { color: colors.fg.primary }]}>
                       {t('account.freeVersion')}
                     </Text>
-                    <Text style={styles.userEmail}>
+                    <Text style={[styles.userEmail, { color: colors.fg.secondary }]}>
                       {t('account.maxLists')}
                     </Text>
                   </View>
                 </View>
-
-                <PressableScale
+                <Pressable
                   onPress={() => setPaywallVisible(true)}
-                  style={styles.upgradePremiumButton}
-                  hapticType="medium"
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    { backgroundColor: '#D4A017', opacity: pressed ? 0.85 : 1 },
+                  ]}
                 >
-                  <Ionicons name="star" size={20} color={COLORS.neutral.white} />
-                  <Text style={styles.upgradePremiumText}>
-                    {t('account.premium.upgrade')}
-                  </Text>
-                </PressableScale>
-
-                <TouchableOpacity
+                  <SymbolView name="star.fill" size={18} tintColor="#fff" />
+                  <Text style={styles.primaryBtnText}>{t('account.premium.upgrade')}</Text>
+                </Pressable>
+                <Pressable
                   onPress={restorePurchases}
                   disabled={subscriptionLoading}
-                  style={styles.restorePurchasesButton}
+                  style={({ pressed }) => [styles.ghostBtn, { opacity: pressed ? 0.6 : 1 }]}
                 >
                   {subscriptionLoading ? (
-                    <ActivityIndicator size="small" color={COLORS.primary[500]} />
+                    <ActivityIndicator size="small" color={Forest[600]} />
                   ) : (
-                    <Text style={styles.restorePurchasesText}>
+                    <Text style={[styles.ghostBtnText, { color: Forest[600] }]}>
                       {t('account.premium.restore')}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </>
             )}
-          </View>
-        </View>
+          </Card>
+        </Section>
 
-        {/* Section Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionNotifications')}
-          </Text>
-
-          <View style={styles.sectionCard}>
+        {/* ── Notifications ───────────────────────────────────────────────── */}
+        <Section title={t('account.sectionNotifications')}>
+          <Card>
             <SettingRow
-              icon="notifications-outline"
+              icon="bell.fill"
               title={t('notifications.enable')}
               subtitle={t('notifications.enableDesc')}
               rightElement={
                 <Switch
                   value={notificationSettings.enabled}
                   onValueChange={handleToggleNotifications}
-                  trackColor={{ false: COLORS.neutral.grayBorder, true: COLORS.secondary.sage }}
-                  thumbColor={notificationSettings.enabled ? COLORS.primary[500] : COLORS.neutral.grayDisabled}
+                  trackColor={{ false: colors.border.default, true: Sage[300] }}
+                  thumbColor={notificationSettings.enabled ? Forest[600] : '#f0f0f0'}
+                  ios_backgroundColor={colors.border.default}
                 />
               }
             />
-
             {notificationSettings.enabled && (
               <>
+                <Divider />
                 <SettingRow
-                  icon="time-outline"
+                  icon="clock.fill"
                   title={t('notifications.dailyReminder')}
                   subtitle={t('notifications.dailyReminderDesc')}
                   rightElement={
                     <Switch
                       value={notificationSettings.dailyReminder}
                       onValueChange={handleToggleDailyReminder}
-                      trackColor={{ false: COLORS.neutral.grayBorder, true: COLORS.secondary.sage }}
-                      thumbColor={notificationSettings.dailyReminder ? COLORS.primary[500] : COLORS.neutral.grayDisabled}
+                      trackColor={{ false: colors.border.default, true: Sage[300] }}
+                      thumbColor={
+                        notificationSettings.dailyReminder ? Forest[600] : '#f0f0f0'
+                      }
+                      ios_backgroundColor={colors.border.default}
                     />
                   }
                 />
-
-                <View style={styles.expirationAlertContainer}>
-                  <View style={styles.expirationAlertHeader}>
-                    <View style={styles.settingIconContainer}>
-                      <Ionicons name="calendar-outline" size={20} color={COLORS.primary[500]} />
+                <Divider />
+                <View style={styles.daysBlock}>
+                  <View style={styles.rowHeader}>
+                    <View style={[styles.rowIcon, { backgroundColor: Sage[100] }]}>
+                      <SymbolView name="calendar" size={16} tintColor={Forest[600]} />
                     </View>
-                    <View style={styles.settingTextContainer}>
-                      <Text style={styles.settingTitle}>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={[styles.rowTitle, { color: colors.fg.primary }]}>
                         {t('notifications.daysBeforeExpiration')}
                       </Text>
-                      <Text style={styles.settingSubtitle}>
+                      <Text style={[styles.rowSub, { color: colors.fg.secondary }]}>
                         {t('notifications.daysBeforeExpirationDesc')}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.daysButtonRow}>
-                    {[1, 2, 3, 5, 7].map((days) => (
-                      <PressableScale
-                        key={days}
-                        onPress={() => handleChangeDaysBeforeExpiration(days)}
-                        style={[
-                          styles.dayButton,
-                          notificationSettings.daysBeforeExpiration === days
-                            ? styles.dayButtonActive
-                            : styles.dayButtonInactive,
-                        ]}
-                        hapticType="light"
-                      >
-                        <Text
-                          style={[
-                            styles.dayButtonText,
-                            notificationSettings.daysBeforeExpiration === days
-                              ? styles.dayButtonTextActive
-                              : styles.dayButtonTextInactive,
+                    {[1, 2, 3, 5, 7].map((days) => {
+                      const isActive = notificationSettings.daysBeforeExpiration === days;
+                      return (
+                        <Pressable
+                          key={days}
+                          onPress={() => handleChangeDays(days)}
+                          style={({ pressed }) => [
+                            styles.dayBtn,
+                            {
+                              backgroundColor: isActive ? Forest[600] : colors.bg.sunken,
+                              opacity: pressed ? 0.8 : 1,
+                            },
                           ]}
                         >
-                          {days}{t('common.dayShort')}
-                        </Text>
-                      </PressableScale>
-                    ))}
+                          <Text
+                            style={[
+                              styles.dayBtnText,
+                              { color: isActive ? '#fff' : colors.fg.primary },
+                            ]}
+                          >
+                            {days}
+                            {t('common.dayShort')}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
-
               </>
             )}
-          </View>
-        </View>
+          </Card>
+        </Section>
 
-        {/* Section Export des données */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionExport')}
-          </Text>
-
+        {/* ── Export ──────────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionExport')}>
           {exportStats && (
-            <View style={[styles.sectionCard, { marginBottom: SPACING.md }]}>
-              <View style={styles.exportStatRow}>
-                <Text style={styles.exportStatLabel}>{t('export.lists')}</Text>
-                <Text style={styles.exportStatValue}>{exportStats.totalLists}</Text>
-              </View>
-              <View style={styles.exportStatRow}>
-                <Text style={styles.exportStatLabel}>{t('export.items')}</Text>
-                <Text style={styles.exportStatValue}>{exportStats.totalItems}</Text>
-              </View>
-              <View style={styles.exportStatRowLast}>
-                <Text style={styles.exportStatLabel}>{t('export.estimatedSize')}</Text>
-                <Text style={styles.exportStatValue}>{exportStats.estimatedSize}</Text>
-              </View>
-            </View>
+            <Card style={{ marginBottom: 10 }}>
+              <ExportStatRow
+                label={t('export.lists')}
+                value={String(exportStats.totalLists)}
+                isLast={false}
+              />
+              <ExportStatRow
+                label={t('export.items')}
+                value={String(exportStats.totalItems)}
+                isLast={false}
+              />
+              <ExportStatRow
+                label={t('export.estimatedSize')}
+                value={exportStats.estimatedSize}
+                isLast
+              />
+            </Card>
           )}
-
-          <View style={styles.exportButtonsRow}>
-            <TouchableOpacity
-              onPress={handleExportJSON}
-              style={styles.exportJsonButton}
-              activeOpacity={0.7}
+          <View style={styles.exportBtnRow}>
+            <Pressable
+              onPress={() => handleExport('json')}
               disabled={isExporting}
+              style={({ pressed }) => [
+                styles.exportBtn,
+                {
+                  backgroundColor: Forest[600],
+                  opacity: isExporting ? 0.5 : pressed ? 0.85 : 1,
+                },
+              ]}
             >
-              <View style={styles.exportButtonContent}>
-                <Ionicons
-                  name="code-download-outline"
-                  size={28}
-                  color={isExporting ? COLORS.secondary.sage : COLORS.neutral.white}
-                />
-                <Text style={[styles.exportButtonTitle, isExporting ? styles.exportButtonTitleDisabled : styles.exportButtonTitleWhite]}>
-                  {t('export.json')}
-                </Text>
-                <Text style={[styles.exportButtonSubtitle, isExporting ? styles.exportButtonSubtitleDisabled : styles.exportButtonSubtitleWhite]}>
-                  {t('export.jsonDesc')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleExportCSV}
-              style={styles.exportCsvButton}
-              activeOpacity={0.7}
+              <SymbolView name="curlybraces" size={26} tintColor="#fff" />
+              <Text style={[styles.exportBtnTitle, { color: '#fff' }]}>{t('export.json')}</Text>
+              <Text style={[styles.exportBtnSub, { color: 'rgba(255,255,255,0.85)' }]}>
+                {t('export.jsonDesc')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleExport('csv')}
               disabled={isExporting}
+              style={({ pressed }) => [
+                styles.exportBtn,
+                {
+                  backgroundColor: colors.bg.surface,
+                  borderWidth: 1,
+                  borderColor: Forest[600],
+                  opacity: isExporting ? 0.5 : pressed ? 0.85 : 1,
+                },
+              ]}
             >
-              <View style={styles.exportButtonContent}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={28}
-                  color={isExporting ? COLORS.secondary.sage : COLORS.primary[500]}
-                />
-                <Text style={[styles.exportButtonTitle, isExporting ? styles.exportButtonTitleDisabled : styles.exportButtonTitleGreen]}>
-                  {t('export.csv')}
-                </Text>
-                <Text style={styles.exportCsvSubtitle}>
-                  {t('export.csvDesc')}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <SymbolView name="tablecells" size={26} tintColor={Forest[600]} />
+              <Text style={[styles.exportBtnTitle, { color: Forest[600] }]}>
+                {t('export.csv')}
+              </Text>
+              <Text style={[styles.exportBtnSub, { color: colors.fg.secondary }]}>
+                {t('export.csvDesc')}
+              </Text>
+            </Pressable>
           </View>
-
-          <View style={styles.exportInfoBanner}>
-            <Ionicons name="information-circle-outline" size={20} color={COLORS.semantic.warningDark} />
-            <Text style={styles.exportInfoText}>
+          <View style={[styles.infoBanner, { backgroundColor: '#FFF4E6' }]}>
+            <SymbolView name="info.circle.fill" size={16} tintColor="#B86E00" />
+            <Text style={[styles.infoBannerText, { color: '#7A4A00' }]}>
               {t('export.privacyInfo')}
             </Text>
           </View>
-        </View>
+        </Section>
 
-        {/* Section Langue */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionLanguage')}
-          </Text>
+        {/* ── Langue ──────────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionLanguage')}>
           <LanguageButton onPress={() => setLanguageModalVisible(true)} />
-        </View>
+        </Section>
 
-        {/* Section Aide & Support */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionSupport')}
-          </Text>
+        {/* ── Support ─────────────────────────────────────────────────────── */}
+        <Section title={t('account.sectionSupport')}>
+          <Card noPadding>
+            <RowButton
+              icon="envelope.fill"
+              label={t('support.feedback')}
+              onPress={() => setFeedbackModalVisible(true)}
+            />
+            <Divider />
+            <RowButton
+              icon="star.fill"
+              label={t('support.rateApp')}
+              accent="#D4A017"
+              onPress={async () => {
+                if (await StoreReview.hasAction()) await StoreReview.requestReview();
+              }}
+            />
+            <Divider />
+            <RowButton
+              icon="doc.text.fill"
+              label={t('support.legal')}
+              onPress={() => setLegalModalVisible(true)}
+            />
+          </Card>
+        </Section>
 
-          <TouchableOpacity
-            onPress={() => setFeedbackModalVisible(true)}
-            style={styles.feedbackButton}
-            activeOpacity={0.7}
-          >
-            <View style={styles.supportButtonLeft}>
-              <Ionicons name="mail-outline" size={24} color={COLORS.primary[500]} />
-              <Text style={styles.supportButtonText}>
-                {t('support.feedback')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.primary[500]} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={async () => {
-              if (await StoreReview.hasAction()) {
-                await StoreReview.requestReview();
-              }
-            }}
-            style={styles.rateButton}
-            activeOpacity={0.7}
-          >
-            <View style={styles.supportButtonLeft}>
-              <Ionicons name="star-outline" size={24} color={COLORS.accent.gold} />
-              <Text style={styles.rateButtonText}>
-                {t('support.rateApp')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.accent.gold} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setLegalModalVisible(true)}
-            style={styles.legalButton}
-            activeOpacity={0.7}
-          >
-            <View style={styles.supportButtonLeft}>
-              <Ionicons name="document-text-outline" size={24} color={COLORS.primary[500]} />
-              <Text style={styles.legalButtonText}>
-                {t('support.legal')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Section Réseaux Sociaux */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('account.sectionSocial')}
-          </Text>
-
+        {/* ── Réseaux sociaux ─────────────────────────────────────────────── */}
+        <Section title={t('account.sectionSocial')}>
           <View style={styles.socialRow}>
-            <TouchableOpacity
+            <SocialBtn
+              label="Instagram"
+              icon="camera.fill"
+              color="#E1306C"
               onPress={() => Linking.openURL('https://www.instagram.com/zerogaspyapp/')}
-              style={styles.socialButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="logo-instagram" size={28} color="#E1306C" />
-              <Text style={styles.socialButtonText}>Instagram</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+            />
+            <SocialBtn
+              label="X (Twitter)"
+              icon="bird.fill"
+              color={Forest[600]}
               onPress={() => Linking.openURL('https://x.com/zerogaspy')}
-              style={styles.socialButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="logo-twitter" size={28} color={COLORS.primary[500]} />
-              <Text style={styles.socialButtonText}>X (Twitter)</Text>
-            </TouchableOpacity>
+            />
           </View>
-        </View>
+        </Section>
       </ScrollView>
 
-      {/* Modal de feedback */}
+      {/* Modals */}
       <FeedbackModal
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
       />
-
-      {/* Modal des parametres du compte */}
       <AccountSettingsModal
         visible={accountSettingsVisible}
         onClose={() => setAccountSettingsVisible(false)}
       />
-
-      {/* Modal CGU & Confidentialite */}
-      <LegalModal
-        visible={legalModalVisible}
-        onClose={() => setLegalModalVisible(false)}
-      />
-
-      {/* Modal Succes */}
+      <LegalModal visible={legalModalVisible} onClose={() => setLegalModalVisible(false)} />
       <AchievementsModal
         visible={achievementsVisible}
         onClose={() => setAchievementsVisible(false)}
       />
-
-      {/* Paywall Modal */}
       <PaywallSheet
         {...paywallProps}
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
         trigger="addList"
       />
-
-      {/* Language Selector Modal */}
       <LanguageSelector
         visible={languageModalVisible}
         onClose={() => setLanguageModalVisible(false)}
       />
-
-      {/* Deferred auth sheet — backup local data to cloud */}
       <DeferredAuthSheet
         visible={authSheetVisible}
         onClose={() => setAuthSheetVisible(false)}
         reason="backup"
         onAppleSignIn={async () => {
           const { error } = await signInWithApple();
-          if (!error) {
-            setAuthSheetVisible(false);
-          }
+          if (!error) setAuthSheetVisible(false);
         }}
         onEmailSignUp={() => {
           setAuthSheetVisible(false);
@@ -902,662 +776,559 @@ export default function AccountScreen() {
   );
 }
 
+// ============================================================================
+// Atoms locaux
+// ============================================================================
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: colors.fg.primary }]}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Card({
+  children,
+  noPadding,
+  style,
+}: {
+  children: React.ReactNode;
+  noPadding?: boolean;
+  style?: any;
+}) {
+  const { colors, componentRadius } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.bg.surface,
+          borderColor: colors.border.subtle,
+          borderRadius: componentRadius.card,
+          padding: noPadding ? 0 : 14,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+function Divider() {
+  const { colors } = useTheme();
+  return <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />;
+}
+
+function SettingRow({
+  icon,
+  title,
+  subtitle,
+  rightElement,
+}: {
+  icon: SFSymbol;
+  title: string;
+  subtitle?: string;
+  rightElement?: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: Sage[100] }]}>
+        <SymbolView name={icon} size={16} tintColor={Forest[600]} />
+      </View>
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <Text style={[styles.rowTitle, { color: colors.fg.primary }]}>{title}</Text>
+        {subtitle && (
+          <Text style={[styles.rowSub, { color: colors.fg.secondary }]}>{subtitle}</Text>
+        )}
+      </View>
+      {rightElement}
+    </View>
+  );
+}
+
+function RowButton({
+  icon,
+  label,
+  onPress,
+  destructive,
+  accent,
+}: {
+  icon: SFSymbol;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+  accent?: string;
+}) {
+  const { colors } = useTheme();
+  const tintColor = destructive ? colors.feedback.danger.solid : accent ?? Forest[600];
+  const bgIcon = destructive
+    ? colors.feedback.danger.bg
+    : accent
+    ? `${accent}1A`
+    : Sage[100];
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: bgIcon }]}>
+        <SymbolView name={icon} size={16} tintColor={tintColor} />
+      </View>
+      <Text
+        style={[
+          styles.rowTitle,
+          { color: destructive ? colors.feedback.danger.solid : colors.fg.primary, flex: 1, marginLeft: 10 },
+        ]}
+      >
+        {label}
+      </Text>
+      <SymbolView name="chevron.right" size={14} tintColor={colors.fg.tertiary} />
+    </Pressable>
+  );
+}
+
+function ExportStatRow({
+  label,
+  value,
+  isLast,
+}: {
+  label: string;
+  value: string;
+  isLast: boolean;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.exportStatRow,
+        !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border.subtle },
+      ]}
+    >
+      <Text style={[styles.exportStatLabel, { color: colors.fg.secondary }]}>{label}</Text>
+      <Text style={[styles.exportStatValue, { color: colors.fg.primary }]}>{value}</Text>
+    </View>
+  );
+}
+
+function SocialBtn({
+  label,
+  icon,
+  color,
+  onPress,
+}: {
+  label: string;
+  icon: SFSymbol;
+  color: string;
+  onPress: () => void;
+}) {
+  const { colors, componentRadius } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.socialBtn,
+        {
+          backgroundColor: colors.bg.surface,
+          borderColor: colors.border.subtle,
+          borderRadius: componentRadius.card,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <SymbolView name={icon} size={26} tintColor={color} />
+      <Text style={[styles.socialText, { color: colors.fg.primary }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-  },
-  header: {
+  root: { flex: 1 },
+  topbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING['2xl'],
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 14,
   },
-  headerTitle: {
-    fontSize: scaleFontSize(26),
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 30,
     fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  section: {
-    marginBottom: SPACING['2xl'],
-  },
-  sectionTitle: {
-    fontSize: scaleFontSize(18),
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: SPACING.lg,
-  },
-  sectionCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    letterSpacing: -0.8,
+    marginTop: 4,
   },
 
-  // User row (shared across sections)
+  // Section
+  section: {
+    marginBottom: 22,
+    marginTop: 6,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 10,
+  },
+  card: {
+    borderWidth: 1,
+  },
+
+  // User row
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: 12,
   },
-  userAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primary[500],
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.lg,
   },
-  userAvatarText: {
-    color: COLORS.neutral.white,
-    fontSize: 20,
+  avatarText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: '700',
-  },
-  userInfo: {
-    flex: 1,
   },
   userName: {
-    color: COLORS.primary[500],
+    fontSize: 16,
     fontWeight: '700',
-    fontSize: 18,
+    letterSpacing: -0.2,
   },
   userEmail: {
-    color: COLORS.text.tertiary,
-    fontSize: 14,
+    fontSize: 13,
+    marginTop: 2,
   },
 
-  // Online/Offline status
-  statusBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-  },
-  statusOnline: {
-    backgroundColor: COLORS.secondary.sage,
-  },
-  statusOffline: {
-    backgroundColor: COLORS.surface.warningLightBg,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statusTextOnline: {
-    color: COLORS.primary[500],
-  },
-  statusTextOffline: {
-    color: COLORS.text.warningDark,
-  },
-
-  // Sync status
-  syncStatusContainer: {
-    backgroundColor: COLORS.secondary.cream,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  syncStatusRow: {
+  // Sync box
+  syncBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 8,
   },
-  syncStatusLeft: {
+  syncLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  syncStatusText: {
-    color: COLORS.primary[500],
-    marginLeft: SPACING.sm,
-    fontWeight: '500',
+  syncText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
-  syncButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: SPACING.md,
+  syncBtn: {
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: RADIUS.lg,
+    borderRadius: 10,
   },
-  syncButtonText: {
-    color: COLORS.neutral.white,
+  syncBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Setting row
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  rowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowTitle: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-
-  // Account settings button
-  accountSettingsButton: {
-    backgroundColor: COLORS.secondary.cream,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  accountSettingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  accountSettingsText: {
-    color: COLORS.primary[500],
     fontWeight: '600',
-    marginLeft: SPACING.sm,
+    letterSpacing: -0.2,
   },
-
-  // Logout button
-  logoutButton: {
-    backgroundColor: COLORS.surface.dangerBgLight,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+  rowSub: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  logoutText: {
-    color: COLORS.semantic.danger,
-    fontWeight: '600',
-    marginLeft: SPACING.sm,
-  },
-
-  // Local mode
-  localAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.secondary.sage,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.lg,
+  divider: {
+    height: 1,
+    marginHorizontal: 14,
   },
 
   // Warning banner
   warningBanner: {
-    backgroundColor: COLORS.surface.warningBg,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
   },
-  warningBannerText: {
-    color: COLORS.semantic.warningDark,
-    fontSize: 14,
-    marginLeft: SPACING.sm,
+  warningText: {
+    fontSize: 12,
+    fontWeight: '500',
     flex: 1,
+    lineHeight: 16,
   },
 
-  // Create account button
-  createAccountButton: {
-    backgroundColor: COLORS.primary[500],
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+  // Primary button
+  primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
   },
-  createAccountText: {
-    color: COLORS.neutral.white,
+  primaryBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  ghostBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  ghostBtnText: {
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: SPACING.sm,
   },
 
   // Achievements card
   achievementsCard: {
-    backgroundColor: COLORS.primary[500],
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary[500],
+    borderRadius: 18,
+    padding: 16,
   },
   achievementsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  achievementsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
   },
   levelCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.lg,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   levelText: {
-    color: COLORS.neutral.white,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  achievementsInfo: {
-    flex: 1,
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
   },
   levelTitle: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-  },
-  xpText: {
-    color: COLORS.neutral.white,
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '700',
-    fontSize: 18,
+    letterSpacing: -0.2,
+  },
+  xpLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
   },
   streaksRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
+    gap: 10,
+    marginTop: 6,
   },
   streakText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#fff',
     fontSize: 12,
-    marginRight: SPACING.sm,
+    fontWeight: '600',
   },
-  achievementsRight: {
-    alignItems: 'flex-end',
-  },
-
-  // XP bar
-  xpBarContainer: {
-    marginTop: SPACING.md,
-  },
-  xpBarBackground: {
-    height: 8,
+  xpBarBg: {
+    height: 6,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: RADIUS.full,
+    borderRadius: 3,
     overflow: 'hidden',
+    marginTop: 14,
   },
   xpBarFill: {
     height: '100%',
-    backgroundColor: COLORS.secondary.sage,
-    borderRadius: RADIUS.full,
+    backgroundColor: '#FFE082',
+    borderRadius: 3,
   },
   xpBarLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    marginTop: 4,
     textAlign: 'right',
-    marginTop: SPACING.xs,
-  },
-
-  // Premium section
-  premiumAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.accent.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.lg,
-  },
-  premiumBadge: {
-    backgroundColor: hexToRgba(COLORS.accent.gold, 0.2),
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-  },
-  premiumBadgeText: {
-    color: COLORS.accent.amber,
-    fontSize: 12,
     fontWeight: '600',
   },
-  premiumInfoBox: {
-    backgroundColor: COLORS.secondary.cream,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-  },
-  premiumInfoText: {
-    color: COLORS.text.tertiary,
-    fontSize: 14,
-  },
 
-  // Free user
-  freeAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.full,
-    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.5),
+  // Referral
+  referralCodeBox: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.lg,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 14,
   },
-  upgradePremiumButton: {
-    backgroundColor: COLORS.accent.gold,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+  referralLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  referralValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  referralStats: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: 12,
   },
-  upgradePremiumText: {
-    color: COLORS.neutral.white,
-    fontWeight: '700',
-    marginLeft: SPACING.sm,
-  },
-  restorePurchasesButton: {
-    flexDirection: 'row',
+  referralStat: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: 20,
   },
-  restorePurchasesText: {
-    color: COLORS.primary[500],
-    fontWeight: '500',
+  referralStatValue: {
+    fontSize: 22,
+    fontWeight: '800',
   },
-
-  // Notification settings
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
-  },
-  settingIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.xl,
-    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.5),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.lg,
-  },
-  settingTextContainer: {
-    flex: 1,
-  },
-  settingTitle: {
-    color: COLORS.text.primary,
-    fontWeight: '700',
-    fontSize: scaleFontSize(16),
-  },
-  settingSubtitle: {
-    color: COLORS.text.tertiary,
-    fontSize: 14,
+  referralStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: 2,
   },
-
-  // Expiration alert
-  expirationAlertContainer: {
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: hexToRgba(COLORS.primary[500], 0.1),
+  referralDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  expirationAlertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+
+  // Premium info box
+  premiumInfoBox: {
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  premiumInfoText: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  // Days block
+  daysBlock: {
+    padding: 14,
   },
   daysButtonRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.sm,
+    gap: 8,
+    marginTop: 12,
   },
-  dayButton: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.xl,
+  dayBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 10,
   },
-  dayButtonActive: {
-    backgroundColor: COLORS.primary[500],
-  },
-  dayButtonInactive: {
-    backgroundColor: hexToRgba(COLORS.secondary.sage, 0.3),
-  },
-  dayButtonText: {
-    fontWeight: '600',
-  },
-  dayButtonTextActive: {
-    color: COLORS.neutral.white,
-  },
-  dayButtonTextInactive: {
-    color: COLORS.primary[500],
+  dayBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 
-
-  // Export section
+  // Export
   exportStatRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
-  },
-  exportStatRowLast: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   exportStatLabel: {
-    color: COLORS.text.tertiary,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '500',
   },
   exportStatValue: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  exportButtonsRow: {
+  exportBtnRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
-    marginBottom: SPACING.md,
+    gap: 10,
   },
-  exportJsonButton: {
+  exportBtn: {
     flex: 1,
-    backgroundColor: COLORS.primary[500],
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary[500],
-  },
-  exportCsvButton: {
-    flex: 1,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary[500],
-  },
-  exportButtonContent: {
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     alignItems: 'center',
   },
-  exportButtonTitle: {
-    fontWeight: '600',
-    fontSize: 16,
-    marginTop: SPACING.sm,
+  exportBtnTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
   },
-  exportButtonTitleWhite: {
-    color: COLORS.neutral.white,
+  exportBtnSub: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '500',
   },
-  exportButtonTitleGreen: {
-    color: COLORS.primary[500],
-  },
-  exportButtonTitleDisabled: {
-    color: COLORS.secondary.sage,
-  },
-  exportButtonSubtitle: {
-    fontSize: 12,
-    marginTop: SPACING.xs,
-  },
-  exportButtonSubtitleWhite: {
-    color: COLORS.neutral.white,
-    opacity: 0.8,
-  },
-  exportButtonSubtitleDisabled: {
-    color: COLORS.secondary.sage,
-    opacity: 0.8,
-  },
-  exportCsvSubtitle: {
-    color: COLORS.text.tertiary,
-    fontSize: 12,
-    marginTop: SPACING.xs,
-  },
-
-  // Export info banner
-  exportInfoBanner: {
-    backgroundColor: COLORS.surface.warningBg,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
+  infoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
   },
-  exportInfoText: {
-    color: COLORS.semantic.warningDark,
-    fontSize: 12,
-    marginLeft: SPACING.sm,
+  infoBannerText: {
     flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '500',
   },
 
-  // Support section
-  feedbackButton: {
-    backgroundColor: COLORS.secondary.sage,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary[500],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  rateButton: {
-    backgroundColor: COLORS.surface.infoBg,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.accent.gold, 0.3),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  legalButton: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  supportButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  supportButtonText: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: SPACING.md,
-  },
-  rateButtonText: {
-    color: COLORS.accent.amber,
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: SPACING.md,
-  },
-  legalButtonText: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: SPACING.md,
-  },
-
-  // Social media section
+  // Social
   socialRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: 10,
   },
-  socialButton: {
+  socialBtn: {
     flex: 1,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS['2xl'],
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    paddingVertical: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-  },
-  socialButtonText: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-    fontSize: 14,
-  },
-
-  // Referral section
-  referralCodeBox: {
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
     borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.15),
-    borderStyle: 'dashed',
+    gap: 6,
   },
-  referralCodeLabel: {
+  socialText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
-  },
-  referralCodeValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.primary[500],
-    letterSpacing: 2,
-  },
-  referralStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  referralStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  referralStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  referralStatLabel: {
-    fontSize: 12,
-    color: COLORS.text.muted,
-    marginTop: 2,
-  },
-  referralStatDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.15),
-  },
-  referralDescription: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: SPACING.lg,
-  },
-  referralShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
-    borderRadius: RADIUS.xl,
-    paddingVertical: SPACING.md,
-    gap: SPACING.sm,
-    ...SHADOWS.colored(COLORS.primary[500], 0.3),
-  },
-  referralShareText: {
-    color: COLORS.neutral.white,
-    fontWeight: '700',
-    fontSize: 16,
   },
 });
