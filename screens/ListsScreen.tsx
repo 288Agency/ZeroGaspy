@@ -1,401 +1,360 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Alert,
-  TouchableOpacity,
-  Pressable,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
+// ============================================================================
+// ZeroGaspy · screens/ListsScreen.tsx (handoff port — "Mes espaces")
+// ============================================================================
+// Liste des espaces (frigo, garde-manger, etc.) personnels + partagés.
+// Tap → InventoryList. Actions par card : partager · supprimer.
+// FAB + → CreateList. Paywall + DeferredAuth + ShareListModal préservés.
+// Inline create-modal legacy supprimé (code mort — flow utilise CreateList route).
+// ============================================================================
+
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, FlatList, Alert, StyleSheet, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { List } from '../types';
-import { RootStackParamList } from '../types/navigation';
-import {
-  loadLists,
-  createList,
-  deleteList,
-} from '../utils/localStorage';
-import { Ionicons } from '@expo/vector-icons';
-import Card from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import { PaywallSheet, DeferredAuthSheet } from '../components/ds';
-import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
-import ShareListModal from '../components/ShareListModal';
-import { useSubscription } from '../contexts/SubscriptionContext';
-import { useAuth } from '../contexts/AuthContext';
-import { FREE_LIMITS } from '../constants/subscription';
+import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
+
+import { useTheme } from '@/contexts/ThemeContext';
+import { Forest, Sage } from '@/tokens';
+import { Badge, PaywallSheet, DeferredAuthSheet } from '@/components/ds';
+import ShareListModal from '@/components/ShareListModal';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
+import { loadLists, deleteList } from '@/utils/localStorage';
 import {
   getSharedListsWithMe,
   getMemberCount,
   SharedListWithMe,
-} from '../services/listSharingService';
-import logger from '../utils/logger';
-import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
-import { trackListCreated as analyticsTrackListCreated } from '../services/analytics';
+} from '@/services/listSharingService';
+import { FREE_LIMITS } from '@/constants/subscription';
+import type { List } from '@/types';
+import type { RootStackParamList } from '@/types/navigation';
+import logger from '@/utils/logger';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
+
+type ListItem =
+  | { type: 'personal'; data: List }
+  | { type: 'shared'; data: SharedListWithMe };
 
 export default function ListsScreen() {
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationProp>();
+  const { colors, layout } = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
   const { isPremium } = useSubscription();
   const { user, isLocalMode, signInWithApple } = useAuth();
   const paywallProps = usePaywallSheetProps();
+
   const [lists, setLists] = useState<List[]>([]);
   const [sharedLists, setSharedLists] = useState<SharedListWithMe[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
-  const [newListTitle, setNewListTitle] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [shareListId, setShareListId] = useState('');
-  const [shareListTitle, setShareListTitle] = useState('');
-  const [shareListColor, setShareListColor] = useState<string | undefined>();
+  const [shareTarget, setShareTarget] = useState<{
+    id: string;
+    title: string;
+    color?: string;
+  }>({ id: '', title: '' });
   const [authSheetVisible, setAuthSheetVisible] = useState(false);
 
-  // Charger les listes au démarrage
-  useEffect(() => {
-    loadListsData();
-  }, []);
-
-  // Recharger les listes quand l'écran est focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadListsData();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const loadListsData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const data = await loadLists();
       setLists(data);
-
-      // Load shared lists in background (only for authenticated users)
       if (user && !isLocalMode) {
-        // Don't block the main render — load sharing data async
-        loadSharingData(data);
-      }
-    } catch (error) {
-      logger.error('Error loading lists:', error);
-      Alert.alert(t('common.error'), t('lists.loadError'));
-    }
-  };
-
-  const loadSharingData = async (data: List[]) => {
-    try {
-      const shared = await getSharedListsWithMe();
-      setSharedLists(shared);
-
-      // Load member counts in parallel
-      const countPromises = data.map(async (list) => {
-        const count = await getMemberCount(list.id);
-        return { id: list.id, count };
-      });
-      const results = await Promise.all(countPromises);
-      const counts: Record<string, number> = {};
-      for (const { id, count } of results) {
-        if (count > 1) {
-          counts[id] = count;
+        try {
+          const shared = await getSharedListsWithMe();
+          setSharedLists(shared);
+          const counts: Record<string, number> = {};
+          await Promise.all(
+            data.map(async (list) => {
+              const count = await getMemberCount(list.id);
+              if (count > 1) counts[list.id] = count;
+            }),
+          );
+          setMemberCounts(counts);
+        } catch (e) {
+          logger.error('[ListsV2] sharing data failed:', e);
         }
       }
-      setMemberCounts(counts);
-    } catch (error) {
-      logger.error('Error loading sharing data:', error);
+    } catch (e) {
+      logger.error('[ListsV2] loadData failed:', e);
+      Alert.alert(t('common.error'), t('lists.loadError'));
     }
-  };
+  }, [user, isLocalMode, t]);
 
-  const handleCreateList = async () => {
-    if (!newListTitle.trim()) {
-      Alert.alert(t('common.error'), t('lists.titleRequired'));
-      return;
-    }
+  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', loadData);
+    return unsub;
+  }, [navigation, loadData]);
 
-    try {
-      await createList(newListTitle);
-      setNewListTitle('');
-      setIsCreating(false);
-      await loadListsData();
-      // Analytics PostHog
-      analyticsTrackListCreated();
-    } catch (error) {
-      logger.error('Error creating list:', error);
-      Alert.alert(t('common.error'), t('lists.createError'));
-    }
-  };
-
-  const handleDeleteList = (id: string, title: string) => {
-    Alert.alert(
-      t('lists.deleteList'),
-      t('lists.deleteConfirm', { title }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteList(id);
-              await loadListsData();
-            } catch (error) {
-              logger.error('Error deleting list:', error);
-              Alert.alert(t('common.error'), t('lists.deleteError'));
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleSelectList = (list: List) => {
-    navigation.navigate('InventoryList', {
-      listId: list.id,
-      listTitle: list.title,
-      listColor: list.color,
-    });
-  };
-
-  const handleShareList = (list: List) => {
-    setShareListId(list.id);
-    setShareListTitle(list.title);
-    setShareListColor(list.color);
-    if (user && !isLocalMode) {
-      setShareModalVisible(true);
-    } else {
-      setAuthSheetVisible(true);
-    }
-  };
-
-  const handleSelectSharedList = (sharedList: SharedListWithMe) => {
-    navigation.navigate('InventoryList', {
-      listId: sharedList.listId,
-      listTitle: sharedList.listTitle,
-      listColor: sharedList.listColor || undefined,
-    });
-  };
-
-  const handlePressCreate = () => {
-    // Verifier la limite pour les utilisateurs gratuits
+  const handlePressCreate = useCallback(() => {
     if (!isPremium && lists.length >= FREE_LIMITS.MAX_LISTS) {
       setPaywallVisible(true);
       return;
     }
     navigation.navigate('CreateList');
-  };
+  }, [isPremium, lists.length, navigation]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
+  const handleSelect = useCallback(
+    (list: List) => {
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        listIcon: list.icon,
+      });
+    },
+    [navigation],
+  );
 
-  // Unified list item type for FlatList
-  type ListItem =
-    | { type: 'personal'; data: List }
-    | { type: 'shared'; data: SharedListWithMe };
+  const handleSelectShared = useCallback(
+    (sl: SharedListWithMe) => {
+      navigation.navigate('InventoryList', {
+        listId: sl.listId,
+        listTitle: sl.listTitle,
+        listColor: sl.listColor || undefined,
+      });
+    },
+    [navigation],
+  );
 
-  const allListItems: ListItem[] = [
+  const handleShare = useCallback(
+    (list: List) => {
+      setShareTarget({ id: list.id, title: list.title, color: list.color });
+      if (user && !isLocalMode) {
+        setShareModalVisible(true);
+      } else {
+        setAuthSheetVisible(true);
+      }
+    },
+    [user, isLocalMode],
+  );
+
+  const handleDelete = useCallback(
+    (id: string, title: string) => {
+      Alert.alert(
+        t('lists.deleteList'),
+        t('lists.deleteConfirm', { title }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteList(id);
+                await loadData();
+              } catch (e) {
+                logger.error('[ListsV2] delete failed:', e);
+                Alert.alert(t('common.error'), t('lists.deleteError'));
+              }
+            },
+          },
+        ],
+      );
+    },
+    [t, loadData],
+  );
+
+  const allItems: ListItem[] = [
     ...lists.map((l): ListItem => ({ type: 'personal', data: l })),
     ...sharedLists.map((sl): ListItem => ({ type: 'shared', data: sl })),
   ];
 
-  const renderListItem = ({ item }: { item: ListItem }) => {
-    if (item.type === 'personal') {
-      const list = item.data;
-      const listColor = list.color || COLORS.primary[500];
-
-      return (
-        <Card
-          onPress={() => handleSelectList(list)}
-          variant="elevated"
-          style={[styles.cardItem, { backgroundColor: listColor + '20' }]}
-        >
-          {/* Bande de couleur à gauche */}
-          <View
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 6,
-              backgroundColor: listColor,
-              borderTopLeftRadius: 16,
-              borderBottomLeftRadius: 16,
-            }}
-          />
-
-          <View style={styles.listRow}>
-            <View style={styles.listContent}>
-              <View style={styles.listTitleRow}>
-                <View
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    backgroundColor: listColor,
-                    marginRight: SPACING.sm,
-                  }}
-                />
-                <Text style={styles.listTitle}>
+  const renderItem = useCallback(
+    ({ item }: { item: ListItem }) => {
+      if (item.type === 'personal') {
+        const list = item.data;
+        const accent = list.color || Forest[600];
+        return (
+          <Pressable
+            onPress={() => handleSelect(list)}
+            style={({ pressed }) => [
+              styles.card,
+              {
+                backgroundColor: colors.bg.surface,
+                borderColor: colors.border.subtle,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <View style={[styles.accentStripe, { backgroundColor: accent }]} />
+            <View style={styles.cardBody}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardDot, { backgroundColor: accent }]} />
+                <Text style={[styles.cardTitle, { color: colors.fg.primary }]} numberOfLines={1}>
                   {list.title}
                 </Text>
               </View>
-              <View style={styles.listMeta}>
-                <Text style={styles.listItemCount}>
+              <View style={styles.cardMeta}>
+                <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
                   {t('lists.itemsCount', { count: list.items.length })}
                 </Text>
                 {memberCounts[list.id] > 1 && (
-                  <View style={styles.sharedBadge}>
-                    <Ionicons name="people" size={12} color={listColor} />
-                    <Text style={[styles.sharedBadgeText, { color: listColor }]}>
+                  <View style={[styles.memberBadge, { backgroundColor: Sage[100] }]}>
+                    <SymbolView name="person.2.fill" size={10} tintColor={accent} />
+                    <Text style={[styles.memberBadgeText, { color: accent }]}>
                       {memberCounts[list.id]}
                     </Text>
                   </View>
                 )}
-                <Text style={styles.listDate}>
-                  • {t('lists.createdOn')} {formatDate(list.createdAt)}
-                </Text>
               </View>
             </View>
-            <View style={styles.listActions}>
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleShareList(list);
-                }}
-                style={[styles.shareCircle, { backgroundColor: hexToRgba(listColor, 0.15) }]}
-                activeOpacity={0.7}
+            <View style={styles.cardActions}>
+              <Pressable
+                onPress={() => handleShare(list)}
+                accessibilityRole="button"
+                accessibilityLabel={t('sharing.share')}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: colors.bg.sunken, opacity: pressed ? 0.6 : 1 },
+                ]}
               >
-                <Ionicons name="share-social-outline" size={18} color={listColor} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDeleteList(list.id, list.title);
-                }}
-                style={[styles.deleteCircle, { backgroundColor: listColor }]}
-                activeOpacity={0.7}
+                <SymbolView name="square.and.arrow.up" size={16} tintColor={accent} />
+              </Pressable>
+              <Pressable
+                onPress={() => handleDelete(list.id, list.title)}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.delete')}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: colors.bg.sunken, opacity: pressed ? 0.6 : 1 },
+                ]}
               >
-                <Text style={styles.deleteCircleText}>✕</Text>
-              </TouchableOpacity>
+                <SymbolView name="trash" size={16} tintColor={colors.feedback.danger.solid} />
+              </Pressable>
             </View>
-          </View>
-        </Card>
-      );
-    }
+          </Pressable>
+        );
+      }
 
-    // Shared list card
-    const sl = item.data;
-    const slColor = sl.listColor || COLORS.primary[500];
-
-    return (
-      <Card
-        onPress={() => handleSelectSharedList(sl)}
-        variant="elevated"
-        style={[styles.cardItem, { backgroundColor: slColor + '20' }]}
-      >
-        {/* Bande de couleur à gauche */}
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 6,
-            backgroundColor: slColor,
-            borderTopLeftRadius: 16,
-            borderBottomLeftRadius: 16,
-          }}
-        />
-
-        <View style={styles.listRow}>
-          <View style={styles.listContent}>
-            <View style={styles.listTitleRow}>
-              <View
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 6,
-                  backgroundColor: slColor,
-                  marginRight: SPACING.sm,
-                }}
-              />
-              <Text style={styles.listTitle}>{sl.listTitle}</Text>
-              {/* Shared icon badge */}
-              <View style={[styles.sharedListBadge, { backgroundColor: hexToRgba(slColor, 0.15) }]}>
-                <Ionicons name="people" size={12} color={slColor} />
-              </View>
+      const sl = item.data;
+      const accent = sl.listColor || Forest[600];
+      return (
+        <Pressable
+          onPress={() => handleSelectShared(sl)}
+          style={({ pressed }) => [
+            styles.card,
+            {
+              backgroundColor: colors.bg.surface,
+              borderColor: colors.border.subtle,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <View style={[styles.accentStripe, { backgroundColor: accent }]} />
+          <View style={styles.cardBody}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardDot, { backgroundColor: accent }]} />
+              <Text style={[styles.cardTitle, { color: colors.fg.primary }]} numberOfLines={1}>
+                {sl.listTitle}
+              </Text>
+              <Badge tone="info" variant="soft" dot={false}>
+                <SymbolView name="person.2.fill" size={9} tintColor={undefined} style={{ marginRight: 3 }} />
+                {t('sharing.shared', { defaultValue: 'Partagé' })}
+              </Badge>
             </View>
-            <View style={styles.listMeta}>
+            <View style={styles.cardMeta}>
               {sl.ownerName && (
-                <Text style={styles.listItemCount}>
+                <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
                   {sl.ownerName}
                 </Text>
               )}
               {sl.permission === 'view' && (
-                <View style={styles.readOnlyBadge}>
-                  <Ionicons name="eye-outline" size={12} color={COLORS.text.muted} />
-                  <Text style={styles.readOnlyText}>
-                    {t('sharing.readOnly')}
-                  </Text>
-                </View>
+                <Badge tone="neutral" variant="soft" dot={false}>
+                  {t('sharing.readOnly')}
+                </Badge>
               )}
             </View>
           </View>
-        </View>
-      </Card>
-    );
-  };
+        </Pressable>
+      );
+    },
+    [colors, t, memberCounts, handleSelect, handleSelectShared, handleShare, handleDelete],
+  );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.root, { backgroundColor: colors.bg.canvas, paddingTop: insets.top }]}>
+      <View style={styles.topbar}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.topbarBtn,
+            { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
+          ]}
+        >
+          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+        </Pressable>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
+            {t('lists.eyebrow', { defaultValue: 'Tous tes espaces' })}
+          </Text>
+          <Text style={[styles.title, { color: colors.fg.primary }]}>
+            {t('lists.title')}
+          </Text>
+        </View>
+      </View>
+
       <FlatList
-        data={allListItems}
-        renderItem={renderListItem}
+        data={allItems}
+        renderItem={renderItem}
         keyExtractor={(item) =>
           item.type === 'personal' ? item.data.id : item.data.shareId
         }
-        contentContainerStyle={{ padding: SPACING.xl }}
+        contentContainerStyle={{
+          paddingHorizontal: layout.screenPaddingH,
+          paddingTop: 4,
+          paddingBottom: 120 + insets.bottom,
+        }}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>
+          <View style={styles.empty}>
+            <View style={[styles.emptyIcon, { backgroundColor: Sage[100] }]}>
+              <SymbolView
+                name="tray.full.fill"
+                size={32}
+                tintColor={Forest[600]}
+              />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>
               {t('lists.emptyLists')}
             </Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptySub, { color: colors.fg.secondary }]}>
               {t('lists.emptyListsAction')}
             </Text>
           </View>
         }
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        showsVerticalScrollIndicator={false}
       />
 
-      {/* Bouton flottant pour créer une liste */}
+      {/* FAB + */}
       <Pressable
         onPress={handlePressCreate}
-        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-        style={styles.fab}
-        android_ripple={{
-          color: 'rgba(255, 255, 255, 0.3)',
-          borderless: true,
-          radius: 32,
-        }}
-        accessible={true}
-        accessibilityLabel={t('lists.createNewList')}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         accessibilityRole="button"
+        accessibilityLabel={t('lists.createNewList')}
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: Forest[600],
+            bottom: 24 + insets.bottom,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
       >
-        <Text style={styles.fabText}>+</Text>
+        <SymbolView name="plus" size={26} tintColor="#fff" />
       </Pressable>
 
-      {/* Paywall Modal */}
       <PaywallSheet
         {...paywallProps}
         visible={paywallVisible}
@@ -403,16 +362,14 @@ export default function ListsScreen() {
         trigger="addList"
       />
 
-      {/* Share List Modal */}
       <ShareListModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
-        listId={shareListId}
-        listTitle={shareListTitle}
-        listColor={shareListColor}
+        listId={shareTarget.id}
+        listTitle={shareTarget.title}
+        listColor={shareTarget.color}
       />
 
-      {/* Deferred auth sheet for share trigger */}
       <DeferredAuthSheet
         visible={authSheetVisible}
         onClose={() => setAuthSheetVisible(false)}
@@ -429,235 +386,143 @@ export default function ListsScreen() {
           navigation.navigate('Register');
         }}
       />
-
-      {/* Modal pour créer une nouvelle liste */}
-      <Modal
-        visible={isCreating}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsCreating(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalKeyboard}
-        >
-          <View style={styles.modalOverlay}>
-            <Card variant="elevated" style={styles.modalCard}>
-              <Text style={styles.modalTitle}>
-                {t('lists.newList')}
-              </Text>
-
-              <Input
-                placeholder={t('lists.listTitlePlaceholder')}
-                value={newListTitle}
-                onChangeText={setNewListTitle}
-                autoFocus
-                onSubmitEditing={handleCreateList}
-              />
-
-              <View style={styles.modalButtons}>
-                <Button
-                  variant="outline"
-                  onPress={() => {
-                    setIsCreating(false);
-                    setNewListTitle('');
-                  }}
-                  style={styles.modalButton}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  variant="primary"
-                  onPress={handleCreateList}
-                  style={styles.modalButton}
-                >
-                  {t('common.create')}
-                </Button>
-              </View>
-            </Card>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-  },
-  header: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: 64,
-    paddingBottom: SPACING['2xl'],
-    backgroundColor: COLORS.secondary.cream,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral.gray200,
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: COLORS.neutral.gray900,
-    textAlign: 'center',
-  },
-  cardItem: {
-    padding: SPACING.xl,
-    overflow: 'hidden',
-  },
-  listActions: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  shareCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sharedBadge: {
+  root: { flex: 1 },
+  topbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: RADIUS.full,
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
-  sharedBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  readOnlyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    backgroundColor: COLORS.neutral.gray100,
-    borderRadius: RADIUS.full,
-  },
-  readOnlyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.text.muted,
-  },
-  sharedListBadge: {
-    marginLeft: SPACING.sm,
-    width: 24,
-    height: 24,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: SPACING.sm,
-  },
-  listContent: {
-    flex: 1,
-    marginRight: SPACING.lg,
-  },
-  listTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  listTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.neutral.gray900,
-  },
-  listMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: SPACING.xl,
-  },
-  listItemCount: {
-    fontSize: 14,
-    color: COLORS.neutral.gray600,
-    marginRight: SPACING.md,
-  },
-  listDate: {
-    fontSize: 14,
-    color: COLORS.neutral.gray500,
-  },
-  deleteCircle: {
+  topbarBtn: {
     width: 40,
     height: 40,
-    borderRadius: RADIUS.full,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
-  deleteCircleText: {
-    color: COLORS.neutral.white,
-    fontSize: 18,
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    minHeight: 76,
+  },
+  accentStripe: {
+    width: 5,
+    alignSelf: 'stretch',
+  },
+  cardBody: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  cardTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  metaText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  memberBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  memberBadgeText: {
+    fontSize: 11,
     fontWeight: '700',
   },
-  emptyContainer: {
+  cardActions: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  actionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingTop: 72,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 18,
-    color: COLORS.neutral.gray500,
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  emptySubtitle: {
-    fontSize: 16,
-    color: COLORS.neutral.gray400,
+  emptySub: {
+    fontSize: 14,
     textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: 32,
+    lineHeight: 20,
   },
   fab: {
     position: 'absolute',
-    bottom: SPACING['2xl'],
-    right: SPACING['2xl'],
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primary[500],
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    ...SHADOWS.lg,
-    elevation: 8,
-  },
-  fabText: {
-    color: COLORS.neutral.white,
-    fontSize: 30,
-    fontWeight: '300',
-  },
-  modalKeyboard: {
-    flex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 448,
-    padding: SPACING['2xl'],
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.neutral.gray900,
-    marginBottom: SPACING['2xl'],
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    marginTop: SPACING.sm,
-  },
-  modalButton: {
-    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
 });
