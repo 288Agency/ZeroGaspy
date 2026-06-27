@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/CookTonightScreen.tsx (handoff port — "Cuisiner")
+// ZeroGaspy · screens/CookTonightScreen.tsx (handoff port — "Cuisiner")
 // ============================================================================
 // LE différenciateur produit selon le handoff README §6.8 :
 // UNE recette poussée (la meilleure qui sauve les urgents), en grand,

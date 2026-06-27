@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/HomeScreen.tsx (handoff port — "Aujourd'hui")
+// ZeroGaspy · screens/HomeScreen.tsx (handoff port — "Aujourd'hui")
 // ============================================================================
 // Écran principal. Structure handoff :
 //   1. TopBar       — logo Z (gauche) · recherche + cloche (droite)

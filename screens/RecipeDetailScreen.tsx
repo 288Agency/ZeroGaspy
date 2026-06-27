@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/RecipeDetailScreen.tsx (handoff port — "Recette")
+// ZeroGaspy · screens/RecipeDetailScreen.tsx (handoff port — "Recette")
 // ============================================================================
 // Port direct de design_handoff_zerogaspy/reference/screens/CookTonight.jsx
 // (RecipeDetailScreen lines 108-180).

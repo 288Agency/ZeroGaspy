@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/InventoryListScreen.tsx (handoff port — "Stock")
+// ZeroGaspy · screens/InventoryListScreen.tsx (handoff port — "Stock")
 // ============================================================================
 // Port direct de design_handoff_zerogaspy/reference/screens/Inventory.jsx.
 //

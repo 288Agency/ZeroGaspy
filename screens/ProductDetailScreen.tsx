@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/ProductDetailScreen.tsx
+// ZeroGaspy · screens/ProductDetailScreen.tsx
 // ============================================================================
 // Détail d'un aliment + actions : consommer, jeter, modifier.
 // New screen — not a replacement. No legacy caller, additive only.

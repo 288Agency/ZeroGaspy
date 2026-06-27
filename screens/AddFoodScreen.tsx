@@ -1,5 +1,5 @@
 // ============================================================================
-// ZeroGaspy · screens/v2/AddFoodScreen.tsx (handoff port — "Nouvel aliment")
+// ZeroGaspy · screens/AddFoodScreen.tsx (handoff port — "Nouvel aliment")
 // ============================================================================
 // Port direct de design_handoff_zerogaspy/reference/screens/AddFood.jsx,
 // avec les hooks production de l'app : BarcodeScannerModal, DateScannerModal,
