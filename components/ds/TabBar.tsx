@@ -64,11 +64,16 @@ type IconPair = { inactive: SymbolViewProps['name']; active: SymbolViewProps['na
 
 // iOS 26+ target — tous les SF Symbols ci-dessous sont natifs, pas de fallback.
 const ICON_MAP: Record<string, IconPair> = {
-  Frigo:   { inactive: 'refrigerator',           active: 'refrigerator.fill' },
-  Listes:  { inactive: 'list.bullet.rectangle',  active: 'list.bullet.rectangle.fill' },
-  Scanner: { inactive: 'barcode.viewfinder',     active: 'barcode.viewfinder' },
-  Stats:   { inactive: 'chart.bar',              active: 'chart.bar.fill' },
-  Profil:  { inactive: 'person',                 active: 'person.fill' },
+  // ── 4-tab layout (production) ─────────────────────────────────────────────
+  HomeTab:    { inactive: 'house',               active: 'house.fill' },
+  RecipesTab: { inactive: 'fork.knife',          active: 'fork.knife' },
+  StatsTab:   { inactive: 'chart.bar',           active: 'chart.bar.fill' },
+  AccountTab: { inactive: 'person',              active: 'person.fill' },
+  // ── 5-tab layout (handoff référence, non utilisé en prod) ─────────────────
+  Frigo:      { inactive: 'refrigerator',          active: 'refrigerator.fill' },
+  Listes:     { inactive: 'list.bullet.rectangle', active: 'list.bullet.rectangle.fill' },
+  Scanner:    { inactive: 'barcode.viewfinder',    active: 'barcode.viewfinder' },
+  Profil:     { inactive: 'person',                active: 'person.fill' },
 };
 
 function getIcon(routeName: string, focused: boolean): SymbolViewProps['name'] {

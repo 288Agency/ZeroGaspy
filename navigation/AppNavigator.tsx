@@ -18,7 +18,7 @@ import { RegisterScreen } from '../screens/auth';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CookTonightScreen from '../screens/CookTonightScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
-import GlassTabBar from '../components/GlassTabBar';
+import { TabBar } from '../components/ds';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
 
@@ -30,7 +30,7 @@ function MainTabs() {
   const { t } = useTranslation();
   return (
     <Tab.Navigator
-      tabBar={(props) => <GlassTabBar {...props} />}
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
       }}
