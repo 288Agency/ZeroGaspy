@@ -1,481 +1,243 @@
-import React, { useState, useEffect, useRef } from 'react';
+// ============================================================================
+// ZeroGaspy · screens/RecipesScreen.tsx (handoff port — "Recettes")
+// ============================================================================
+// Port iso-features de l'ancienne RecipesScreen vers les tokens DS v2.
+//
+// Structure handoff (tab top-level, pas de back) :
+//   1. TopBar         — eyebrow "Idées du jour" + titre "Cuisiner"
+//                       actions droite : ✨ (IA premium) · + (add recipe)
+//   2. Stats pill     — "N ingrédients · M recettes" inline sous le titre
+//   3. Filtres chips  — scroll horizontal (8 catégories + Mes + Toutes)
+//   4. Tri segment    — Anti-gaspi ↔ Best match (segment control unifié)
+//   5. PremiumTeaser  — uniquement non-Premium quand suggested > limit
+//   6. Liste recettes — RecipeCard (cover gradient sage→forest + meta row)
+//   7. Empty state    — ChefIllustration + CTA contextuel
+//   8. Modals         — AddRecipeModal · PaywallSheet · RecipeOnboardingModal
+//
+// Tap recette → navigation('RecipeDetail', { recipeId })  [PLUS DE MODAL INTERNE]
+// Long-press recette user → confirm delete
+// Tap ✨ → si non-premium → paywall ; si premium → confirm → generate → save
+//         → reload → navigate RecipeDetail (la recette IA est persistée)
+// ============================================================================
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Animated,
+  Pressable,
   RefreshControl,
-  Modal,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types/navigation';
-import Svg, { Path, Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Header from '../components/Header';
-import PressableScale from '../components/PressableScale';
-import AnimatedListItem from '../components/AnimatedListItem';
-import AddRecipeModal from '../components/AddRecipeModal';
-import { PaywallSheet } from '../components/ds';
-import { usePaywallSheetProps } from '../hooks/usePaywallSheetProps';
-import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '../components/RecipeOnboardingModal';
-import { useSubscription } from '../contexts/SubscriptionContext';
-import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
-import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
-import { loadLists } from '../utils/localStorage';
-import { List, FoodItem } from '../types';
-import { findMatchingRecipesWithUser, RecipeMatch, Recipe, deleteUserRecipe } from '../services/recipeService';
-import { generateAIRecipe } from '../services/aiRecipeService';
-import { getDaysUntilExpiration } from '../utils/dateUtils';
-import { useGamification } from '../contexts/GamificationContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext.legacy';
-import logger from '../utils/logger';
-import { trackRecipeViewed as analyticsTrackRecipeViewed } from '../services/analytics';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
-// Chef illustration for empty state
-const ChefIllustration = React.memo(function ChefIllustration() {
-  const floatAnim = useRef(new Animated.Value(0)).current;
+import { useTheme } from '@/contexts/ThemeContext';
+import { Sage, Forest, Cream } from '@/tokens';
+import { Badge, PaywallSheet } from '@/components/ds';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/contexts/GamificationContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
+import AddRecipeModal from '@/components/AddRecipeModal';
+import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '@/components/RecipeOnboardingModal';
+import { loadLists } from '@/utils/localStorage';
+import {
+  findMatchingRecipesWithUser,
+  deleteUserRecipe,
+  addUserRecipe,
+  type RecipeMatch,
+  type Recipe,
+} from '@/services/recipeService';
+import { generateAIRecipe } from '@/services/aiRecipeService';
+import { getDaysUntilExpiration } from '@/utils/dateUtils';
+import { trackRecipeViewed as analyticsTrackRecipeViewed } from '@/services/analytics';
+import type { FoodItem, List } from '@/types';
+import type { RootStackParamList } from '@/types/navigation';
+import logger from '@/utils/logger';
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: 1,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, []);
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Recipes'>;
+type Rt = RouteProp<RootStackParamList, 'Recipes'>;
 
-  const translateY = floatAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -10],
-  });
+type FilterKey = 'all' | 'user' | Recipe['category'];
+type SortMode = 'antiWaste' | 'bestMatch';
 
-  const illustrationSize = scaleSize(isSmallScreen ? 100 : 120);
+const FREE_SUGGESTED_LIMIT = 2;
 
-  return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      <Svg width={illustrationSize} height={illustrationSize} viewBox="0 0 120 120">
-        <Defs>
-          <LinearGradient id="hatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={COLORS.neutral.white} />
-            <Stop offset="100%" stopColor="#F0F0F0" />
-          </LinearGradient>
-        </Defs>
-        {/* Chef hat */}
-        <Path
-          d="M35 50 C35 30 50 20 60 20 C70 20 85 30 85 50 L85 60 L35 60 Z"
-          fill="url(#hatGrad)"
-          stroke={COLORS.primary[300]}
-          strokeWidth="2"
-        />
-        <Path d="M30 60 L90 60 L90 70 L30 70 Z" fill={COLORS.primary[100]} />
-        {/* Face */}
-        <Circle cx="60" cy="85" r="20" fill="#FFDAB9" />
-        {/* Eyes */}
-        <Circle cx="53" cy="82" r="3" fill={COLORS.primary[700]} />
-        <Circle cx="67" cy="82" r="3" fill={COLORS.primary[700]} />
-        {/* Smile */}
-        <Path d="M54 92 Q60 98 66 92" stroke={COLORS.primary[700]} strokeWidth="2" fill="none" strokeLinecap="round" />
-        {/* Food icons */}
-        <Circle cx="25" cy="40" r="8" fill={COLORS.accent.carrot} />
-        <Circle cx="95" cy="45" r="6" fill={COLORS.accent.tomato} />
-        <Circle cx="20" cy="80" r="5" fill={COLORS.accent.avocado} />
-      </Svg>
-    </Animated.View>
-  );
-});
+// ────────────────────────────────────────────────────────────────────────────
+// Mapping catégorie → icône SF Symbol + couleur d'accent
+// ────────────────────────────────────────────────────────────────────────────
 
-// Category badge component
-const CategoryBadge = React.memo(function CategoryBadge({ category }: { category: Recipe['category'] }) {
-  const { t } = useTranslation();
-  const categoryConfig: Record<Recipe['category'], { color: string; icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
-    'entrée': { color: COLORS.accent.avocado, icon: 'leaf', labelKey: 'recipes.starters' },
-    'plat': { color: COLORS.accent.carrot, icon: 'restaurant', labelKey: 'recipes.mainDishes' },
-    'dessert': { color: COLORS.accent.tomato, icon: 'ice-cream', labelKey: 'recipes.desserts' },
-    'snack': { color: COLORS.accent.lemon, icon: 'cafe', labelKey: 'recipes.snacks' },
-    'boisson': { color: COLORS.accent.blueberry, icon: 'wine', labelKey: 'recipes.drinks' },
-    'petit-déjeuner': { color: COLORS.accent.gold, icon: 'sunny', labelKey: 'recipes.breakfast' },
-  };
+const CATEGORY_ICON: Record<Recipe['category'], SFSymbol> = {
+  'petit-déjeuner': 'sun.max.fill',
+  'plat':           'fork.knife',
+  'entrée':         'leaf.fill',
+  'dessert':        'birthday.cake.fill',
+  'snack':          'cup.and.saucer.fill',
+  'boisson':        'wineglass.fill',
+};
 
-  const config = categoryConfig[category];
+const CATEGORY_TONE: Record<Recipe['category'], 'success' | 'warning' | 'info' | 'reward' | 'neutral'> = {
+  'petit-déjeuner': 'reward',
+  'plat':           'warning',
+  'entrée':         'success',
+  'dessert':        'info',
+  'snack':          'neutral',
+  'boisson':        'info',
+};
 
-  return (
-    <View style={[styles.categoryBadge, { backgroundColor: hexToRgba(config.color, 0.15) }]}>
-      <Ionicons name={config.icon} size={scaleSize(12)} color={config.color} />
-      <Text style={[styles.categoryBadgeText, { color: config.color }]}>
-        {t(config.labelKey)}
-      </Text>
-    </View>
-  );
-});
+const DIFFICULTY_DOTS: Record<Recipe['difficulty'], number> = {
+  facile: 1,
+  moyen: 2,
+  difficile: 3,
+};
 
-// Difficulty badge
-const DifficultyBadge = React.memo(function DifficultyBadge({ difficulty }: { difficulty: Recipe['difficulty'] }) {
-  const difficultyConfig = {
-    'facile': { color: COLORS.semantic.success, dots: 1 },
-    'moyen': { color: COLORS.semantic.warning, dots: 2 },
-    'difficile': { color: COLORS.semantic.danger, dots: 3 },
-  };
-
-  const config = difficultyConfig[difficulty];
-
-  return (
-    <View style={styles.difficultyBadge}>
-      {[...Array(3)].map((_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.difficultyDot,
-            { backgroundColor: i < config.dots ? config.color : COLORS.neutral.gray300 }
-          ]}
-        />
-      ))}
-    </View>
-  );
-});
-
-// Recipe card component
-const RecipeCard = React.memo(function RecipeCard({ match, onPress, onLongPress, index }: { match: RecipeMatch; onPress: () => void; onLongPress?: () => void; index: number }) {
-  const { t } = useTranslation();
-  const { recipe, matchPercentage, matchingIngredients, missingIngredients, urgencyScore, expiringIngredients } = match;
-
-  return (
-    <AnimatedListItem index={index} animationType="slideUp">
-      <PressableScale
-        onPress={onPress}
-        onLongPress={onLongPress}
-        delayLongPress={500}
-        style={[
-          styles.recipeCard,
-          urgencyScore > 0 && styles.recipeCardUrgent,
-        ]}
-        hapticType="light"
-        activeScale={0.98}
-      >
-        {/* User recipe badge */}
-        {recipe.isUserRecipe && (
-          <View style={styles.userBadge}>
-            <Ionicons name="person" size={scaleSize(10)} color={COLORS.neutral.white} />
-            <Text style={styles.userBadgeText}>{t('recipes.myRecipe')}</Text>
-          </View>
-        )}
-
-        {/* Anti-gaspi badge */}
-        {urgencyScore > 0 && (
-          <View style={[styles.antiWasteBadge, recipe.isUserRecipe ? { top: scaleSpacing(32) } : undefined]}>
-            <Ionicons name="flame" size={scaleSize(10)} color={COLORS.neutral.white} />
-            <Text style={styles.antiWasteBadgeText}>{t('recipes.antiWasteBadge')}</Text>
-          </View>
-        )}
-
-        {/* Emoji illustration */}
-        <View style={styles.recipeEmoji}>
-          <Text style={styles.emojiText}>{recipe.imageEmoji}</Text>
-        </View>
-
-        {/* Content */}
-        <View style={styles.recipeContent}>
-          <View style={styles.recipeHeader}>
-            <Text style={styles.recipeName} numberOfLines={1}>{recipe.name}</Text>
-            <View style={styles.matchBadge}>
-              <Text style={styles.matchText}>{matchPercentage}%</Text>
-            </View>
-          </View>
-
-          <Text style={styles.recipeDescription} numberOfLines={2}>
-            {recipe.description}
-          </Text>
-
-          <View style={styles.recipeFooter}>
-            <View style={styles.recipeMeta}>
-              <CategoryBadge category={recipe.category} />
-              <View style={styles.timeContainer}>
-                <Ionicons name="time-outline" size={scaleSize(14)} color={COLORS.text.secondary} />
-                <Text style={styles.timeText}>{recipe.preparationTime} min</Text>
-              </View>
-            </View>
-            <DifficultyBadge difficulty={recipe.difficulty} />
-          </View>
-
-          {/* Ingredients preview */}
-          <View style={styles.ingredientsPreview}>
-            <Text style={styles.ingredientsLabel}>
-              {t('recipes.ingredientsOf', { matched: matchingIngredients.length, total: recipe.ingredients.length })}
-            </Text>
-            {missingIngredients.length > 0 && missingIngredients.length <= 3 && (
-              <Text style={styles.missingText} numberOfLines={1}>
-                {t('recipes.missing')} {missingIngredients.join(', ')}
-              </Text>
-            )}
-            {expiringIngredients.length > 0 && (
-              <Text style={styles.expiringText} numberOfLines={1}>
-                {t('recipes.expiringCount', { count: expiringIngredients.length })} : {expiringIngredients.join(', ')}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* Arrow */}
-        <View style={styles.arrowContainer}>
-          <Ionicons name="chevron-forward" size={scaleSize(20)} color={COLORS.primary[400]} />
-        </View>
-      </PressableScale>
-    </AnimatedListItem>
-  );
-});
-
-// Recipe detail modal
-function RecipeDetailModal({
-  visible,
-  recipe,
-  match,
-  onClose,
-}: {
-  visible: boolean;
-  recipe: Recipe | null;
-  match: RecipeMatch | null;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  if (!recipe || !match) return null;
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalContainer}>
-        {/* Header */}
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={scaleSize(24)} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>{recipe.name}</Text>
-          <View style={{ width: scaleSize(40) }} />
-        </View>
-
-        <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-          {/* Hero */}
-          <View style={styles.modalHero}>
-            <Text style={styles.heroEmoji}>{recipe.imageEmoji}</Text>
-            <View style={styles.heroBadges}>
-              <CategoryBadge category={recipe.category} />
-              <View style={styles.timeContainer}>
-                <Ionicons name="time-outline" size={scaleSize(16)} color={COLORS.text.secondary} />
-                <Text style={styles.heroTime}>{recipe.preparationTime} min</Text>
-              </View>
-              <DifficultyBadge difficulty={recipe.difficulty} />
-            </View>
-          </View>
-
-          {/* Description */}
-          <Text style={styles.modalDescription}>{recipe.description}</Text>
-
-          {/* Match info */}
-          <View style={styles.matchInfo}>
-            <View style={styles.matchBar}>
-              <View style={[styles.matchBarFill, { width: `${match.matchPercentage}%` }]} />
-            </View>
-            <Text style={styles.matchInfoText}>
-              {t('recipes.ingredientsAvailable', { count: match.matchingIngredients.length, total: recipe.ingredients.length })}
-            </Text>
-          </View>
-
-          {/* Ingredients */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('recipes.ingredients')}</Text>
-            {recipe.ingredients.map((ingredient, index) => {
-              const isAvailable = match.matchingIngredients.includes(ingredient);
-              return (
-                <View key={index} style={styles.ingredientRow}>
-                  <Ionicons
-                    name={isAvailable ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={scaleSize(20)}
-                    color={isAvailable ? COLORS.semantic.success : COLORS.neutral.gray400}
-                  />
-                  <Text style={[
-                    styles.ingredientText,
-                    !isAvailable && styles.ingredientMissing
-                  ]}>
-                    {ingredient}
-                  </Text>
-                  {!isAvailable && (
-                    <View style={styles.missingBadge}>
-                      <Text style={styles.missingBadgeText}>{t('recipes.toBuy')}</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Instructions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('recipes.preparation')}</Text>
-            {recipe.instructions.map((instruction, index) => (
-              <View key={index} style={styles.instructionRow}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.instructionText}>{instruction}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Tips */}
-          {recipe.tips && (
-            <View style={styles.tipsContainer}>
-              <Ionicons name="bulb" size={scaleSize(20)} color={COLORS.accent.lemon} />
-              <Text style={styles.tipsText}>{recipe.tips}</Text>
-            </View>
-          )}
-
-          <View style={{ height: scaleSpacing(40) }} />
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-}
-
-// Premium teaser component for AI-suggested recipes
-const PremiumRecipeTeaser = React.memo(function PremiumRecipeTeaser({
-  suggestedCount,
-  onPress
-}: {
-  suggestedCount: number;
-  onPress: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <PressableScale
-      onPress={onPress}
-      style={styles.premiumTeaser}
-      hapticType="medium"
-    >
-      <View style={styles.premiumTeaserIcon}>
-        <Ionicons name="sparkles" size={scaleSize(28)} color={COLORS.accent.lemon} />
-      </View>
-      <View style={styles.premiumTeaserContent}>
-        <View style={styles.premiumBadge}>
-          <Ionicons name="star" size={scaleSize(12)} color={COLORS.neutral.white} />
-          <Text style={styles.premiumBadgeText}>PREMIUM</Text>
-        </View>
-        <Text style={styles.premiumTeaserTitle}>
-          {t('recipes.suggestedCount', { count: suggestedCount })}
-        </Text>
-        <Text style={styles.premiumTeaserSubtitle}>
-          {t('recipes.unlockSuggestions')}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={scaleSize(24)} color={COLORS.primary[400]} />
-    </PressableScale>
-  );
-});
+// ============================================================================
+// Composant principal
+// ============================================================================
 
 export default function RecipesScreen() {
   const { t } = useTranslation();
-  const route = useRoute<RouteProp<RootStackParamList, 'Recipes'>>();
+  const { colors, layout } = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<Rt>();
   const highlightIngredient = route.params?.ingredient;
-  const { trackRecipeViewed } = useGamification();
+
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { trackRecipeViewed } = useGamification();
   const { isPremium } = useSubscription();
   const paywallProps = usePaywallSheetProps();
+
   const [lists, setLists] = useState<List[]>([]);
   const [recipeMatches, setRecipeMatches] = useState<RecipeMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedMatch, setSelectedMatch] = useState<RecipeMatch | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<FilterKey>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('antiWaste');
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'user' | Recipe['category']>('all');
-  const [sortMode, setSortMode] = useState<'antiWaste' | 'bestMatch'>('antiWaste');
   const [showRecipeOnboarding, setShowRecipeOnboarding] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // ── Animations ──────────────────────────────────────────────────────────
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 500,
+      duration: 400,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim]);
 
+  // ── Onboarding au premier passage ────────────────────────────────────────
   useEffect(() => {
     AsyncStorage.getItem(RECIPE_ONBOARDING_KEY).then((value) => {
-      if (value !== 'true') {
-        setShowRecipeOnboarding(true);
-      }
+      if (value !== 'true') setShowRecipeOnboarding(true);
     });
   }, []);
 
-  const loadData = async () => {
+  // ── Data load ────────────────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
     try {
       const data = await loadLists();
       setLists(data);
-
-      const allFoodItems: FoodItem[] = data.flatMap(list => list.items);
+      const allFoodItems: FoodItem[] = data.flatMap((l) => l.items);
       const matches = await findMatchingRecipesWithUser(allFoodItems, user?.id);
       setRecipeMatches(matches);
     } catch (error) {
-      logger.error('Erreur lors du chargement:', error);
-      Alert.alert(
-        t('common.error'),
-        t('recipes.loadError'),
-        [{ text: t('common.ok') }]
-      );
+      logger.error('[RecipesV2] loadData failed:', error);
+      Alert.alert(t('common.error'), t('recipes.loadError'), [{ text: t('common.ok') }]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, t]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadData();
-    }, [])
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await loadData(); } finally { setRefreshing(false); }
+  }, [loadData]);
+
+  // ── Dérivés ──────────────────────────────────────────────────────────────
+  const userRecipes = useMemo(
+    () => recipeMatches.filter((m) => m.recipe.isUserRecipe),
+    [recipeMatches],
+  );
+  const suggestedRecipes = useMemo(
+    () => recipeMatches.filter((m) => !m.recipe.isUserRecipe),
+    [recipeMatches],
+  );
+  const freeSuggestedRecipes = useMemo(
+    () => suggestedRecipes.slice(0, FREE_SUGGESTED_LIMIT),
+    [suggestedRecipes],
+  );
+  const availableMatches = useMemo(
+    () => (isPremium ? recipeMatches : [...userRecipes, ...freeSuggestedRecipes]),
+    [isPremium, recipeMatches, userRecipes, freeSuggestedRecipes],
   );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await loadData();
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const categoryFiltered = useMemo<RecipeMatch[]>(() => {
+    if (selectedFilter === 'all') return availableMatches;
+    if (selectedFilter === 'user') return userRecipes;
+    return availableMatches.filter((m) => m.recipe.category === selectedFilter);
+  }, [selectedFilter, availableMatches, userRecipes]);
 
-  const handleRecipePress = (match: RecipeMatch) => {
-    setSelectedMatch(match);
-    setModalVisible(true);
-    // Tracker pour la gamification
-    trackRecipeViewed();
-    // Analytics PostHog
-    analyticsTrackRecipeViewed(match.recipe.id);
-  };
+  const filteredMatches = useMemo<RecipeMatch[]>(() => {
+    const ingredientLower = highlightIngredient?.toLowerCase();
+    const matchesIngredient = (m: RecipeMatch) =>
+      !!ingredientLower &&
+      m.matchingIngredients.some(
+        (ing) =>
+          ing.toLowerCase().includes(ingredientLower) ||
+          ingredientLower.includes(ing.toLowerCase()),
+      );
 
-  const handleRecipeLongPress = (match: RecipeMatch) => {
-    if (match.recipe.isUserRecipe) {
+    return [...categoryFiltered].sort((a, b) => {
+      if (ingredientLower) {
+        const aMatch = matchesIngredient(a) ? 1 : 0;
+        const bMatch = matchesIngredient(b) ? 1 : 0;
+        if (bMatch !== aMatch) return bMatch - aMatch;
+      }
+      if (sortMode === 'antiWaste') {
+        return b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage;
+      }
+      return b.matchPercentage - a.matchPercentage;
+    });
+  }, [categoryFiltered, sortMode, highlightIngredient]);
+
+  const totalIngredients = useMemo(
+    () =>
+      lists.reduce((sum, list) => {
+        return sum + list.items.filter((it) => it.status !== 'consumed' && it.status !== 'thrown').length;
+      }, 0),
+    [lists],
+  );
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  const handleRecipePress = useCallback(
+    (match: RecipeMatch) => {
+      trackRecipeViewed();
+      analyticsTrackRecipeViewed(match.recipe.id);
+      navigation.navigate('RecipeDetail', { recipeId: match.recipe.id });
+    },
+    [navigation, trackRecipeViewed],
+  );
+
+  const handleRecipeLongPress = useCallback(
+    (match: RecipeMatch) => {
+      if (!match.recipe.isUserRecipe) return;
       Alert.alert(
         match.recipe.name,
         t('recipes.whatToDo'),
@@ -486,335 +248,219 @@ export default function RecipesScreen() {
             style: 'destructive',
             onPress: async () => {
               // Optimistic update
-              setRecipeMatches(prev => prev.filter(m => m.recipe.id !== match.recipe.id));
+              setRecipeMatches((prev) => prev.filter((m) => m.recipe.id !== match.recipe.id));
               const success = await deleteUserRecipe(match.recipe.id, user?.id);
               if (!success) {
-                // Rollback on failure
-                setRecipeMatches(prev => [...prev, match]);
+                setRecipeMatches((prev) => [...prev, match]);
                 Alert.alert(t('common.error'), t('recipes.deleteError'));
               }
             },
           },
-        ]
+        ],
       );
-    }
-  };
+    },
+    [t, user?.id],
+  );
 
-  const handleGenerateAIRecipe = async () => {
+  const handleGenerateAIRecipe = useCallback(async () => {
     if (!isPremium) {
       setShowPaywall(true);
       return;
     }
+
+    const expiringItems = lists
+      .flatMap((l) => l.items)
+      .filter((item) => {
+        if (item.status !== 'active' || !item.expirationDate) return false;
+        const days = getDaysUntilExpiration(item.expirationDate as string);
+        return days !== null && days <= 7;
+      })
+      .map((item) => item.name)
+      .slice(0, 8);
+
+    if (expiringItems.length === 0) {
+      Alert.alert(t('recipes.aiNoIngredients'), t('recipes.aiNoIngredientsHint'));
+      return;
+    }
+
     setAiGenerating(true);
     try {
-      // Récupérer les ingrédients qui expirent dans les 7 prochains jours
-      const expiringItems = lists
-        .flatMap(l => l.items)
-        .filter(item => {
-          if (item.status !== 'active' || !item.expirationDate) return false;
-          const days = getDaysUntilExpiration(item.expirationDate as string);
-          return days !== null && days <= 7;
-        })
-        .map(item => item.name)
-        .slice(0, 8); // max 8 ingrédients pour le prompt
-
-      if (expiringItems.length === 0) {
-        Alert.alert(
-          t('recipes.aiNoIngredients'),
-          t('recipes.aiNoIngredientsHint')
-        );
-        return;
-      }
-
       const result = await generateAIRecipe(expiringItems);
       if (!result) {
         Alert.alert(t('common.error'), t('recipes.aiError'));
         return;
       }
-
-      // Afficher via le modal existant en créant un RecipeMatch factice
-      const fakeMatch: RecipeMatch = {
-        recipe: result.recipe,
-        matchingIngredients: expiringItems,
-        missingIngredients: [],
-        matchPercentage: 100,
-        urgencyScore: 100,
-        expiringIngredients: expiringItems,
-      };
-      setSelectedMatch(fakeMatch);
-      setModalVisible(true);
-    } catch {
+      // Persiste la recette IA dans la collection user (l'utilisateur la garde)
+      const persisted = await addUserRecipe(
+        {
+          name: result.recipe.name,
+          description: result.recipe.description,
+          ingredients: result.recipe.ingredients,
+          preparationTime: result.recipe.preparationTime,
+          difficulty: result.recipe.difficulty,
+          category: result.recipe.category,
+          imageEmoji: result.recipe.imageEmoji,
+          instructions: result.recipe.instructions,
+          tips: result.recipe.tips,
+          tags: result.recipe.tags,
+        },
+        user?.id,
+      );
+      await loadData();
+      navigation.navigate('RecipeDetail', { recipeId: persisted.id });
+    } catch (err) {
+      logger.error('[RecipesV2] AI generate failed:', err);
       Alert.alert(t('common.error'), t('recipes.aiError'));
     } finally {
       setAiGenerating(false);
     }
-  };
+  }, [isPremium, lists, t, user?.id, loadData, navigation]);
 
-  // Séparer les recettes utilisateur des recettes suggérées (built-in)
-  const userRecipes = recipeMatches.filter(m => m.recipe.isUserRecipe);
-  const suggestedRecipes = recipeMatches.filter(m => !m.recipe.isUserRecipe);
+  // ── Filters config ───────────────────────────────────────────────────────
+  const filters: Array<{ key: FilterKey; label: string; icon: SFSymbol }> = useMemo(
+    () => [
+      { key: 'all', label: t('recipes.all'), icon: 'square.grid.2x2.fill' },
+      { key: 'user', label: t('recipes.myRecipes'), icon: 'person.fill' },
+      { key: 'petit-déjeuner', label: t('recipes.breakfast'), icon: 'sun.max.fill' },
+      { key: 'plat', label: t('recipes.mainDishes'), icon: 'fork.knife' },
+      { key: 'entrée', label: t('recipes.starters'), icon: 'leaf.fill' },
+      { key: 'dessert', label: t('recipes.desserts'), icon: 'birthday.cake.fill' },
+      { key: 'snack', label: t('recipes.snacks'), icon: 'cup.and.saucer.fill' },
+      { key: 'boisson', label: t('recipes.drinks'), icon: 'wineglass.fill' },
+    ],
+    [t],
+  );
 
-  // Pour les utilisateurs gratuits, montrer leurs recettes + 2 recettes du catalogue en aperçu
-  // Pour les utilisateurs Premium, montrer toutes les recettes
-  const FREE_SUGGESTED_LIMIT = 2;
-  const freeSuggestedRecipes = suggestedRecipes.slice(0, FREE_SUGGESTED_LIMIT);
-  const availableMatches = isPremium
-    ? recipeMatches
-    : [...userRecipes, ...freeSuggestedRecipes];
-
-  const categoryFiltered = selectedFilter === 'all'
-    ? availableMatches
-    : selectedFilter === 'user'
-    ? userRecipes
-    : availableMatches.filter(m => m.recipe.category === selectedFilter);
-
-  // Boost recipes matching the deep-linked ingredient to the top
-  const ingredientLower = highlightIngredient?.toLowerCase();
-  const matchesIngredient = (m: RecipeMatch) =>
-    ingredientLower && m.matchingIngredients.some(
-      (ing) => ing.toLowerCase().includes(ingredientLower) || ingredientLower.includes(ing.toLowerCase())
-    );
-
-  const filteredMatches = [...categoryFiltered].sort((a, b) => {
-    if (ingredientLower) {
-      const aMatch = matchesIngredient(a) ? 1 : 0;
-      const bMatch = matchesIngredient(b) ? 1 : 0;
-      if (bMatch !== aMatch) return bMatch - aMatch;
-    }
-    if (sortMode === 'antiWaste') {
-      return b.urgencyScore - a.urgencyScore || b.matchPercentage - a.matchPercentage;
-    }
-    return b.matchPercentage - a.matchPercentage;
-  });
-
-  const totalIngredients = lists.reduce((sum, list) => {
-    return sum + list.items.filter(item => item.status !== 'consumed' && item.status !== 'thrown').length;
-  }, 0);
-
-  const filters: Array<{ key: 'all' | 'user' | Recipe['category']; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-    { key: 'all', label: t('recipes.all'), icon: 'apps' },
-    { key: 'user', label: t('recipes.myRecipes'), icon: 'person' },
-    { key: 'petit-déjeuner', label: t('recipes.breakfast'), icon: 'sunny' },
-    { key: 'plat', label: t('recipes.mainDishes'), icon: 'restaurant' },
-    { key: 'entrée', label: t('recipes.starters'), icon: 'leaf' },
-    { key: 'dessert', label: t('recipes.desserts'), icon: 'ice-cream' },
-    { key: 'snack', label: t('recipes.snacks'), icon: 'cafe' },
-    { key: 'boisson', label: t('recipes.drinks'), icon: 'wine' },
-  ];
-
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: colors.secondary.cream }]}>
-      <Header title={t('recipes.ideasTitle')} showBackButton={false} />
+    <View style={[styles.root, { backgroundColor: colors.bg.canvas, paddingTop: insets.top }]}>
+      <TopBar
+        onAI={handleGenerateAIRecipe}
+        aiLoading={aiGenerating}
+        isPremium={isPremium}
+        onAdd={() => setAddModalVisible(true)}
+      />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* Stats banner */}
-        <View style={[styles.statsBanner, { backgroundColor: colors.neutral.white }]}>
-          <View style={styles.statsIcon}>
-            <Ionicons name="nutrition" size={scaleSize(24)} color={colors.primary[500]} />
-          </View>
-          <View style={styles.statsText}>
-            <Text style={styles.statsTitle}>
-              {t('recipes.availableCount', { count: totalIngredients })}
-            </Text>
-            <Text style={styles.statsSubtitle}>
-              {isPremium
-                ? t('recipes.possibleRecipes', { count: recipeMatches.length })
-                : t('recipes.personalRecipes', { count: availableMatches.length })
-              }
-            </Text>
-          </View>
+        {/* Hero header texte */}
+        <View style={[styles.heroBlock, { paddingHorizontal: layout.screenPaddingH }]}>
+          <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
+            {t('recipes.eyebrow', { defaultValue: 'Idées du jour' })}
+          </Text>
+          <Text style={[styles.heroTitle, { color: colors.fg.primary }]}>
+            {t('recipes.ideasTitle')}
+          </Text>
+          <StatsPill
+            ingredients={totalIngredients}
+            recipesCount={
+              isPremium ? recipeMatches.length : availableMatches.length
+            }
+          />
         </View>
 
-        {/* Filters */}
+        {/* Filtres */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
+          style={styles.filtersScroll}
+          contentContainerStyle={[styles.filtersContent, { paddingHorizontal: layout.screenPaddingH }]}
         >
-          {filters.map(filter => (
-            <PressableScale
-              key={filter.key}
-              onPress={() => setSelectedFilter(filter.key)}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter.key && styles.filterChipActive
-              ]}
-              hapticType="light"
-            >
-              <Ionicons
-                name={filter.icon}
-                size={scaleSize(16)}
-                color={selectedFilter === filter.key ? COLORS.neutral.white : COLORS.primary[500]}
-              />
-              <Text style={[
-                styles.filterChipText,
-                selectedFilter === filter.key && styles.filterChipTextActive
-              ]}>
-                {filter.label}
-              </Text>
-            </PressableScale>
+          {filters.map((f) => (
+            <FilterChip
+              key={f.key}
+              icon={f.icon}
+              label={f.label}
+              active={selectedFilter === f.key}
+              onPress={() => setSelectedFilter(f.key)}
+            />
           ))}
         </ScrollView>
 
-        {/* Sort toggle */}
-        <View style={styles.sortContainer}>
-          <PressableScale
-            onPress={() => setSortMode('antiWaste')}
-            style={[styles.sortButton, sortMode === 'antiWaste' && styles.sortButtonActive]}
-            hapticType="light"
-          >
-            <Ionicons
-              name="flame"
-              size={scaleSize(14)}
-              color={sortMode === 'antiWaste' ? COLORS.neutral.white : COLORS.semantic.warning}
-            />
-            <Text style={[styles.sortButtonText, sortMode === 'antiWaste' && styles.sortButtonTextActive]}>
-              {t('recipes.sortAntiWaste')}
-            </Text>
-          </PressableScale>
-          <PressableScale
-            onPress={() => setSortMode('bestMatch')}
-            style={[styles.sortButton, styles.sortButtonMatch, sortMode === 'bestMatch' && styles.sortButtonMatchActive]}
-            hapticType="light"
-          >
-            <Ionicons
-              name="checkmark-circle"
-              size={scaleSize(14)}
-              color={sortMode === 'bestMatch' ? COLORS.neutral.white : COLORS.primary[500]}
-            />
-            <Text style={[styles.sortButtonText, styles.sortButtonMatchText, sortMode === 'bestMatch' && styles.sortButtonTextActive]}>
-              {t('recipes.sortBestMatch')}
-            </Text>
-          </PressableScale>
+        {/* Tri segment */}
+        <View style={[styles.sortRow, { paddingHorizontal: layout.screenPaddingH }]}>
+          <SortSegment mode={sortMode} onChange={setSortMode} />
         </View>
 
-        {/* Bouton Recette IA (Premium) */}
-        <PressableScale
-          onPress={handleGenerateAIRecipe}
-          style={styles.aiButton}
-          hapticType="medium"
-          disabled={aiGenerating}
-        >
-          {aiGenerating ? (
-            <ActivityIndicator size="small" color={COLORS.neutral.white} />
-          ) : (
-            <Ionicons name="sparkles" size={scaleSize(16)} color={COLORS.neutral.white} />
-          )}
-          <Text style={styles.aiButtonText}>
-            {aiGenerating ? t('recipes.aiGenerating') : t('recipes.aiGenerate')}
-          </Text>
-          {!isPremium && (
-            <View style={styles.aiBadge}>
-              <Text style={styles.aiBadgeText}>PRO</Text>
-            </View>
-          )}
-        </PressableScale>
-
-        {/* Recipe list */}
+        {/* Liste */}
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          style={styles.scroll}
+          contentContainerStyle={{
+            paddingHorizontal: layout.screenPaddingH,
+            paddingTop: 8,
+            paddingBottom: 120 + insets.bottom,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={COLORS.primary[500]}
+              tintColor={Forest[600]}
             />
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* Premium teaser for free users with suggested recipes */}
-          {!isPremium && suggestedRecipes.length > FREE_SUGGESTED_LIMIT && selectedFilter !== 'user' && (
-            <PremiumRecipeTeaser
-              suggestedCount={suggestedRecipes.length - FREE_SUGGESTED_LIMIT}
-              onPress={() => setShowPaywall(true)}
-            />
-          )}
+          {!isPremium &&
+            suggestedRecipes.length > FREE_SUGGESTED_LIMIT &&
+            selectedFilter !== 'user' && (
+              <PremiumTeaser
+                suggestedCount={suggestedRecipes.length - FREE_SUGGESTED_LIMIT}
+                onPress={() => setShowPaywall(true)}
+              />
+            )}
 
           {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary[500]} />
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={Forest[600]} />
             </View>
           ) : filteredMatches.length > 0 ? (
-            filteredMatches.map((match, index) => (
+            filteredMatches.map((match) => (
               <RecipeCard
                 key={match.recipe.id}
                 match={match}
                 onPress={() => handleRecipePress(match)}
                 onLongPress={() => handleRecipeLongPress(match)}
-                index={index}
+                highlightIngredient={highlightIngredient}
               />
             ))
           ) : selectedFilter !== 'all' && availableMatches.length > 0 ? (
-            <View style={styles.emptyState}>
-              <ChefIllustration />
-              <Text style={styles.emptyTitle}>{t('recipes.noFilterResults')}</Text>
-              <Text style={styles.emptySubtitle}>{t('recipes.noFilterResultsHint')}</Text>
-              <TouchableOpacity
-                onPress={() => setSelectedFilter('all')}
-                style={styles.resetFilterButton}
-              >
-                <Text style={styles.resetFilterText}>{t('recipes.resetFilter')}</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              title={t('recipes.noFilterResults')}
+              subtitle={t('recipes.noFilterResultsHint')}
+              actionLabel={t('recipes.resetFilter')}
+              onAction={() => setSelectedFilter('all')}
+            />
           ) : (
-            <View style={styles.emptyState}>
-              <ChefIllustration />
-              <Text style={styles.emptyTitle}>
-                {totalIngredients === 0
+            <EmptyState
+              title={
+                totalIngredients === 0
                   ? t('recipes.noFood')
                   : isPremium
                   ? t('recipes.noRecipes')
-                  : t('recipes.noPersonalRecipes')}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {totalIngredients === 0
+                  : t('recipes.noPersonalRecipes')
+              }
+              subtitle={
+                totalIngredients === 0
                   ? t('recipes.addFoodHint')
                   : isPremium
                   ? t('recipes.changeFilterHint')
-                  : t('recipes.addRecipeHint')}
-              </Text>
-            </View>
+                  : t('recipes.addRecipeHint')
+              }
+            />
           )}
         </ScrollView>
       </Animated.View>
 
-      {/* FAB pour ajouter une recette */}
-      <PressableScale
-        onPress={() => setAddModalVisible(true)}
-        style={styles.fab}
-        hapticType="medium"
-        accessibilityLabel={t('recipes.addRecipe')}
-        accessibilityRole="button"
-      >
-        <Ionicons name="add" size={scaleSize(28)} color={COLORS.neutral.white} />
-      </PressableScale>
-
-      {/* Recipe detail modal */}
-      <RecipeDetailModal
-        visible={modalVisible}
-        recipe={selectedMatch?.recipe || null}
-        match={selectedMatch}
-        onClose={() => setModalVisible(false)}
-      />
-
-      {/* Add recipe modal */}
+      {/* Modals */}
       <AddRecipeModal
         visible={addModalVisible}
         onClose={() => setAddModalVisible(false)}
         onRecipeAdded={loadData}
       />
-
-      {/* Paywall modal */}
       <PaywallSheet
         {...paywallProps}
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
         trigger="recipes"
       />
-
-      {/* Recipe onboarding modal */}
       <RecipeOnboardingModal
         visible={showRecipeOnboarding}
         onComplete={() => setShowRecipeOnboarding(false)}
@@ -823,583 +469,828 @@ export default function RecipesScreen() {
   );
 }
 
+// ============================================================================
+// Atoms locaux
+// ============================================================================
+
+function TopBar({
+  onAI,
+  aiLoading,
+  isPremium,
+  onAdd,
+}: {
+  onAI: () => void;
+  aiLoading: boolean;
+  isPremium: boolean;
+  onAdd: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.topbar}>
+      <View style={{ flex: 1 }} />
+      <Pressable
+        onPress={onAI}
+        disabled={aiLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Générer une recette IA"
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.topbarBtn,
+          styles.topbarBtnAI,
+          { backgroundColor: colors.bg.surface, opacity: pressed || aiLoading ? 0.55 : 1 },
+        ]}
+      >
+        {aiLoading ? (
+          <ActivityIndicator size="small" color={Forest[600]} />
+        ) : (
+          <SymbolView name="sparkles" size={20} tintColor={Forest[600]} />
+        )}
+        {!isPremium && (
+          <View style={[styles.proDot, { backgroundColor: Forest[600] }]} />
+        )}
+      </Pressable>
+      <Pressable
+        onPress={onAdd}
+        accessibilityRole="button"
+        accessibilityLabel="Ajouter une recette"
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.topbarBtn,
+          { backgroundColor: Forest[600], opacity: pressed ? 0.75 : 1 },
+        ]}
+      >
+        <SymbolView name="plus" size={20} tintColor={Cream[50]} />
+      </Pressable>
+    </View>
+  );
+}
+
+function StatsPill({
+  ingredients,
+  recipesCount,
+}: {
+  ingredients: number;
+  recipesCount: number;
+}) {
+  const { t } = useTranslation();
+  const { colors, radius } = useTheme();
+  return (
+    <View
+      style={[
+        styles.statsPill,
+        {
+          backgroundColor: colors.bg.sunken,
+          borderRadius: radius.full,
+        },
+      ]}
+    >
+      <SymbolView name="leaf.fill" size={14} tintColor={Forest[600]} />
+      <Text style={[styles.statsPillText, { color: colors.fg.primary }]}>
+        {t('recipes.availableCount', { count: ingredients })}
+      </Text>
+      <View style={[styles.statsDot, { backgroundColor: colors.fg.tertiary }]} />
+      <Text style={[styles.statsPillText, { color: colors.fg.secondary }]}>
+        {t('recipes.possibleRecipes', { count: recipesCount })}
+      </Text>
+    </View>
+  );
+}
+
+function FilterChip({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: SFSymbol;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { colors, radius } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      style={({ pressed }) => [
+        styles.chip,
+        {
+          backgroundColor: active ? Forest[600] : colors.bg.surface,
+          borderColor: active ? Forest[600] : colors.border.subtle,
+          borderRadius: radius.full,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <SymbolView
+        name={icon}
+        size={14}
+        tintColor={active ? Cream[50] : colors.fg.secondary}
+      />
+      <Text
+        style={[
+          styles.chipText,
+          { color: active ? Cream[50] : colors.fg.primary },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SortSegment({
+  mode,
+  onChange,
+}: {
+  mode: SortMode;
+  onChange: (m: SortMode) => void;
+}) {
+  const { t } = useTranslation();
+  const { colors, radius } = useTheme();
+
+  const Segment = ({
+    value,
+    icon,
+    label,
+  }: {
+    value: SortMode;
+    icon: SFSymbol;
+    label: string;
+  }) => {
+    const isActive = mode === value;
+    return (
+      <Pressable
+        onPress={() => onChange(value)}
+        style={({ pressed }) => [
+          styles.segmentItem,
+          {
+            backgroundColor: isActive ? colors.bg.surface : 'transparent',
+            borderRadius: radius.md,
+            opacity: pressed ? 0.8 : 1,
+          },
+          isActive && styles.segmentItemShadow,
+        ]}
+      >
+        <SymbolView
+          name={icon}
+          size={13}
+          tintColor={isActive ? Forest[600] : colors.fg.secondary}
+        />
+        <Text
+          style={[
+            styles.segmentText,
+            { color: isActive ? colors.fg.primary : colors.fg.secondary },
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  return (
+    <View
+      style={[
+        styles.segmentTrack,
+        { backgroundColor: colors.bg.sunken, borderRadius: radius.lg },
+      ]}
+    >
+      <Segment value="antiWaste" icon="flame.fill" label={t('recipes.sortAntiWaste')} />
+      <Segment value="bestMatch" icon="checkmark.circle.fill" label={t('recipes.sortBestMatch')} />
+    </View>
+  );
+}
+
+function RecipeCard({
+  match,
+  onPress,
+  onLongPress,
+  highlightIngredient,
+}: {
+  match: RecipeMatch;
+  onPress: () => void;
+  onLongPress?: () => void;
+  highlightIngredient?: string;
+}) {
+  const { t } = useTranslation();
+  const { colors, componentRadius, elevation } = useTheme();
+  const {
+    recipe,
+    matchPercentage,
+    matchingIngredients,
+    missingIngredients,
+    urgencyScore,
+    expiringIngredients,
+  } = match;
+
+  const isHighlighted = useMemo(() => {
+    if (!highlightIngredient) return false;
+    const needle = highlightIngredient.toLowerCase();
+    return matchingIngredients.some(
+      (ing) => ing.toLowerCase().includes(needle) || needle.includes(ing.toLowerCase()),
+    );
+  }, [highlightIngredient, matchingIngredients]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.bg.surface,
+          borderRadius: componentRadius.card,
+          ...elevation[1],
+          opacity: pressed ? 0.9 : 1,
+        },
+      ]}
+    >
+      {/* Cover gradient sage→forest avec emoji XL */}
+      <View
+        style={[
+          styles.cardCover,
+          { borderTopLeftRadius: componentRadius.card, borderTopRightRadius: componentRadius.card },
+        ]}
+      >
+        <LinearGradient
+          colors={[Sage[300], Forest[600]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <Text style={styles.cardCoverEmoji}>{recipe.imageEmoji}</Text>
+
+        {/* Badges en haut à gauche : match + urgents */}
+        <View style={styles.cardCoverBadges}>
+          <Badge tone="reward" variant="solid" dot={false}>
+            {matchPercentage}%
+          </Badge>
+          {urgencyScore > 0 && (
+            <Badge tone="warning" variant="solid" dot={false}>
+              {t('recipes.antiWasteBadge')}
+            </Badge>
+          )}
+          {recipe.isUserRecipe && (
+            <Badge tone="info" variant="solid" dot={false}>
+              {t('recipes.myRecipe')}
+            </Badge>
+          )}
+          {isHighlighted && (
+            <Badge tone="success" variant="solid" dot={false}>
+              ★
+            </Badge>
+          )}
+        </View>
+      </View>
+
+      {/* Contenu */}
+      <View style={styles.cardBody}>
+        <Text
+          style={[styles.cardTitle, { color: colors.fg.primary }]}
+          numberOfLines={1}
+        >
+          {recipe.name}
+        </Text>
+
+        <Text
+          style={[styles.cardDesc, { color: colors.fg.secondary }]}
+          numberOfLines={2}
+        >
+          {recipe.description}
+        </Text>
+
+        {/* Meta row : catégorie · temps · difficulté */}
+        <View style={styles.cardMetaRow}>
+          <MetaChip
+            icon={CATEGORY_ICON[recipe.category]}
+            tone={CATEGORY_TONE[recipe.category]}
+            label={t(`recipes.${recipe.category === 'plat' ? 'mainDishes' :
+              recipe.category === 'entrée' ? 'starters' :
+              recipe.category === 'dessert' ? 'desserts' :
+              recipe.category === 'snack' ? 'snacks' :
+              recipe.category === 'boisson' ? 'drinks' :
+              'breakfast'}`)}
+          />
+          <MetaInline icon="clock" label={`${recipe.preparationTime} min`} />
+          <DifficultyDots difficulty={recipe.difficulty} />
+        </View>
+
+        {/* Footer ingrédients */}
+        <View style={[styles.cardFooter, { borderTopColor: colors.border.subtle }]}>
+          <Text style={[styles.cardFooterText, { color: colors.fg.secondary }]}>
+            {t('recipes.ingredientsOf', {
+              matched: matchingIngredients.length,
+              total: recipe.ingredients.length,
+            })}
+          </Text>
+          {missingIngredients.length > 0 && missingIngredients.length <= 3 && (
+            <Text
+              style={[styles.cardMissingText, { color: colors.fg.tertiary }]}
+              numberOfLines={1}
+            >
+              {t('recipes.missing')} {missingIngredients.join(', ')}
+            </Text>
+          )}
+          {expiringIngredients.length > 0 && (
+            <Text
+              style={[styles.cardExpiringText, { color: Forest[600] }]}
+              numberOfLines={1}
+            >
+              <Text>🔥 </Text>
+              {t('recipes.expiringCount', { count: expiringIngredients.length })}
+              {' : '}
+              {expiringIngredients.join(', ')}
+            </Text>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function MetaChip({
+  icon,
+  label,
+  tone,
+}: {
+  icon: SFSymbol;
+  label: string;
+  tone: 'success' | 'warning' | 'info' | 'reward' | 'neutral';
+}) {
+  return (
+    <Badge tone={tone} variant="soft" dot={false}>
+      <SymbolView
+        name={icon}
+        size={10}
+        tintColor={undefined}
+        style={{ marginRight: 4 }}
+      />
+      {label}
+    </Badge>
+  );
+}
+
+function MetaInline({ icon, label }: { icon: SFSymbol; label: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.metaInline}>
+      <SymbolView name={icon} size={12} tintColor={colors.fg.secondary} />
+      <Text style={[styles.metaInlineText, { color: colors.fg.secondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function DifficultyDots({ difficulty }: { difficulty: Recipe['difficulty'] }) {
+  const { colors } = useTheme();
+  const dots = DIFFICULTY_DOTS[difficulty];
+  const color =
+    difficulty === 'facile' ? Forest[600] : difficulty === 'moyen' ? Sage[400] : '#D85535';
+
+  return (
+    <View style={styles.dotsWrap}>
+      {[0, 1, 2].map((i) => (
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            { backgroundColor: i < dots ? color : colors.border.subtle },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function PremiumTeaser({
+  suggestedCount,
+  onPress,
+}: {
+  suggestedCount: number;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colors, componentRadius, elevation } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.teaser,
+        {
+          backgroundColor: colors.bg.surface,
+          borderRadius: componentRadius.card,
+          borderColor: Forest[600],
+          ...elevation[1],
+          opacity: pressed ? 0.92 : 1,
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={[Sage[100], Cream[100]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.card }]}
+      />
+      <View style={styles.teaserIcon}>
+        <SymbolView name="sparkles" size={28} tintColor={Forest[600]} />
+      </View>
+      <View style={styles.teaserBody}>
+        <View style={styles.teaserBadge}>
+          <Text style={styles.teaserBadgeText}>PRO</Text>
+        </View>
+        <Text style={[styles.teaserTitle, { color: colors.fg.primary }]}>
+          {t('recipes.premiumTeaserTitle', {
+            defaultValue: `+${suggestedCount} recettes à découvrir`,
+            count: suggestedCount,
+          })}
+        </Text>
+        <Text style={[styles.teaserSub, { color: colors.fg.secondary }]}>
+          {t('recipes.premiumTeaserSub', {
+            defaultValue: 'Débloque toute la bibliothèque + génération IA illimitée.',
+          })}
+        </Text>
+      </View>
+      <SymbolView name="chevron.right" size={18} tintColor={colors.fg.tertiary} />
+    </Pressable>
+  );
+}
+
+function EmptyState({
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  subtitle: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  const { colors, radius } = useTheme();
+  return (
+    <View style={styles.empty}>
+      <ChefIllustration />
+      <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>{title}</Text>
+      <Text style={[styles.emptySub, { color: colors.fg.secondary }]}>{subtitle}</Text>
+      {actionLabel && onAction && (
+        <Pressable
+          onPress={onAction}
+          style={({ pressed }) => [
+            styles.emptyBtn,
+            {
+              backgroundColor: Forest[600],
+              borderRadius: radius.full,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <Text style={[styles.emptyBtnText, { color: Cream[50] }]}>{actionLabel}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ChefIllustration : conservée du legacy (animation float SVG).
+const ChefIllustration = React.memo(function ChefIllustration() {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 2500, useNativeDriver: true }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [floatAnim]);
+
+  const translateY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }] }}>
+      <Svg width={120} height={120} viewBox="0 0 120 120">
+        <Defs>
+          <SvgLinearGradient id="hatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={Cream[50]} />
+            <Stop offset="100%" stopColor={Cream[100]} />
+          </SvgLinearGradient>
+        </Defs>
+        <Path
+          d="M35 50 C35 30 50 20 60 20 C70 20 85 30 85 50 L85 60 L35 60 Z"
+          fill="url(#hatGrad)"
+          stroke={Sage[300]}
+          strokeWidth="2"
+        />
+        <Path d="M30 60 L90 60 L90 70 L30 70 Z" fill={Sage[100]} />
+        <Circle cx="60" cy="85" r="20" fill="#FFDAB9" />
+        <Circle cx="53" cy="82" r="3" fill={Forest[600]} />
+        <Circle cx="67" cy="82" r="3" fill={Forest[600]} />
+        <Path
+          d="M54 92 Q60 98 66 92"
+          stroke={Forest[600]}
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <Circle cx="25" cy="40" r="8" fill="#E89B5A" />
+        <Circle cx="95" cy="45" r="6" fill="#D85535" />
+        <Circle cx="20" cy="80" r="5" fill={Sage[400]} />
+      </Svg>
+    </Animated.View>
+  );
+});
+
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
-  },
-  content: {
-    flex: 1,
-  },
-  statsBanner: {
+  root: { flex: 1 },
+  content: { flex: 1 },
+
+  // TopBar
+  topbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
-    marginHorizontal: scaleSpacing(isSmallScreen ? 14 : 20),
-    marginTop: scaleSpacing(isSmallScreen ? 12 : 16),
-    padding: scaleSpacing(isSmallScreen ? 12 : 16),
-    borderRadius: scaleSize(16),
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 6,
+    gap: 8,
   },
-  statsIcon: {
-    width: scaleSize(isSmallScreen ? 44 : 52),
-    height: scaleSize(isSmallScreen ? 44 : 52),
-    borderRadius: scaleSize(isSmallScreen ? 12 : 14),
-    backgroundColor: COLORS.neutral.white,
+  topbarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    ...SHADOWS.sm,
+    position: 'relative',
   },
-  statsText: {
-    marginLeft: scaleSpacing(12),
-    flex: 1,
+  topbarBtnAI: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
-  statsTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 15 : 17),
+  proDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // Hero block (eyebrow + title + stats)
+  heroBlock: {
+    paddingTop: 4,
+    paddingBottom: 14,
+  },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    fontSize: 30,
     fontWeight: '700',
-    color: COLORS.primary[500],
+    letterSpacing: -0.8,
+    marginTop: 4,
   },
-  statsSubtitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 14),
-    color: COLORS.text.secondary,
-    marginTop: scaleSpacing(2),
+  statsPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 12,
+    gap: 6,
   },
-  filtersContainer: {
-    maxHeight: scaleSize(50),
-    marginTop: scaleSpacing(isSmallScreen ? 12 : 16),
+  statsPillText: {
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+  },
+  statsDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 2,
+  },
+
+  // Filters scroll
+  filtersScroll: {
+    maxHeight: 48,
+    marginBottom: 4,
   },
   filtersContent: {
-    paddingHorizontal: scaleSpacing(isSmallScreen ? 14 : 20),
-    gap: scaleSpacing(8),
+    gap: 8,
+    paddingVertical: 4,
   },
-  filterChip: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: scaleSpacing(8),
-    paddingHorizontal: scaleSpacing(14),
-    borderRadius: scaleSize(20),
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
-    marginRight: scaleSpacing(8),
-  },
-  filterChipActive: {
-    backgroundColor: COLORS.primary[500],
-  },
-  filterChipText: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 14),
-    fontWeight: '600',
-    color: COLORS.primary[500],
-    marginLeft: scaleSpacing(6),
-  },
-  filterChipTextActive: {
-    color: COLORS.neutral.white,
-  },
-  sortContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: scaleSpacing(isSmallScreen ? 14 : 20),
-    marginTop: scaleSpacing(10),
-    gap: scaleSpacing(8),
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: scaleSpacing(6),
-    paddingHorizontal: scaleSpacing(12),
-    borderRadius: scaleSize(16),
-    backgroundColor: hexToRgba(COLORS.semantic.warning, 0.1),
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: hexToRgba(COLORS.semantic.warning, 0.2),
+    gap: 6,
   },
-  sortButtonActive: {
-    backgroundColor: COLORS.semantic.warning,
-    borderColor: COLORS.semantic.warning,
-  },
-  sortButtonText: {
-    fontSize: scaleFontSize(isSmallScreen ? 11 : 13),
+  chipText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.semantic.warning,
-    marginLeft: scaleSpacing(4),
-  },
-  sortButtonTextActive: {
-    color: COLORS.neutral.white,
-  },
-  sortButtonMatch: {
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
-  },
-  sortButtonMatchActive: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
-  },
-  aiButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary[600],
-    borderRadius: RADIUS.xl,
-    paddingVertical: scaleSpacing(12),
-    paddingHorizontal: scaleSpacing(20),
-    marginHorizontal: scaleSpacing(16),
-    marginBottom: scaleSpacing(8),
-    gap: scaleSpacing(8),
-    ...SHADOWS.md,
-  },
-  aiButtonText: {
-    fontSize: scaleFontSize(15),
-    fontWeight: '700',
-    color: COLORS.neutral.white,
-    letterSpacing: 0.3,
-  },
-  aiBadge: {
-    backgroundColor: COLORS.accent.lemon,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: scaleSpacing(6),
-    paddingVertical: 2,
-  },
-  aiBadgeText: {
-    fontSize: scaleFontSize(10),
-    fontWeight: '800',
-    color: COLORS.primary[700],
-    letterSpacing: 0.5,
-  },
-  sortButtonMatchText: {
-    color: COLORS.primary[500],
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: scaleSpacing(isSmallScreen ? 14 : 20),
-    paddingTop: scaleSpacing(isSmallScreen ? 12 : 16),
-    paddingBottom: scaleSpacing(isSmallScreen ? 80 : 100),
-  },
-  recipeCard: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: scaleSize(isSmallScreen ? 16 : 20),
-    padding: scaleSpacing(isSmallScreen ? 12 : 16),
-    marginBottom: scaleSpacing(12),
-    ...SHADOWS.sm,
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.1),
-  },
-  recipeEmoji: {
-    width: scaleSize(isSmallScreen ? 56 : 70),
-    height: scaleSize(isSmallScreen ? 56 : 70),
-    borderRadius: scaleSize(isSmallScreen ? 14 : 18),
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.08),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emojiText: {
-    fontSize: scaleFontSize(isSmallScreen ? 28 : 36),
-  },
-  recipeContent: {
-    flex: 1,
-    marginLeft: scaleSpacing(12),
-  },
-  recipeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  recipeName: {
-    fontSize: scaleFontSize(isSmallScreen ? 15 : 16),
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    flex: 1,
-  },
-  matchBadge: {
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: scaleSpacing(8),
-    paddingVertical: scaleSpacing(3),
-    borderRadius: scaleSize(10),
-    marginLeft: scaleSpacing(8),
-  },
-  matchText: {
-    fontSize: scaleFontSize(11),
-    fontWeight: '700',
-    color: COLORS.neutral.white,
-  },
-  recipeDescription: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 13),
-    color: COLORS.text.secondary,
-    marginTop: scaleSpacing(4),
-    lineHeight: scaleFontSize(isSmallScreen ? 16 : 18),
-  },
-  recipeFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: scaleSpacing(8),
-  },
-  recipeMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSpacing(10),
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: scaleSpacing(3),
-    paddingHorizontal: scaleSpacing(8),
-    borderRadius: scaleSize(8),
-  },
-  categoryBadgeText: {
-    fontSize: scaleFontSize(10),
-    fontWeight: '600',
-    marginLeft: scaleSpacing(4),
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: scaleFontSize(isSmallScreen ? 11 : 12),
-    color: COLORS.text.secondary,
-    marginLeft: scaleSpacing(4),
-  },
-  difficultyBadge: {
-    flexDirection: 'row',
-    gap: scaleSpacing(3),
-  },
-  difficultyDot: {
-    width: scaleSize(6),
-    height: scaleSize(6),
-    borderRadius: scaleSize(3),
-  },
-  ingredientsPreview: {
-    marginTop: scaleSpacing(8),
-    paddingTop: scaleSpacing(8),
-    borderTopWidth: 1,
-    borderTopColor: COLORS.neutral.gray200,
-  },
-  ingredientsLabel: {
-    fontSize: scaleFontSize(isSmallScreen ? 11 : 12),
-    color: COLORS.text.secondary,
-  },
-  matchCount: {
-    fontWeight: '700',
-    color: COLORS.primary[500],
-  },
-  missingText: {
-    fontSize: scaleFontSize(10),
-    color: COLORS.semantic.warning,
-    marginTop: scaleSpacing(2),
-  },
-  arrowContainer: {
-    justifyContent: 'center',
-    paddingLeft: scaleSpacing(8),
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: scaleSpacing(isSmallScreen ? 48 : 64),
-  },
-  emptyTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 18 : 22),
-    fontWeight: '600',
-    color: COLORS.primary[500],
-    marginTop: scaleSpacing(16),
-    marginBottom: scaleSpacing(8),
-  },
-  emptySubtitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 13 : 15),
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    paddingHorizontal: scaleSpacing(32),
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING['3xl'],
-  },
-  resetFilterButton: {
-    marginTop: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.full,
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.1),
-    borderWidth: 1,
-    borderColor: hexToRgba(COLORS.primary[500], 0.2),
-  },
-  resetFilterText: {
-    color: COLORS.primary[500],
-    fontWeight: '600',
-    fontSize: scaleFontSize(14),
   },
 
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: COLORS.secondary.cream,
+  // Sort segment
+  sortRow: {
+    paddingVertical: 10,
   },
-  modalHeader: {
+  segmentTrack: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: scaleSpacing(16),
-    paddingTop: scaleSpacing(16),
-    paddingBottom: scaleSpacing(12),
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral.gray200,
+    padding: 4,
+    gap: 4,
   },
-  closeButton: {
-    width: scaleSize(40),
-    height: scaleSize(40),
+  segmentItem: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: scaleSize(20),
-    backgroundColor: COLORS.neutral.gray100,
+    paddingVertical: 8,
+    gap: 6,
   },
-  modalTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 17 : 20),
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    flex: 1,
-    textAlign: 'center',
+  segmentItemShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  modalContent: {
-    flex: 1,
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
-  modalHero: {
-    alignItems: 'center',
-    paddingVertical: scaleSpacing(24),
-    backgroundColor: hexToRgba(COLORS.primary[500], 0.05),
-  },
-  heroEmoji: {
-    fontSize: scaleFontSize(isSmallScreen ? 64 : 80),
-  },
-  heroBadges: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleSpacing(12),
-    marginTop: scaleSpacing(16),
-  },
-  heroTime: {
-    fontSize: scaleFontSize(14),
-    color: COLORS.text.secondary,
-    marginLeft: scaleSpacing(4),
-  },
-  modalDescription: {
-    fontSize: scaleFontSize(isSmallScreen ? 14 : 16),
-    color: COLORS.text.secondary,
-    lineHeight: scaleFontSize(isSmallScreen ? 20 : 24),
-    paddingHorizontal: scaleSpacing(20),
-    paddingTop: scaleSpacing(20),
-    textAlign: 'center',
-  },
-  matchInfo: {
-    marginHorizontal: scaleSpacing(20),
-    marginTop: scaleSpacing(20),
-    padding: scaleSpacing(16),
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: scaleSize(12),
-    ...SHADOWS.sm,
-  },
-  matchBar: {
-    height: scaleSize(8),
-    backgroundColor: COLORS.neutral.gray200,
-    borderRadius: scaleSize(4),
+
+  // Scroll
+  scroll: { flex: 1 },
+
+  // Card
+  card: {
+    marginBottom: 16,
     overflow: 'hidden',
   },
-  matchBarFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary[500],
-    borderRadius: scaleSize(4),
+  cardCover: {
+    height: 130,
+    overflow: 'hidden',
+    padding: 12,
+    justifyContent: 'flex-end',
   },
-  matchInfoText: {
-    fontSize: scaleFontSize(12),
-    color: COLORS.text.secondary,
-    marginTop: scaleSpacing(8),
-    textAlign: 'center',
+  cardCoverEmoji: {
+    position: 'absolute',
+    right: 18,
+    bottom: 8,
+    fontSize: 78,
+    opacity: 0.88,
   },
-  section: {
-    paddingHorizontal: scaleSpacing(20),
-    paddingTop: scaleSpacing(24),
+  cardCoverBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignSelf: 'flex-start',
   },
-  sectionTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 17 : 20),
+  cardBody: { padding: 14 },
+  cardTitle: {
+    fontSize: 17,
     fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: scaleSpacing(16),
+    letterSpacing: -0.3,
   },
-  ingredientRow: {
+  cardDesc: {
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  cardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: scaleSpacing(10),
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral.gray100,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
   },
-  ingredientText: {
-    fontSize: scaleFontSize(isSmallScreen ? 14 : 15),
-    color: COLORS.text.primary,
-    marginLeft: scaleSpacing(12),
-    flex: 1,
+  metaInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  ingredientMissing: {
-    color: COLORS.text.secondary,
+  metaInlineText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  missingBadge: {
-    backgroundColor: hexToRgba(COLORS.semantic.warning, 0.15),
-    paddingHorizontal: scaleSpacing(8),
-    paddingVertical: scaleSpacing(3),
-    borderRadius: scaleSize(6),
+  dotsWrap: {
+    flexDirection: 'row',
+    gap: 3,
+    marginLeft: 'auto',
   },
-  missingBadgeText: {
-    fontSize: scaleFontSize(10),
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  cardFooter: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  cardFooterText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  cardMissingText: {
+    fontSize: 11,
+    marginTop: 3,
+  },
+  cardExpiringText: {
+    fontSize: 11,
     fontWeight: '600',
-    color: COLORS.semantic.warning,
-  },
-  instructionRow: {
-    flexDirection: 'row',
-    marginBottom: scaleSpacing(16),
-  },
-  stepNumber: {
-    width: scaleSize(28),
-    height: scaleSize(28),
-    borderRadius: scaleSize(14),
-    backgroundColor: COLORS.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: scaleSpacing(12),
-  },
-  stepNumberText: {
-    fontSize: scaleFontSize(13),
-    fontWeight: '700',
-    color: COLORS.neutral.white,
-  },
-  instructionText: {
-    fontSize: scaleFontSize(isSmallScreen ? 14 : 15),
-    color: COLORS.text.primary,
-    lineHeight: scaleFontSize(isSmallScreen ? 20 : 22),
-    flex: 1,
-  },
-  tipsContainer: {
-    flexDirection: 'row',
-    backgroundColor: hexToRgba(COLORS.accent.lemon, 0.15),
-    marginHorizontal: scaleSpacing(20),
-    marginTop: scaleSpacing(20),
-    padding: scaleSpacing(16),
-    borderRadius: scaleSize(12),
-  },
-  tipsText: {
-    fontSize: scaleFontSize(isSmallScreen ? 13 : 14),
-    color: COLORS.text.primary,
-    marginLeft: scaleSpacing(12),
-    flex: 1,
-    lineHeight: scaleFontSize(isSmallScreen ? 18 : 20),
-  },
-  userBadge: {
-    position: 'absolute',
-    top: scaleSpacing(-8),
-    left: scaleSpacing(12),
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: scaleSpacing(8),
-    paddingVertical: scaleSpacing(3),
-    borderRadius: scaleSize(10),
-    zIndex: 1,
-  },
-  userBadgeText: {
-    fontSize: scaleFontSize(9),
-    fontWeight: '600',
-    color: COLORS.neutral.white,
-    marginLeft: scaleSpacing(3),
-  },
-  recipeCardUrgent: {
-    borderColor: hexToRgba(COLORS.semantic.warning, 0.3),
-    borderWidth: 1.5,
-  },
-  antiWasteBadge: {
-    position: 'absolute',
-    top: scaleSpacing(-8),
-    right: scaleSpacing(12),
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.semantic.warning,
-    paddingHorizontal: scaleSpacing(8),
-    paddingVertical: scaleSpacing(3),
-    borderRadius: scaleSize(10),
-    zIndex: 1,
-  },
-  antiWasteBadgeText: {
-    fontSize: scaleFontSize(9),
-    fontWeight: '600',
-    color: COLORS.neutral.white,
-    marginLeft: scaleSpacing(3),
-  },
-  expiringText: {
-    fontSize: scaleFontSize(10),
-    color: COLORS.semantic.warning,
-    fontWeight: '600',
-    marginTop: scaleSpacing(2),
-  },
-  fab: {
-    position: 'absolute',
-    bottom: scaleSpacing(isSmallScreen ? 90 : 100),
-    right: scaleSpacing(isSmallScreen ? 16 : 24),
-    width: scaleSize(isSmallScreen ? 54 : 60),
-    height: scaleSize(isSmallScreen ? 54 : 60),
-    borderRadius: scaleSize(isSmallScreen ? 27 : 30),
-    backgroundColor: COLORS.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.lg,
+    marginTop: 3,
   },
 
-  // Premium teaser styles
-  premiumTeaser: {
+  // Premium teaser
+  teaser: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: scaleSize(16),
-    padding: scaleSpacing(16),
-    marginBottom: scaleSpacing(16),
-    borderWidth: 2,
-    borderColor: hexToRgba(COLORS.accent.lemon, 0.4),
-    ...SHADOWS.md,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  premiumTeaserIcon: {
-    width: scaleSize(56),
-    height: scaleSize(56),
-    borderRadius: scaleSize(14),
-    backgroundColor: hexToRgba(COLORS.accent.lemon, 0.15),
+  teaserIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: scaleSpacing(14),
+    marginRight: 12,
   },
-  premiumTeaserContent: {
-    flex: 1,
-  },
-  premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.accent.lemon,
-    paddingHorizontal: scaleSpacing(8),
-    paddingVertical: scaleSpacing(3),
-    borderRadius: scaleSize(10),
+  teaserBody: { flex: 1 },
+  teaserBadge: {
     alignSelf: 'flex-start',
-    marginBottom: scaleSpacing(6),
+    backgroundColor: Forest[600],
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 4,
   },
-  premiumBadgeText: {
-    fontSize: scaleFontSize(10),
+  teaserBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Cream[50],
+    letterSpacing: 0.8,
+  },
+  teaserTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    color: COLORS.neutral.white,
-    marginLeft: scaleSpacing(4),
-    letterSpacing: 0.5,
+    letterSpacing: -0.2,
   },
-  premiumTeaserTitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 15 : 17),
+  teaserSub: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+
+  // Empty state
+  empty: {
+    alignItems: 'center',
+    paddingTop: 56,
+    paddingBottom: 32,
+  },
+  emptyTitle: {
+    fontSize: 19,
     fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: scaleSpacing(4),
+    marginTop: 14,
+    letterSpacing: -0.3,
   },
-  premiumTeaserSubtitle: {
-    fontSize: scaleFontSize(isSmallScreen ? 12 : 13),
-    color: COLORS.text.secondary,
-    lineHeight: scaleFontSize(isSmallScreen ? 16 : 18),
+  emptySub: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: 24,
+    lineHeight: 19,
+  },
+  emptyBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    marginTop: 18,
+  },
+  emptyBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Loading
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
   },
 });
