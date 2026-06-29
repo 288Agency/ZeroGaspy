@@ -28,7 +28,7 @@ import * as StoreReview from 'expo-store-review';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
-import { Badge, PaywallSheet, DeferredAuthSheet } from '@/components/ds';
+import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_SAFE_PADDING } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -233,7 +233,7 @@ export default function AccountScreen() {
         contentContainerStyle={{
           paddingHorizontal: layout.screenPaddingH,
           paddingTop: 4,
-          paddingBottom: 120 + insets.bottom,
+          paddingBottom: TAB_BAR_SAFE_PADDING + insets.bottom,
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -328,9 +328,9 @@ export default function AccountScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={[styles.warningBanner, { backgroundColor: '#FFF4E6' }]}>
-                <SymbolView name="exclamationmark.triangle.fill" size={16} tintColor="#B86E00" />
-                <Text style={[styles.warningText, { color: '#7A4A00' }]}>
+              <View style={[styles.warningBanner, { backgroundColor: colors.feedback.warning.bg }]}>
+                <SymbolView name="exclamationmark.triangle.fill" size={16} tintColor={colors.feedback.warning.solid} />
+                <Text style={[styles.warningText, { color: colors.feedback.warning.fg }]}>
                   {t('account.createAccountWarning')}
                 </Text>
               </View>
@@ -387,6 +387,7 @@ export default function AccountScreen() {
                 style={[
                   styles.xpBarFill,
                   {
+                    backgroundColor: colors.premium.soft,
                     width: `${
                       gamificationData
                         ? (gamificationData.xp / gamificationData.xpToNextLevel) * 100
@@ -461,7 +462,7 @@ export default function AccountScreen() {
             {isPremium ? (
               <>
                 <View style={styles.userRow}>
-                  <View style={[styles.avatar, { backgroundColor: '#D4A017' }]}>
+                  <View style={[styles.avatar, { backgroundColor: colors.premium.solid }]}>
                     <SymbolView name="star.fill" size={26} tintColor="#fff" />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -507,7 +508,7 @@ export default function AccountScreen() {
                   onPress={() => setPaywallVisible(true)}
                   style={({ pressed }) => [
                     styles.primaryBtn,
-                    { backgroundColor: '#D4A017', opacity: pressed ? 0.85 : 1 },
+                    { backgroundColor: colors.premium.solid, opacity: pressed ? 0.85 : 1 },
                   ]}
                 >
                   <SymbolView name="star.fill" size={18} tintColor="#fff" />
@@ -677,9 +678,9 @@ export default function AccountScreen() {
               </Text>
             </Pressable>
           </View>
-          <View style={[styles.infoBanner, { backgroundColor: '#FFF4E6' }]}>
-            <SymbolView name="info.circle.fill" size={16} tintColor="#B86E00" />
-            <Text style={[styles.infoBannerText, { color: '#7A4A00' }]}>
+          <View style={[styles.infoBanner, { backgroundColor: colors.feedback.info.bg }]}>
+            <SymbolView name="info.circle.fill" size={16} tintColor={colors.feedback.info.solid} />
+            <Text style={[styles.infoBannerText, { color: colors.feedback.info.fg }]}>
               {t('export.privacyInfo')}
             </Text>
           </View>
@@ -702,7 +703,7 @@ export default function AccountScreen() {
             <RowButton
               icon="star.fill"
               label={t('support.rateApp')}
-              accent="#D4A017"
+              accent={colors.premium.solid}
               onPress={async () => {
                 if (await StoreReview.hasAction()) await StoreReview.requestReview();
               }}
@@ -1175,7 +1176,6 @@ const styles = StyleSheet.create({
   },
   xpBarFill: {
     height: '100%',
-    backgroundColor: '#FFE082',
     borderRadius: 3,
   },
   xpBarLabel: {

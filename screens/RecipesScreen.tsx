@@ -43,7 +43,7 @@ import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } fr
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest, Cream } from '@/tokens';
-import { Badge, PaywallSheet } from '@/components/ds';
+import { Badge, PaywallSheet, TAB_BAR_SAFE_PADDING } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -387,7 +387,7 @@ export default function RecipesScreen() {
           contentContainerStyle={{
             paddingHorizontal: layout.screenPaddingH,
             paddingTop: 8,
-            paddingBottom: 120 + insets.bottom,
+            paddingBottom: TAB_BAR_SAFE_PADDING + insets.bottom,
           }}
           refreshControl={
             <RefreshControl
@@ -846,10 +846,19 @@ function DifficultyDots({ difficulty }: { difficulty: Recipe['difficulty'] }) {
   const { colors } = useTheme();
   const dots = DIFFICULTY_DOTS[difficulty];
   const color =
-    difficulty === 'facile' ? Forest[600] : difficulty === 'moyen' ? Sage[400] : '#D85535';
+    difficulty === 'facile'
+      ? colors.feedback.success.solid
+      : difficulty === 'moyen'
+        ? colors.feedback.warning.solid
+        : colors.feedback.danger.solid;
 
   return (
-    <View style={styles.dotsWrap}>
+    <View
+      style={styles.dotsWrap}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={`Difficulté : ${difficulty}`}
+    >
       {[0, 1, 2].map((i) => (
         <View
           key={i}

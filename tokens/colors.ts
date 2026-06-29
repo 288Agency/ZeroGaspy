@@ -140,9 +140,9 @@ export const lightColors = {
 
   fg: {
     primary:   InkWarm[900],
-    secondary: InkWarm[500],
+    secondary: '#525E55', // WCAG AA on Cream surface/canvas (6.3 / 5.9)
     tertiary:  Cream[500],
-    muted:     Cream[400],
+    muted:     '#7A7563', // WCAG AA on Cream surface (4.3)
     disabled:  Cream[300],
     inverse:   Cream[50],
     onAccent:  '#FFFFFF',
@@ -202,6 +202,13 @@ export const lightColors = {
       solid:  Signal.reward.solid,
       onSolid: '#FFFFFF',
     },
+  },
+
+  premium: {
+    solid:   '#D4A017', // gold — avatar, CTA premium
+    soft:    '#FFE082', // pale yellow — fills, progress bars
+    fg:      '#7A4A00', // texte foncé lisible sur gold
+    onSolid: '#FFFFFF',
   },
 
   shadow: 'rgba(30, 42, 31, 1)', // teinte vert-ink, multipliée par opacity dans shadows.ts
@@ -284,6 +291,13 @@ export const darkColors = {
       solid:  Signal.reward.solid,
       onSolid: '#FFFFFF',
     },
+  },
+
+  premium: {
+    solid:   '#E0B533', // gold légèrement plus lumineux pour fond dark
+    soft:    'rgba(212, 160, 23, 0.20)',
+    fg:      '#FFE082',
+    onSolid: '#1E2A1F',
   },
 
   shadow: 'rgba(0, 0, 0, 1)',

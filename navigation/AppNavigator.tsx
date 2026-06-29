@@ -41,6 +41,11 @@ function MainTabs() {
         options={{ tabBarLabel: t('tabs.home') }}
       />
       <Tab.Screen
+        name="ListsTab"
+        component={ListsScreen}
+        options={{ tabBarLabel: t('tabs.lists') }}
+      />
+      <Tab.Screen
         name="RecipesTab"
         component={RecipesScreen}
         options={{ tabBarLabel: t('tabs.recipes') }}

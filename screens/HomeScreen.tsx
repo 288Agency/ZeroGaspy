@@ -24,7 +24,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView, SFSymbol } from 'expo-symbols';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -274,12 +273,12 @@ export default function HomeScreen() {
   // calm: 0 urgent · warning: 1-2 · urgent: 3+
   const heroState: 'calm' | 'warning' | 'urgent' =
     urgents.length >= 3 ? 'urgent' : urgents.length >= 1 ? 'warning' : 'calm';
-  const heroGradient: readonly [string, string] =
+  const heroSolid: string =
     heroState === 'urgent'
-      ? ['#7F1D1D', '#DC2626']
+      ? '#B23A1A'
       : heroState === 'warning'
-        ? ['#C2410C', '#F97316']
-        : [Forest[600], Forest[700]];
+        ? '#C2410C'
+        : Forest[700];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -326,70 +325,80 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* ── 2. today-hero (focus du jour) ───────────────────────────── */}
+        {/* ── 2. today-hero — fond plein, typo display, pas de gradient ── */}
         <Pressable
           onPress={handleCookTonight}
+          accessibilityRole="button"
+          accessibilityLabel={
+            urgents.length > 0
+              ? `${urgents.length} aliments à sauver aujourd'hui. Toucher pour voir l'idée du soir.`
+              : `Rien d'urgent. Toucher pour explorer des recettes.`
+          }
           style={({ pressed }) => [
             styles.hero,
             {
+              backgroundColor: heroSolid,
               borderRadius: componentRadius.hero,
+              paddingHorizontal: 24,
+              paddingTop: 26,
+              paddingBottom: 22,
               transform: [{ scale: pressed ? 0.99 : 1 }],
-              ...glow,
             },
           ]}
         >
-          <LinearGradient
-            colors={heroGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.hero }]}
-          />
-          <LinearGradient
-            colors={['rgba(168,209,131,0.35)', 'transparent']}
-            start={{ x: 0.9, y: 0.1 }}
-            end={{ x: 0.3, y: 0.6 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.hero }]}
-          />
+          <Text
+            style={[
+              typography.eyebrow,
+              { color: Cream[50], opacity: 0.6, letterSpacing: 1.4, textTransform: 'uppercase' },
+            ]}
+          >
+            À sauver aujourd'hui
+          </Text>
 
-          <View style={{ padding: 20 }}>
-            <Text style={[typography.eyebrow, { color: Cream[50], opacity: 0.7 }]}>
-              À sauver aujourd'hui
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10 }}>
+            <Text
+              style={{
+                color: Cream[50],
+                fontSize: 72,
+                fontWeight: '800',
+                letterSpacing: -3,
+                lineHeight: 72,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {String(urgents.length).padStart(2, '0')}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
-              <Text style={[typography.hero, { color: Cream[50] }]}>
-                {String(urgents.length).padStart(2, '0')}
-              </Text>
-              <Text
-                style={[
-                  typography.hero,
-                  typography.serifItalic,
-                  { color: Cream[50], opacity: 0.85, marginLeft: 6, fontSize: 32, letterSpacing: -1.5 },
-                ]}
-              >
-                {urgents.length === 1 ? 'truc' : 'trucs'}
-              </Text>
-            </View>
             <Text
               style={[
-                typography.body,
+                typography.serifItalic,
                 {
                   color: Cream[50],
-                  opacity: 0.92,
-                  marginTop: 8,
-                  letterSpacing: -0.2,
-                  lineHeight: 20,
+                  opacity: 0.7,
+                  fontSize: 30,
+                  marginLeft: 10,
+                  letterSpacing: -0.8,
                 },
               ]}
             >
-              {urgents.length > 0
-                ? <>
-                    {urgents.slice(0, 3).map((f) => f.name.split(' ')[0]).join(', ')}.{'  '}
-                    <Text style={{ fontWeight: '700' }}>Touche pour voir l'idée du soir →</Text>
-                  </>
-                : <Text style={{ fontWeight: '700' }}>Rien d'urgent. Touche pour explorer des recettes →</Text>
-              }
+              {urgents.length === 1 ? 'truc' : 'trucs'}
             </Text>
           </View>
+
+          <Text
+            style={{
+              color: Cream[50],
+              opacity: 0.78,
+              fontSize: 14,
+              lineHeight: 20,
+              marginTop: 14,
+              letterSpacing: -0.1,
+            }}
+            numberOfLines={2}
+          >
+            {urgents.length > 0
+              ? `${urgents.slice(0, 3).map((f) => f.name.split(' ')[0]).join(', ')} · idée du soir`
+              : `Rien d'urgent — explore des recettes`}
+          </Text>
         </Pressable>
 
         {/* ── 3. À statuer — urgents avec actions inline ──────────────── */}
@@ -413,227 +422,54 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── 4. Bento — économisé / bientôt / série ──────────────────── */}
-        <SectionHead label="Cette semaine" />
-        <View style={[styles.bento, { gap: layout.bentoGap }]}>
-          {/* Économisé — carte accent */}
-          <View
-            style={[
-              styles.bentoStat,
-              {
-                backgroundColor: colors.accent.soft,
-                borderColor: colors.accent.border,
-                borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                flex: 1,
-                ...elevation[2],
-              },
-            ]}
-          >
-            <Text style={[typography.sectionLabel, { color: Forest[600], opacity: 0.75, fontSize: 10 }]}>
-              économisé
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-              <Text
-                style={{
-                  color: Forest[700],
-                  fontSize: 28,
-                  fontWeight: '700',
-                  letterSpacing: -0.8,
-                  lineHeight: 28,
-                }}
-              >
-                {savedEuros}
-              </Text>
-              <Text
-                style={[
-                  typography.serifItalic,
-                  {
-                    color: Forest[700],
-                    fontSize: 22,
-                    letterSpacing: -0.6,
-                  },
-                ]}
-              >
-                ,{String(savedCents).padStart(2, '0')}
-              </Text>
-              <Text
-                style={{
-                  color: Forest[700],
-                  fontSize: 22,
-                  fontWeight: '700',
-                  letterSpacing: -0.6,
-                  marginLeft: 2,
-                }}
-              >
-                €
-              </Text>
-            </View>
-            <Text style={[typography.footnote, { color: Forest[600], opacity: 0.8, marginTop: 2 }]}>
-              ce mois / {Math.round(monthlyGoal)}€
-            </Text>
-            {/* Progress bar vers objectif mensuel */}
-            <View
-              style={{
-                marginTop: 8,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(34, 82, 48, 0.12)',
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  width: `${goalProgress * 100}%`,
-                  height: '100%',
-                  backgroundColor: Forest[600],
-                  borderRadius: 2,
-                }}
-              />
-            </View>
-          </View>
-
-          {/* Bientôt */}
-          <View
-            style={[
-              styles.bentoStat,
-              {
-                backgroundColor: colors.bg.surface,
-                borderColor: colors.border.default,
-                borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                flex: 1,
-                ...elevation[2],
-              },
-            ]}
-          >
-            <Text style={[typography.sectionLabel, { color: colors.fg.tertiary, fontSize: 10 }]}>
-              bientôt
-            </Text>
-            <Text
-              style={{
-                color: colors.fg.primary,
-                fontSize: 28,
-                fontWeight: '700',
-                letterSpacing: -0.8,
-                lineHeight: 28,
-                marginTop: 6,
-              }}
-            >
-              {String(next3.length).padStart(2, '0')}
-            </Text>
-            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-              dans 3 jours
-            </Text>
-          </View>
-
-          {/* Série — full width */}
-          <View
-            style={[
-              styles.bentoStat,
-              {
-                backgroundColor: colors.bg.surface,
-                borderColor: colors.border.default,
-                borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                width: '100%',
-                ...elevation[2],
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  backgroundColor: colors.feedback.warning.bg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <SymbolView name="flame.fill" size={22} tintColor={colors.feedback.warning.fg} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '600',
-                    letterSpacing: -0.2,
-                    color: colors.fg.primary,
-                  }}
-                >
-                  {currentStreak === 0
-                    ? 'Lance ta série'
-                    : `Série de ${currentStreak} jour${currentStreak > 1 ? 's' : ''}`}
-                </Text>
-                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                  {longestStreak > 0 && streakRemainingForRecord > 0
-                    ? `Plus que ${streakRemainingForRecord}j pour ton record (${longestStreak}j).`
-                    : currentStreak > 0 && currentStreak >= longestStreak
-                      ? 'Nouveau record ! Continue.'
-                      : 'Consomme un aliment avant péremption pour démarrer.'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── 4b. Engagement : Challenge hebdo + MealPlanner CTA + Referral ── */}
-        {challengesState && (
-          <View style={{ marginTop: layout.sectionGap }}>
-            <WeeklyChallengeCard challengesState={challengesState} />
-          </View>
-        )}
-
-        <Pressable
-          onPress={() => navigation.navigate('MealPlanner')}
-          style={({ pressed }) => [
-            styles.plannerCta,
-            {
-              backgroundColor: colors.bg.surface,
-              borderColor: colors.border.default,
-              borderRadius: componentRadius.card,
-              marginTop: 12,
-              opacity: pressed ? 0.85 : 1,
-              ...elevation[1],
-            },
-          ]}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: Sage[100],
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 12,
-            }}
-          >
-            <SymbolView name="calendar" size={20} tintColor={Forest[600]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
-              Planifier les repas
-            </Text>
-            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-              Anticipe la semaine, vide ton frigo
-            </Text>
-          </View>
-          <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
-        </Pressable>
-
-        {user && hasBadges && (
-          <View style={{ marginTop: 12 }}>
-            <ReferralCard userId={user.id} hasBadges={true} />
-          </View>
-        )}
-
-        {/* ── 5. Mes espaces ──────────────────────────────────────────── */}
-        {spaces.length > 0 && (
+        {/* ── 3b. Mes espaces — feature core remontée au-dessus du fold ── */}
+        {spaces.length === 0 ? (
           <>
             <SectionHead label="Mes espaces" />
+            <Pressable
+              onPress={() => navigation.navigate('CreateList')}
+              style={({ pressed }) => [
+                styles.plannerCta,
+                {
+                  backgroundColor: colors.bg.surface,
+                  borderColor: colors.border.default,
+                  borderRadius: componentRadius.card,
+                  opacity: pressed ? 0.85 : 1,
+                  ...elevation[1],
+                },
+              ]}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Sage[100],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <SymbolView name="plus" size={20} tintColor={Forest[600]} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
+                  Créez votre première liste
+                </Text>
+                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+                  Frigo, garde-manger, congélateur…
+                </Text>
+              </View>
+              <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <SectionHead
+              label="Mes espaces"
+              actionLabel="+ Nouvelle"
+              onAction={() => navigation.navigate('CreateList')}
+            />
             <View style={{ gap: layout.cardGap }}>
               {spaces.map((s) => (
                 <Pressable
@@ -699,6 +535,205 @@ export default function HomeScreen() {
             </View>
           </>
         )}
+
+        {/* ── 4. Bento — économisé / bientôt / série ──────────────────── */}
+        <SectionHead label="Cette semaine" />
+        <View style={[styles.bento, { gap: layout.bentoGap }]}>
+          {/* Économisé — carte accent */}
+          <View
+            style={[
+              styles.bentoStat,
+              {
+                backgroundColor: colors.accent.soft,
+                borderColor: colors.accent.border,
+                borderRadius: componentRadius.card,
+                padding: layout.cardPaddingLg,
+                flex: 1,
+                ...elevation[2],
+              },
+            ]}
+          >
+            <Text style={[typography.sectionLabel, { color: Forest[600], opacity: 0.75, fontSize: 10 }]}>
+              économisé
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
+              <Text
+                style={{
+                  color: Forest[700],
+                  fontSize: 28,
+                  fontWeight: '700',
+                  letterSpacing: -0.8,
+                  lineHeight: 28,
+                }}
+              >
+                {savedEuros}
+              </Text>
+              <Text
+                style={[
+                  typography.serifItalic,
+                  {
+                    color: Forest[700],
+                    fontSize: 22,
+                    letterSpacing: -0.6,
+                  },
+                ]}
+              >
+                ,{String(savedCents).padStart(2, '0')}
+              </Text>
+              <Text
+                style={{
+                  color: Forest[700],
+                  fontSize: 22,
+                  fontWeight: '700',
+                  letterSpacing: -0.6,
+                  marginLeft: 2,
+                }}
+              >
+                €
+              </Text>
+            </View>
+            <Text style={[typography.footnote, { color: Forest[600], opacity: 0.8, marginTop: 2 }]}>
+              {savedEuros === 0 && savedCents === 0
+                ? 'Sauve ton premier aliment'
+                : `ce mois / ${Math.round(monthlyGoal)}€`}
+            </Text>
+            {/* Progress bar vers objectif mensuel */}
+            <View
+              style={{
+                marginTop: 8,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(34, 82, 48, 0.12)',
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${goalProgress * 100}%`,
+                  height: '100%',
+                  backgroundColor: Forest[600],
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Bientôt */}
+          <View
+            style={[
+              styles.bentoStat,
+              {
+                backgroundColor: colors.bg.surface,
+                borderColor: colors.border.default,
+                borderRadius: componentRadius.card,
+                padding: layout.cardPaddingLg,
+                flex: 1,
+                ...elevation[2],
+              },
+            ]}
+          >
+            <Text style={[typography.sectionLabel, { color: colors.fg.tertiary, fontSize: 10 }]}>
+              bientôt
+            </Text>
+            <Text
+              style={{
+                color: colors.fg.primary,
+                fontSize: 28,
+                fontWeight: '700',
+                letterSpacing: -0.8,
+                lineHeight: 28,
+                marginTop: 6,
+              }}
+            >
+              {String(next3.length).padStart(2, '0')}
+            </Text>
+            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+              {next3.length === 0 ? 'tout va bien' : 'dans 3 jours'}
+            </Text>
+          </View>
+
+          {/* Série — full width */}
+          <View
+            style={[
+              styles.bentoStat,
+              {
+                backgroundColor: colors.bg.surface,
+                borderColor: colors.border.default,
+                borderRadius: componentRadius.card,
+                padding: layout.cardPaddingLg,
+                width: '100%',
+                ...elevation[2],
+              },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  backgroundColor: colors.feedback.warning.bg,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SymbolView name="flame.fill" size={22} tintColor={colors.feedback.warning.fg} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    letterSpacing: -0.2,
+                    color: colors.fg.primary,
+                  }}
+                >
+                  {currentStreak === 0
+                    ? 'Lance ta série'
+                    : `Série de ${currentStreak} jour${currentStreak > 1 ? 's' : ''}`}
+                </Text>
+                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+                  {longestStreak > 0 && streakRemainingForRecord > 0
+                    ? `Plus que ${streakRemainingForRecord}j pour ton record (${longestStreak}j).`
+                    : currentStreak > 0 && currentStreak >= longestStreak
+                      ? 'Nouveau record ! Continue.'
+                      : 'Consomme un aliment avant péremption pour démarrer.'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ── 4b. Engagement : Challenge hebdo + MealPlanner CTA + Referral ── */}
+        {challengesState && (
+          <View style={{ marginTop: layout.sectionGap }}>
+            <WeeklyChallengeCard challengesState={challengesState} />
+          </View>
+        )}
+
+        {/* Planner — ghost row, action secondaire (visuellement subordonnée au Challenge) */}
+        <Pressable
+          onPress={() => navigation.navigate('MealPlanner')}
+          accessibilityRole="button"
+          accessibilityLabel="Planifier les repas de la semaine"
+          style={({ pressed }) => [
+            styles.plannerGhost,
+            { opacity: pressed ? 0.55 : 1 },
+          ]}
+        >
+          <SymbolView name="calendar" size={18} tintColor={colors.fg.secondary} />
+          <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
+            Planifier les repas
+          </Text>
+          <SymbolView name="chevron.right" size={13} tintColor={colors.fg.muted} />
+        </Pressable>
+
+        {user && hasBadges && (
+          <View style={{ marginTop: 12 }}>
+            <ReferralCard userId={user.id} hasBadges={true} />
+          </View>
+        )}
+
       </ScrollView>
 
       {/* Recap hebdo — déclenché par push notif weekly_recap (route param) */}
@@ -842,5 +877,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderWidth: 1,
+  },
+  plannerGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginTop: 6,
   },
 });

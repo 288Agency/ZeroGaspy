@@ -121,6 +121,7 @@ const withWidgetTarget: ConfigPlugin = (config) =>
             LD_RUNPATH_SEARCH_PATHS:
               '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
             MARKETING_VERSION: '1.0',
+            CURRENT_PROJECT_VERSION: '1',
             PRODUCT_BUNDLE_IDENTIFIER: WIDGET_BUNDLE_ID,
             PRODUCT_NAME: '"$(TARGET_NAME)"',
             SKIP_INSTALL: 'YES',

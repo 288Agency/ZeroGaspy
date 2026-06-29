@@ -15,5 +15,5 @@ export { default as AlertModal, type AlertModalProps, type AlertTone } from './M
 export { default as PaywallSheet, type PaywallSheetProps, type PaywallTrigger } from './PaywallSheet';
 export { default as DeferredAuthSheet, type DeferredAuthSheetProps, type AuthReason } from './DeferredAuthSheet';
 export { default as OnboardingFlow, type OnboardingFlowProps } from './OnboardingFlow';
-export { default as TabBar } from './TabBar';
+export { default as TabBar, TAB_BAR_HEIGHT, TAB_BAR_SAFE_PADDING } from './TabBar';
 export { ToastProvider, useToast, type ToastConfig, type ToastTone } from './Toast';

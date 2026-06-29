@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
-import { Badge, PaywallSheet, DeferredAuthSheet } from '@/components/ds';
+import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_HEIGHT, TAB_BAR_SAFE_PADDING } from '@/components/ds';
 import ShareListModal from '@/components/ShareListModal';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -283,19 +283,21 @@ export default function ListsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas, paddingTop: insets.top }]}>
       <View style={styles.topbar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.topbarBtn,
-            { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
-          ]}
-        >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
-        </Pressable>
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        {navigation.canGoBack() && (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.topbarBtn,
+              { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
+            ]}
+          >
+            <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          </Pressable>
+        )}
+        <View style={{ flex: 1, marginLeft: navigation.canGoBack() ? 12 : 0 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
             {t('lists.eyebrow', { defaultValue: 'Tous tes espaces' })}
           </Text>
@@ -314,7 +316,7 @@ export default function ListsScreen() {
         contentContainerStyle={{
           paddingHorizontal: layout.screenPaddingH,
           paddingTop: 4,
-          paddingBottom: 120 + insets.bottom,
+          paddingBottom: TAB_BAR_SAFE_PADDING + insets.bottom,
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -347,7 +349,7 @@ export default function ListsScreen() {
           styles.fab,
           {
             backgroundColor: Forest[600],
-            bottom: 24 + insets.bottom,
+            bottom: 24 + TAB_BAR_HEIGHT + insets.bottom,
             opacity: pressed ? 0.85 : 1,
           },
         ]}

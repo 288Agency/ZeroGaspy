@@ -64,11 +64,12 @@ type IconPair = { inactive: SymbolViewProps['name']; active: SymbolViewProps['na
 
 // iOS 26+ target — tous les SF Symbols ci-dessous sont natifs, pas de fallback.
 const ICON_MAP: Record<string, IconPair> = {
-  // ── 4-tab layout (production) ─────────────────────────────────────────────
-  HomeTab:    { inactive: 'house',               active: 'house.fill' },
-  RecipesTab: { inactive: 'fork.knife',          active: 'fork.knife' },
-  StatsTab:   { inactive: 'chart.bar',           active: 'chart.bar.fill' },
-  AccountTab: { inactive: 'person',              active: 'person.fill' },
+  // ── 5-tab layout (production) ─────────────────────────────────────────────
+  HomeTab:    { inactive: 'house',                 active: 'house.fill' },
+  ListsTab:   { inactive: 'list.bullet.rectangle', active: 'list.bullet.rectangle.fill' },
+  RecipesTab: { inactive: 'fork.knife',            active: 'fork.knife' },
+  StatsTab:   { inactive: 'chart.bar',             active: 'chart.bar.fill' },
+  AccountTab: { inactive: 'person',                active: 'person.fill' },
   // ── 5-tab layout (handoff référence, non utilisé en prod) ─────────────────
   Frigo:      { inactive: 'refrigerator',          active: 'refrigerator.fill' },
   Listes:     { inactive: 'list.bullet.rectangle', active: 'list.bullet.rectangle.fill' },
@@ -234,7 +235,11 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
 // Styles
 // ────────────────────────────────────────────────────────────────────────────
 
-const BAR_HEIGHT = 49;
+/** Hauteur de la tab bar (hors safe-area). Exporté pour calculs de padding scroll/FAB. */
+export const TAB_BAR_HEIGHT = 49;
+/** Padding bottom recommandé pour ScrollView/FlatList sous la tab bar. Inclure `+ insets.bottom`. */
+export const TAB_BAR_SAFE_PADDING = TAB_BAR_HEIGHT + 71;
+const BAR_HEIGHT = TAB_BAR_HEIGHT;
 
 const styles = StyleSheet.create({
   container: {
