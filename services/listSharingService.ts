@@ -62,6 +62,71 @@ export async function inviteByEmail(
   }
 }
 
+// ─── Share code (générer / rejoindre) ───────────────────────────────
+
+/**
+ * Génère un code de partage à 8 caractères pour une liste (owner only).
+ * RPC create_share_code : résout local→cloud, vérifie la propriété via auth.uid().
+ */
+export async function createShareCode(
+  listId: string,
+  permission: 'view' | 'edit' = 'edit'
+): Promise<{ code: string | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc('create_share_code', {
+      p_local_list_id: listId,
+      p_permission: permission,
+    });
+    if (error) {
+      logger.error('[Sharing] RPC create_share_code error:', error);
+      return { code: null, error: error.message };
+    }
+    const result = data as { code: string | null; error: string | null };
+    return { code: result.code, error: result.error };
+  } catch (err: any) {
+    logger.error('[Sharing] createShareCode exception:', err);
+    return { code: null, error: err.message || 'UNKNOWN_ERROR' };
+  }
+}
+
+export interface JoinResult {
+  listId: string | null;
+  listTitle: string | null;
+  listColor: string | null;
+  error: string | null;
+}
+
+/**
+ * Rejoint une liste via un code de partage (invité authentifié).
+ * RPC join_by_share_code : valide le code, ajoute le membre (status accepted).
+ */
+export async function joinByShareCode(code: string): Promise<JoinResult> {
+  try {
+    const { data, error } = await supabase.rpc('join_by_share_code', {
+      p_code: code.trim().toUpperCase(),
+    });
+    if (error) {
+      logger.error('[Sharing] RPC join_by_share_code error:', error);
+      return { listId: null, listTitle: null, listColor: null, error: error.message };
+    }
+    const result = data as {
+      listId: string | null;
+      listTitle: string | null;
+      listColor: string | null;
+      error: string | null;
+    };
+    return {
+      listId: result.listId,
+      listTitle: result.listTitle ?? null,
+      listColor: result.listColor ?? null,
+      error: result.error,
+    };
+  } catch (err: any) {
+    logger.error('[Sharing] joinByShareCode exception:', err);
+    return { listId: null, listTitle: null, listColor: null, error: err.message || 'UNKNOWN_ERROR' };
+  }
+}
+
 // ─── Helper: resolve local ID → cloud UUID ──────────────────────────
 
 function isUUID(id: string): boolean {

@@ -305,6 +305,25 @@ export default function ListsScreen() {
             {t('lists.title')}
           </Text>
         </View>
+        <Pressable
+          onPress={() => navigation.navigate('JoinList')}
+          accessibilityRole="button"
+          accessibilityLabel={t('join.title', { defaultValue: 'Rejoindre une liste' })}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.joinPill,
+            {
+              backgroundColor: colors.bg.surface,
+              borderColor: colors.border.default,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <SymbolView name="person.badge.plus" size={15} tintColor={colors.accent.default} />
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
+            {t('join.cta', { defaultValue: 'Rejoindre' })}
+          </Text>
+        </Pressable>
       </View>
 
       <FlatList
@@ -409,6 +428,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.06)',
+  },
+  joinPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   eyebrow: {
     fontSize: 11,

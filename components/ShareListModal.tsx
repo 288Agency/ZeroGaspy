@@ -11,11 +11,13 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import {
   inviteByEmail,
+  createShareCode,
   getSharedMembers,
   removeMember,
   updateMemberPermission,
@@ -47,6 +49,8 @@ export default function ShareListModal({
   const [isInviting, setIsInviting] = useState(false);
   const [members, setMembers] = useState<ShareMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -54,8 +58,40 @@ export default function ShareListModal({
     } else {
       setEmail('');
       setPermission('edit');
+      setShareCode(null);
     }
   }, [visible]);
+
+  const handleCreateCode = async () => {
+    setIsGeneratingCode(true);
+    try {
+      const { code, error } = await createShareCode(listId, permission);
+      if (error || !code) {
+        Alert.alert(t('common.error'), getErrorMessage(error || 'UNKNOWN'));
+      } else {
+        setShareCode(code);
+        trackListShared();
+      }
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message || t('sharing.errorGeneric'));
+    }
+    setIsGeneratingCode(false);
+  };
+
+  const handleShareLink = async () => {
+    if (!shareCode) return;
+    const link = `zerogaspy://join/${shareCode}`;
+    try {
+      await Share.share({
+        message: t('sharing.shareCodeMessage', {
+          title: listTitle,
+          code: shareCode,
+          link,
+          defaultValue: `Rejoins ma liste « ${listTitle} » sur ZeroGaspy avec le code ${shareCode} : ${link}`,
+        }),
+      });
+    } catch {}
+  };
 
   const loadMembers = async () => {
     setIsLoadingMembers(true);
@@ -267,6 +303,51 @@ export default function ShareListModal({
               </TouchableOpacity>
             </View>
 
+            {/* Share by code section */}
+            <View style={styles.codeSection}>
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>{t('sharing.orShareCode', { defaultValue: 'ou partage un code' })}</Text>
+                <View style={styles.orLine} />
+              </View>
+
+              {shareCode ? (
+                <>
+                  <View style={styles.codeDisplay}>
+                    <Text style={styles.codeText}>{shareCode}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.shareLinkButton, { backgroundColor: listColor }]}
+                    onPress={handleShareLink}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="share-outline" size={20} color={COLORS.neutral.white} />
+                    <Text style={styles.inviteButtonText}>
+                      {t('sharing.shareLink', { defaultValue: 'Partager le lien' })}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.generateButton, { borderColor: listColor }]}
+                  onPress={handleCreateCode}
+                  disabled={isGeneratingCode}
+                  activeOpacity={0.8}
+                >
+                  {isGeneratingCode ? (
+                    <ActivityIndicator color={listColor} />
+                  ) : (
+                    <>
+                      <Ionicons name="key-outline" size={20} color={listColor} />
+                      <Text style={[styles.generateButtonText, { color: listColor }]}>
+                        {t('sharing.createCode', { defaultValue: 'Créer un code de partage' })}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* Current members */}
             {members.length > 0 && (
               <View style={styles.membersSection}>
@@ -382,6 +463,62 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.neutral.white,
+  },
+  codeSection: {
+    marginBottom: SPACING.lg,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.neutral.gray200,
+  },
+  orText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+  },
+  generateButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  codeDisplay: {
+    backgroundColor: COLORS.neutral.gray100,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  codeText: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 6,
+    color: COLORS.text.primary,
+  },
+  shareLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.md,
   },
   membersSection: {
     borderTopWidth: 1,

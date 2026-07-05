@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
@@ -18,47 +18,54 @@ import { RegisterScreen } from '../screens/auth';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CookTonightScreen from '../screens/CookTonightScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
-import { TabBar } from '../components/ds';
+import JoinListScreen from '../screens/JoinListScreen';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
+import { Forest } from '../tokens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
+const Tab = createNativeBottomTabNavigator();
 
-// Tab Navigator for main screens with Glass effect
+// Tab Navigator natif (UITabBar iOS 26 → Liquid Glass automatique).
+// 4 onglets fidèles au handoff : Accueil / Espaces / Recettes / Stats.
+// Le profil s'ouvre via l'avatar du Home (route stack `Account`), pas d'onglet.
 function MainTabs() {
   const { t } = useTranslation();
   return (
     <Tab.Navigator
-      tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
+      tabBarActiveTintColor={Forest[600]}
     >
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
-        options={{ tabBarLabel: t('tabs.home') }}
+        options={{
+          tabBarLabel: t('tabs.home'),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'leaf.fill' : 'leaf' }),
+        }}
       />
       <Tab.Screen
         name="ListsTab"
         component={ListsScreen}
-        options={{ tabBarLabel: t('tabs.lists') }}
+        options={{
+          tabBarLabel: t('tabs.lists'),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'square.grid.2x2.fill' : 'square.grid.2x2' }),
+        }}
       />
       <Tab.Screen
         name="RecipesTab"
         component={RecipesScreen}
-        options={{ tabBarLabel: t('tabs.recipes') }}
+        options={{
+          tabBarLabel: t('tabs.recipes'),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'book.fill' : 'book' }),
+        }}
       />
       <Tab.Screen
         name="StatsTab"
         component={StatsScreen}
-        options={{ tabBarLabel: t('tabs.stats') }}
-      />
-      <Tab.Screen
-        name="AccountTab"
-        component={AccountScreen}
-        options={{ tabBarLabel: t('tabs.account') }}
+        options={{
+          tabBarLabel: t('tabs.stats'),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'chart.bar.fill' : 'chart.bar' }),
+        }}
       />
     </Tab.Navigator>
   );
@@ -197,6 +204,14 @@ export default function AppNavigator() {
         component={RecipeDetailScreen}
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="JoinList"
+        component={JoinListScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
         }}
       />
     </Stack.Navigator>

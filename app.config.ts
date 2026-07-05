@@ -112,6 +112,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     'expo-secure-store',
     'expo-font',
     'expo-apple-authentication',
+    'react-native-bottom-tabs',
   ],
   extra: {
     eas: {

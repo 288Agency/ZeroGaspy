@@ -451,9 +451,9 @@
     "sectionSubscription": "⭐ Mon Abonnement",
     "sectionNotifications": "🔔 Notifications",
     "sectionExport": "💾 Export des données",
-    "sectionLanguage": "🌍 Langue",
-    "sectionSupport": "💬 Aide & Support",
-    "sectionSocial": "📱 Nos réseaux",
+    "sectionLanguage": "Langue",
+    "sectionSupport": "Aide & Support",
+    "sectionSocial": "Nos réseaux",
     "freeVersion": "Version Gratuite",
     "maxLists": "3 listes maximum",
     "premiumInfo": "Vous profitez de toutes les fonctionnalités Premium : listes illimitées, scanner de tickets et aucune publicité.",
@@ -1104,8 +1104,25 @@
   "loadingOverlay": {
     "loading": "Chargement..."
   },
+  "join": {
+    "title": "Rejoindre une liste",
+    "subtitle": "Saisis le code de partage à 8 caractères qu'on t'a envoyé.",
+    "cta": "Rejoindre",
+    "needAccount": "Il faut un compte pour rejoindre une liste partagée.",
+    "successTitle": "Liste rejointe",
+    "successBody": "Tu as rejoint « {{title}} ».",
+    "errorInvalidCode": "Code invalide ou expiré.",
+    "errorOwnList": "C'est déjà ta liste.",
+    "errorAlreadyMember": "Tu fais déjà partie de cette liste.",
+    "errorNotAuth": "Connecte-toi pour rejoindre une liste.",
+    "errorGeneric": "Impossible de rejoindre. Réessaie."
+  },
   "sharing": {
     "shareList": "Partager la liste",
+    "orShareCode": "ou partage un code",
+    "createCode": "Créer un code de partage",
+    "shareLink": "Partager le lien",
+    "shareCodeMessage": "Rejoins ma liste « {{title}} » sur ZeroGaspy avec le code {{code}} : {{link}}",
     "members": "Membres",
     "membersCount": "{{count}} membre",
     "membersCount_plural": "{{count}} membres",

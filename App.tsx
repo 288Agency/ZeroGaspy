@@ -164,6 +164,15 @@ function RootNavigator() {
         return;
       }
 
+      // Lien de partage de liste → écran Rejoindre pré-rempli
+      const joinMatch = url.match(/join\/([A-Z0-9]+)/i);
+      if (joinMatch) {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('JoinList' as any, { code: joinMatch[1].toUpperCase() });
+        }
+        return;
+      }
+
       const inviteMatch = url.match(/invite\/([A-Z0-9-]+)/i);
       if (inviteMatch) {
         await savePendingReferralCode(inviteMatch[1]);

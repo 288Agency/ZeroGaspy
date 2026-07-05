@@ -451,9 +451,9 @@
     "sectionSubscription": "⭐ My Subscription",
     "sectionNotifications": "🔔 Notifications",
     "sectionExport": "💾 Data Export",
-    "sectionLanguage": "🌍 Language",
-    "sectionSupport": "💬 Help & Support",
-    "sectionSocial": "📱 Follow us",
+    "sectionLanguage": "Language",
+    "sectionSupport": "Help & Support",
+    "sectionSocial": "Follow us",
     "freeVersion": "Free Version",
     "maxLists": "3 lists maximum",
     "premiumInfo": "You enjoy all Premium features: unlimited lists, receipt scanner, and no ads.",
@@ -1104,8 +1104,25 @@
   "loadingOverlay": {
     "loading": "Loading..."
   },
+  "join": {
+    "title": "Join a list",
+    "subtitle": "Enter the 8-character share code you were sent.",
+    "cta": "Join",
+    "needAccount": "You need an account to join a shared list.",
+    "successTitle": "List joined",
+    "successBody": "You joined \"{{title}}\".",
+    "errorInvalidCode": "Invalid or expired code.",
+    "errorOwnList": "This is already your list.",
+    "errorAlreadyMember": "You're already a member of this list.",
+    "errorNotAuth": "Sign in to join a list.",
+    "errorGeneric": "Couldn't join. Try again."
+  },
   "sharing": {
     "shareList": "Share list",
+    "orShareCode": "or share a code",
+    "createCode": "Create a share code",
+    "shareLink": "Share link",
+    "shareCodeMessage": "Join my list \"{{title}}\" on ZeroGaspy with code {{code}}: {{link}}",
     "members": "Members",
     "membersCount": "{{count}} member",
     "membersCount_plural": "{{count}} members",
