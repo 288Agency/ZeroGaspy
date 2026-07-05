@@ -1,17 +1,23 @@
 // ============================================================================
-// ZeroGaspy · screens/HomeScreen.tsx (handoff port — "Aujourd'hui")
+// ZeroGaspy · screens/HomeScreen.tsx (handoff port fidèle — "Accueil")
 // ============================================================================
-// Écran principal. Structure handoff :
-//   1. TopBar       — logo Z (gauche) · recherche + cloche (droite)
-//   2. Greeting     — « Bonjour {prénom}. » + sous-titre date
-//   3. today-hero   — gradient forêt + glow, compteur urgents → Cuisiner
-//   4. À statuer    — liste ProductCard urgents avec actions inline
-//   5. Bento        — économisé / bientôt / série
-//   6. Mes espaces  — listes réelles avec compteurs alert/warn
+// Reproduction fidèle de reference/screens/Home.jsx (+ screenshot 01-accueil) :
+//   1. TopBar      — logo Z + « ZeroGaspy » (gauche) · avatar profil (droite)
+//   2. fresh-hero  — gradient forêt + glow : eyebrow date, titre urgence
+//                    (accent italique serif), CTA, ANNEAU anti-gaspi %,
+//                    bandeau bas (jetés · économisés)
+//   3. seg-scroll  — filtre d'espaces (pills swipe : Tout + une par liste)
+//   4. À surveiller — WatchGroups dépliables (À consommer / Bientôt / Cette
+//                    semaine) avec vignettes catégorie + compteur ; corps =
+//                    ProductCard DS avec actions inline ✓/🗑
+//   5. cook-card   — nudge « Idée du soir » → CookTonight
 //
-// Auto-suffisant : charge `loadLists()` + `calculateUserStats()` au focus,
-// dérive urgents/next3, mappe icône Ionicons → SF Symbol, wire les actions
-// sur `markItemConsumed`/`markItemThrown`.
+// Features hors-maquette CONSERVÉES sous la cook-card (aucune perte) :
+//   WeeklyChallengeCard · MealPlanner CTA · ReferralCard · WeeklyRecapModal.
+//
+// AUCUNE logique/donnée touchée : mêmes `loadLists()` + `calculateUserStats()`
+// + `getMonthlySavings()` au focus, mêmes `markItemConsumed`/`markItemThrown`,
+// mêmes navigations. Seul le rendu change.
 // ============================================================================
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,16 +27,18 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
-  TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, SFSymbol } from 'expo-symbols';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
-import { ProductCard, Badge } from '@/components/ds';
+import { ProductCard } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import {
@@ -40,12 +48,12 @@ import {
 } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import { calculateUserStats } from '@/services/statsService';
-import { getMonthlySavings, getMonthlySavingsGoal } from '@/services/monthlySavingsService';
-import type { FoodItem, List, UserStats } from '@/types';
+import { getMonthlySavings } from '@/services/monthlySavingsService';
+import type { List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
 
-// Composants legacy ré-injectés (palette héritée via designSystem.ts retouché)
+// Composants legacy conservés (hors-maquette, palette héritée)
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import ReferralCard from '@/components/ReferralCard';
 import WeeklyRecapModal from '@/components/WeeklyRecapModal';
@@ -60,38 +68,46 @@ type LiveFood = {
   name: string;
   quantityLabel: string;
   daysLeft: number;
+  category?: string;
   imageUri?: string;
 };
 
 type LiveSpace = {
   id: string;       // listId
   label: string;    // list.title
-  icon: SFSymbol;
   count: number;
   alert: number;    // items <= 1j
   warn: number;     // items 2..3j
   color?: string;
 };
 
-// Map des icônes Ionicons (LIST_ICONS) → SF Symbols (handoff utilise expo-symbols)
-const ICON_MAP: Record<string, SFSymbol> = {
-  'snow-outline':              'refrigerator.fill',
-  'cube-outline':              'snowflake',
-  'basket-outline':            'basket.fill',
-  'nutrition-outline':         'leaf.fill',
-  'leaf-outline':              'leaf.fill',
-  'restaurant-outline':        'fork.knife',
-  'wine-outline':              'wineglass.fill',
-  'beer-outline':              'mug.fill',
-  'file-tray-stacked-outline': 'cabinet.fill',
-  'briefcase-outline':         'briefcase.fill',
-  'home-outline':              'house.fill',
-  'cart-outline':              'cart.fill',
+// Vignette catégorie (handoff FoodCard thumb) — SF Symbol + tint doux brand.
+type CatMeta = { symbol: SFSymbol; bg: string; fg: string };
+const CATEGORY_META: Record<string, CatMeta> = {
+  dairy:       { symbol: 'drop.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  laitiers:    { symbol: 'drop.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  fruits:      { symbol: 'leaf.fill',    bg: '#FBE5DC', fg: '#B23A1A' },
+  veg:         { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
+  vegetables:  { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
+  'légumes':   { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
+  meat:        { symbol: 'fork.knife',   bg: '#F3D9D2', fg: '#B23A1A' },
+  viande:      { symbol: 'fork.knife',   bg: '#F3D9D2', fg: '#B23A1A' },
+  fish:        { symbol: 'fish.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  poisson:     { symbol: 'fish.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  bakery:      { symbol: 'birthday.cake.fill', bg: '#FAE9C3', fg: '#7A5414' },
+  boulangerie: { symbol: 'birthday.cake.fill', bg: '#FAE9C3', fg: '#7A5414' },
+  beverages:   { symbol: 'cup.and.saucer.fill', bg: '#DCEAF6', fg: '#1F4A7A' },
+  boissons:    { symbol: 'cup.and.saucer.fill', bg: '#DCEAF6', fg: '#1F4A7A' },
+  frozen:      { symbol: 'snowflake',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  'surgelés':  { symbol: 'snowflake',    bg: '#DCEAF6', fg: '#1F4A7A' },
+  snacks:      { symbol: 'takeoutbag.and.cup.and.straw.fill', bg: '#FAE9C3', fg: '#7A5414' },
+  condiments:  { symbol: 'drop.fill',    bg: '#FAE9C3', fg: '#7A5414' },
 };
+const CATEGORY_DEFAULT: CatMeta = { symbol: 'cube.fill', bg: Cream[200], fg: Cream[600] };
 
-function mapIcon(ionIcon?: string): SFSymbol {
-  if (!ionIcon) return 'tray.fill';
-  return ICON_MAP[ionIcon] ?? 'tray.fill';
+function categoryMeta(cat?: string): CatMeta {
+  if (!cat) return CATEGORY_DEFAULT;
+  return CATEGORY_META[cat.toLowerCase()] ?? CATEGORY_DEFAULT;
 }
 
 function flattenLiveFoods(lists: List[]): LiveFood[] {
@@ -109,6 +125,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
         name: item.name,
         quantityLabel: unit ? `${qty} ${unit}` : `${qty}`,
         daysLeft: days,
+        category: item.category,
         imageUri: item.imageUri,
       });
     }
@@ -122,7 +139,6 @@ function deriveSpaces(lists: List[], foods: LiveFood[]): LiveSpace[] {
     return {
       id: list.id,
       label: list.title,
-      icon: mapIcon(list.icon),
       count: items.length,
       alert: items.filter((f) => f.daysLeft <= 1).length,
       warn:  items.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3).length,
@@ -137,17 +153,10 @@ function deriveSpaces(lists: List[], foods: LiveFood[]): LiveSpace[] {
   });
 }
 
-function formatGreetingDate(d: Date): string {
+function formatEyebrowDate(d: Date): string {
   const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} · belle journée pour vider ton frigo.`;
-}
-
-function extractFirstName(authUser: any, fallback = 'toi'): string {
-  const meta = authUser?.user_metadata;
-  const full = meta?.full_name || meta?.name || authUser?.email;
-  if (!full || typeof full !== 'string') return fallback;
-  return full.split(/[\s@]/)[0] || fallback;
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -168,11 +177,10 @@ export default function HomeScreen() {
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [monthlySaved, setMonthlySaved] = useState(0);
-  const [monthlyGoal, setMonthlyGoal] = useState(50);
   const [recapVisible, setRecapVisible] = useState(false);
+  const [listId, setListId] = useState<string>('all'); // filtre seg-scroll
 
-  // Notification weekly_recap → utils/notificationNavigation.ts route vers
-  // Home { showWeeklyRecap: true }. v1 ouvrait WeeklyRecapModal → on rebrand.
+  // Notification weekly_recap → route param
   useEffect(() => {
     if (route.params?.showWeeklyRecap) {
       setRecapVisible(true);
@@ -184,21 +192,19 @@ export default function HomeScreen() {
 
   const refresh = useCallback(async () => {
     try {
-      const [nextLists, nextStats, nextMonthly, nextGoal] = await Promise.all([
+      const [nextLists, nextStats, nextMonthly] = await Promise.all([
         loadLists(),
         calculateUserStats().catch((err) => {
-          logger.warn('[HomeV2] calculateUserStats failed:', err);
+          logger.warn('[Home] calculateUserStats failed:', err);
           return null;
         }),
         getMonthlySavings().catch(() => 0),
-        getMonthlySavingsGoal().catch(() => 50),
       ]);
       setLists(nextLists);
       setStats(nextStats);
       setMonthlySaved(nextMonthly);
-      setMonthlyGoal(nextGoal);
     } catch (err) {
-      logger.error('[HomeV2] refresh failed:', err);
+      logger.error('[Home] refresh failed:', err);
     }
   }, []);
 
@@ -209,32 +215,43 @@ export default function HomeScreen() {
     () => foods.filter((f) => f.daysLeft <= 1).sort((a, b) => a.daysLeft - b.daysLeft),
     [foods],
   );
-  const next3 = useMemo(
-    () => foods.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3),
-    [foods],
-  );
   const spaces = useMemo(() => deriveSpaces(lists, foods), [lists, foods]);
 
-  const userName = extractFirstName(user);
-  const dateLabel = useMemo(() => formatGreetingDate(new Date()), []);
+  // Feed filtré par espace sélectionné, ≤ 7 j, trié par urgence
+  const feed = useMemo(() => {
+    const scoped = listId === 'all' ? foods : foods.filter((f) => f.listId === listId);
+    return scoped.filter((f) => f.daysLeft <= 7).sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [foods, listId]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  const feedUrgent = useMemo(() => feed.filter((f) => f.daysLeft <= 1), [feed]);
+  const feedWarn = useMemo(() => feed.filter((f) => f.daysLeft > 1 && f.daysLeft <= 3), [feed]);
+  const feedOk = useMemo(() => feed.filter((f) => f.daysLeft > 3), [feed]);
+
+  const dateLabel = useMemo(() => formatEyebrowDate(new Date()), []);
+
+  // Anneau anti-gaspi : part de nourriture consommée vs jetée
+  const consumed = stats?.itemsConsumed ?? 0;
+  const thrown = stats?.itemsThrown ?? 0;
+  const score = consumed + thrown > 0 ? Math.round((consumed / (consumed + thrown)) * 100) : 100;
+  const savedEuros = Math.floor(monthlySaved);
+
+  // ── Handlers (inchangés) ───────────────────────────────────────────────────
   const handlePressItem = useCallback((itemId: string) => {
     const f = foods.find((x) => x.id === itemId);
     if (!f) return;
     navigation.navigate('ProductDetail', { itemId, listId: f.listId });
   }, [foods, navigation]);
 
-  const handlePressSpace = useCallback((space: LiveSpace) => {
-    navigation.navigate('InventoryList', {
-      listId: space.id,
-      listTitle: space.label,
-      listColor: space.color,
-    });
-  }, [navigation]);
-
   const handleCookTonight = useCallback(() => {
     navigation.navigate('CookTonight');
+  }, [navigation]);
+
+  const handleSeeList = useCallback(() => {
+    navigation.navigate('ExpiringSoon');
+  }, [navigation]);
+
+  const handleProfile = useCallback(() => {
+    navigation.navigate('Account');
   }, [navigation]);
 
   const handleConsume = useCallback(async (itemId: string) => {
@@ -244,7 +261,7 @@ export default function HomeScreen() {
       await markItemConsumed(f.listId, itemId);
       await refresh();
     } catch (err) {
-      logger.error('[HomeV2] markItemConsumed failed:', err);
+      logger.error('[Home] markItemConsumed failed:', err);
     }
   }, [foods, refresh]);
 
@@ -255,47 +272,38 @@ export default function HomeScreen() {
       await markItemThrown(f.listId, itemId);
       await refresh();
     } catch (err) {
-      logger.error('[HomeV2] markItemThrown failed:', err);
+      logger.error('[Home] markItemThrown failed:', err);
     }
   }, [foods, refresh]);
 
-  // Stats avec fallbacks visuels si pas encore chargées
-  // Bento "économisé" = mois en cours (handoff intent + actionnable vs total)
-  const savedAmount = monthlySaved;
-  const savedEuros = Math.floor(savedAmount);
-  const savedCents = Math.round((savedAmount - savedEuros) * 100);
-  const goalProgress = monthlyGoal > 0 ? Math.min(1, savedAmount / monthlyGoal) : 0;
-  const currentStreak = stats?.currentStreak ?? 0;
-  const longestStreak = stats?.longestStreak ?? 0;
-  const streakRemainingForRecord = Math.max(0, longestStreak - currentStreak);
-
-  // Hero state-aware (v1 HeroSection avait gradient calm/warning/urgent)
-  // calm: 0 urgent · warning: 1-2 · urgent: 3+
-  const heroState: 'calm' | 'warning' | 'urgent' =
-    urgents.length >= 3 ? 'urgent' : urgents.length >= 1 ? 'warning' : 'calm';
-  const heroSolid: string =
-    heroState === 'urgent'
-      ? '#B23A1A'
-      : heroState === 'warning'
-        ? '#C2410C'
-        : Forest[700];
+  const hasUrgent = urgents.length > 0;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
-      {/* ── TopBar ────────────────────────────────────────────────────── */}
-      <View
-        style={[
-          styles.topbar,
-          { paddingTop: insets.top + 6, paddingHorizontal: 14 },
-        ]}
-      >
+      {/* ── TopBar : logo + ZeroGaspy · avatar ────────────────────────── */}
+      <View style={[styles.topbar, { paddingTop: insets.top + 6, paddingHorizontal: layout.screenPaddingH }]}>
         <View style={styles.topbarLeft}>
-          <LogoMonogram size={28} />
+          <LogoMonogram size={36} />
+          <Text style={{ fontSize: 19, fontWeight: '700', letterSpacing: -0.5, color: colors.fg.primary }}>
+            ZeroGaspy
+          </Text>
         </View>
-        <View style={styles.topbarRight}>
-          <IconButton icon="magnifyingglass" label="Recherche" />
-          <IconButton icon="bell" label="Notifications" />
-        </View>
+        <Pressable
+          onPress={handleProfile}
+          accessibilityRole="button"
+          accessibilityLabel="Profil"
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
+          <LinearGradient
+            colors={[Sage[400], Forest[500]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.avatar}
+          >
+            <SymbolView name="person.fill" size={17} tintColor="#fff" />
+          </LinearGradient>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -307,419 +315,209 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── 1. Greeting éditorial ───────────────────────────────────── */}
-        <View style={{ paddingBottom: 18 }}>
-          <Text style={[typography.title1, { color: colors.fg.primary, lineHeight: 36 }]}>
-            Bonjour{' '}
-            <Text style={[typography.title1, typography.serifItalic, { color: colors.fg.primary }]}>
-              {userName}.
-            </Text>
-          </Text>
-          <Text
-            style={[
-              typography.body,
-              { color: colors.fg.secondary, marginTop: 8, letterSpacing: -0.1 },
-            ]}
+        {/* ── fresh-hero ──────────────────────────────────────────────── */}
+        <LinearGradient
+          colors={[Forest[500], Forest[600], Forest[700]]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={[styles.hero, { borderRadius: componentRadius.hero }, glow]}
+        >
+          <View style={styles.heroTop}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.heroEyebrow, { color: Cream[50] }]}>{dateLabel}</Text>
+
+              <Text style={[styles.heroTitle, { color: Cream[50] }]}>
+                {hasUrgent ? (
+                  <>
+                    {urgents.length} aliment{urgents.length > 1 ? 's' : ''} à{'\n'}consommer{' '}
+                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>vite.</Text>
+                  </>
+                ) : (
+                  <>
+                    Ton frigo est{'\n'}au{' '}
+                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>top.</Text>
+                  </>
+                )}
+              </Text>
+
+              <Pressable
+                onPress={hasUrgent ? handleCookTonight : handleSeeList}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.8 : 1 }]}
+              >
+                <SymbolView
+                  name={hasUrgent ? 'book.closed.fill' : 'arrow.right'}
+                  size={14}
+                  tintColor="#fff"
+                />
+                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
+                  {hasUrgent ? 'Cuisiner ce soir' : 'Voir la liste'}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Anneau anti-gaspi */}
+            <View style={styles.ring}>
+              <Svg width={92} height={92} viewBox="0 0 92 92">
+                <Circle cx={46} cy={46} r={40} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={8} />
+                <Circle
+                  cx={46}
+                  cy={46}
+                  r={40}
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth={8}
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 40}
+                  strokeDashoffset={2 * Math.PI * 40 * (1 - score / 100)}
+                  transform="rotate(-90 46 46)"
+                />
+              </Svg>
+              <View style={styles.ringLabel}>
+                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700', letterSpacing: -1, lineHeight: 26 }}>
+                  {score}%
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 11, opacity: 0.8, marginTop: 1 }}>anti-gaspi</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Bandeau stats */}
+          <View style={styles.heroStats}>
+            <View style={styles.fhs}>
+              <Text style={styles.fhsNum}>{thrown}</Text>
+              <Text style={styles.fhsLabel}>jetés ce mois</Text>
+            </View>
+            <View style={[styles.fhs, styles.fhsDivider]}>
+              <Text style={styles.fhsNum}>{savedEuros} €</Text>
+              <Text style={styles.fhsLabel}>économisés</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ── seg-scroll : filtre d'espaces ───────────────────────────── */}
+        {spaces.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.segScroll}
+            contentContainerStyle={{ gap: 8, paddingRight: layout.screenPaddingH }}
           >
-            {dateLabel}
+            <SegPill label="Tout" active={listId === 'all'} onPress={() => setListId('all')} />
+            {spaces.map((s) => (
+              <SegPill
+                key={s.id}
+                label={s.label}
+                dotColor={s.color}
+                active={listId === s.id}
+                onPress={() => setListId(s.id)}
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ── À surveiller ────────────────────────────────────────────── */}
+        <View style={styles.sectionHead}>
+          <Text style={[typography.sectionLabel, { color: colors.fg.secondary }]}>À surveiller</Text>
+          <Text style={{ fontSize: 13, color: colors.fg.tertiary, fontWeight: '500' }}>
+            {feed.length} aliment{feed.length > 1 ? 's' : ''}
           </Text>
         </View>
 
-        {/* ── 2. today-hero — fond plein, typo display, pas de gradient ── */}
-        <Pressable
-          onPress={handleCookTonight}
-          accessibilityRole="button"
-          accessibilityLabel={
-            urgents.length > 0
-              ? `${urgents.length} aliments à sauver aujourd'hui. Toucher pour voir l'idée du soir.`
-              : `Rien d'urgent. Toucher pour explorer des recettes.`
-          }
-          style={({ pressed }) => [
-            styles.hero,
-            {
-              backgroundColor: heroSolid,
-              borderRadius: componentRadius.hero,
-              paddingHorizontal: 24,
-              paddingTop: 26,
-              paddingBottom: 22,
-              transform: [{ scale: pressed ? 0.99 : 1 }],
-            },
-          ]}
-        >
-          <Text
-            style={[
-              typography.eyebrow,
-              { color: Cream[50], opacity: 0.6, letterSpacing: 1.4, textTransform: 'uppercase' },
-            ]}
-          >
-            À sauver aujourd'hui
-          </Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10 }}>
-            <Text
-              style={{
-                color: Cream[50],
-                fontSize: 72,
-                fontWeight: '800',
-                letterSpacing: -3,
-                lineHeight: 72,
-                fontVariant: ['tabular-nums'],
-              }}
-            >
-              {String(urgents.length).padStart(2, '0')}
-            </Text>
-            <Text
-              style={[
-                typography.serifItalic,
-                {
-                  color: Cream[50],
-                  opacity: 0.7,
-                  fontSize: 30,
-                  marginLeft: 10,
-                  letterSpacing: -0.8,
-                },
-              ]}
-            >
-              {urgents.length === 1 ? 'truc' : 'trucs'}
-            </Text>
-          </View>
-
-          <Text
-            style={{
-              color: Cream[50],
-              opacity: 0.78,
-              fontSize: 14,
-              lineHeight: 20,
-              marginTop: 14,
-              letterSpacing: -0.1,
-            }}
-            numberOfLines={2}
-          >
-            {urgents.length > 0
-              ? `${urgents.slice(0, 3).map((f) => f.name.split(' ')[0]).join(', ')} · idée du soir`
-              : `Rien d'urgent — explore des recettes`}
-          </Text>
-        </Pressable>
-
-        {/* ── 3. À statuer — urgents avec actions inline ──────────────── */}
-        {urgents.length > 0 && (
-          <>
-            <SectionHead label={`À statuer · ${urgents.length}`} />
-            <View style={{ gap: layout.cardGap, marginBottom: layout.sectionGap }}>
-              {urgents.map((f) => (
-                <ProductCard
-                  key={f.id}
-                  name={f.name}
-                  image={f.imageUri ? { uri: f.imageUri } : undefined}
-                  daysUntilExpiration={f.daysLeft}
-                  quantity={f.quantityLabel}
-                  onPress={() => handlePressItem(f.id)}
-                  onConsume={() => handleConsume(f.id)}
-                  onTrash={() => handleTrash(f.id)}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* ── 3b. Mes espaces — feature core remontée au-dessus du fold ── */}
-        {spaces.length === 0 ? (
-          <>
-            <SectionHead label="Mes espaces" />
-            <Pressable
-              onPress={() => navigation.navigate('CreateList')}
-              style={({ pressed }) => [
-                styles.plannerCta,
-                {
-                  backgroundColor: colors.bg.surface,
-                  borderColor: colors.border.default,
-                  borderRadius: componentRadius.card,
-                  opacity: pressed ? 0.85 : 1,
-                  ...elevation[1],
-                },
-              ]}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: Sage[100],
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <SymbolView name="plus" size={20} tintColor={Forest[600]} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
-                  Créez votre première liste
-                </Text>
-                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                  Frigo, garde-manger, congélateur…
-                </Text>
-              </View>
-              <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <SectionHead
-              label="Mes espaces"
-              actionLabel="+ Nouvelle"
-              onAction={() => navigation.navigate('CreateList')}
-            />
-            <View style={{ gap: layout.cardGap }}>
-              {spaces.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => handlePressSpace(s)}
-                  style={({ pressed }) => [
-                    styles.space,
-                    {
-                      backgroundColor: colors.bg.surface,
-                      borderColor: colors.border.default,
-                      borderRadius: componentRadius.card,
-                      padding: layout.cardPaddingLg,
-                      transform: [{ scale: pressed ? 0.985 : 1 }],
-                      ...elevation[2],
-                    },
-                  ]}
-                >
-                  <View
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 10,
-                      backgroundColor: Sage[100],
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <SymbolView name={s.icon} size={22} tintColor={Forest[600]} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: '600',
-                        letterSpacing: -0.3,
-                        color: colors.fg.primary,
-                      }}
-                    >
-                      {s.label}
-                    </Text>
-                    <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                      {s.count} aliment{s.count > 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                  {s.alert > 0 && (
-                    <Badge tone="danger" variant="solid" dot={false}>
-                      {String(s.alert)}
-                    </Badge>
-                  )}
-                  {s.alert === 0 && s.warn > 0 && (
-                    <Badge tone="warning" dot={false}>
-                      {String(s.warn)}
-                    </Badge>
-                  )}
-                  <SymbolView
-                    name="chevron.right"
-                    size={14}
-                    tintColor={colors.fg.muted}
-                    style={{ marginLeft: 6 }}
-                  />
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* ── 4. Bento — économisé / bientôt / série ──────────────────── */}
-        <SectionHead label="Cette semaine" />
-        <View style={[styles.bento, { gap: layout.bentoGap }]}>
-          {/* Économisé — carte accent */}
+        {feed.length === 0 ? (
           <View
             style={[
-              styles.bentoStat,
+              styles.empty,
+              { backgroundColor: colors.bg.surface, borderColor: colors.border.default, borderRadius: componentRadius.card },
+            ]}
+          >
+            <View style={[styles.emptyIcon, { backgroundColor: Sage[200] }]}>
+              <SymbolView name="checkmark" size={26} tintColor={Forest[600]} />
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
+              Tout est frais
+            </Text>
+            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 4, textAlign: 'center' }]}>
+              Rien ne périme dans cet espace cette semaine.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <WatchGroup
+              tone="urgent"
+              title="À consommer"
+              subtitle="Aujourd'hui ou demain"
+              items={feedUrgent}
+              defaultOpen
+              onPressItem={handlePressItem}
+              onConsume={handleConsume}
+              onTrash={handleTrash}
+            />
+            <WatchGroup
+              tone="warn"
+              title="Bientôt"
+              subtitle="Dans 2 à 3 jours"
+              items={feedWarn}
+              onPressItem={handlePressItem}
+              onConsume={handleConsume}
+              onTrash={handleTrash}
+            />
+            <WatchGroup
+              tone="ok"
+              title="Cette semaine"
+              subtitle="4 à 7 jours"
+              items={feedOk}
+              onPressItem={handlePressItem}
+              onConsume={handleConsume}
+              onTrash={handleTrash}
+            />
+          </>
+        )}
+
+        {/* ── cook-card ───────────────────────────────────────────────── */}
+        {hasUrgent && (
+          <Pressable
+            onPress={handleCookTonight}
+            accessibilityRole="button"
+            accessibilityLabel="Idée du soir"
+            style={({ pressed }) => [
+              styles.cookCard,
               {
                 backgroundColor: colors.accent.soft,
                 borderColor: colors.accent.border,
                 borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                flex: 1,
-                ...elevation[2],
+                opacity: pressed ? 0.9 : 1,
               },
             ]}
           >
-            <Text style={[typography.sectionLabel, { color: Forest[600], opacity: 0.75, fontSize: 10 }]}>
-              économisé
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-              <Text
-                style={{
-                  color: Forest[700],
-                  fontSize: 28,
-                  fontWeight: '700',
-                  letterSpacing: -0.8,
-                  lineHeight: 28,
-                }}
-              >
-                {savedEuros}
+            <View style={[styles.cookThumb, { backgroundColor: colors.accent.default }]}>
+              <SymbolView name="book.closed.fill" size={22} tintColor="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.sectionLabel, { color: Forest[600], fontSize: 11 }]}>Idée du soir</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', letterSpacing: -0.3, marginTop: 3, color: colors.fg.primary }}>
+                Une recette pour tes urgents
               </Text>
-              <Text
-                style={[
-                  typography.serifItalic,
-                  {
-                    color: Forest[700],
-                    fontSize: 22,
-                    letterSpacing: -0.6,
-                  },
-                ]}
-              >
-                ,{String(savedCents).padStart(2, '0')}
-              </Text>
-              <Text
-                style={{
-                  color: Forest[700],
-                  fontSize: 22,
-                  fontWeight: '700',
-                  letterSpacing: -0.6,
-                  marginLeft: 2,
-                }}
-              >
-                €
+              <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
+                Sauve {urgents.length} aliment{urgents.length > 1 ? 's' : ''} avant péremption
               </Text>
             </View>
-            <Text style={[typography.footnote, { color: Forest[600], opacity: 0.8, marginTop: 2 }]}>
-              {savedEuros === 0 && savedCents === 0
-                ? 'Sauve ton premier aliment'
-                : `ce mois / ${Math.round(monthlyGoal)}€`}
-            </Text>
-            {/* Progress bar vers objectif mensuel */}
-            <View
-              style={{
-                marginTop: 8,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(34, 82, 48, 0.12)',
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  width: `${goalProgress * 100}%`,
-                  height: '100%',
-                  backgroundColor: Forest[600],
-                  borderRadius: 2,
-                }}
-              />
-            </View>
-          </View>
+            <SymbolView name="chevron.right" size={18} tintColor={colors.fg.muted} />
+          </Pressable>
+        )}
 
-          {/* Bientôt */}
-          <View
-            style={[
-              styles.bentoStat,
-              {
-                backgroundColor: colors.bg.surface,
-                borderColor: colors.border.default,
-                borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                flex: 1,
-                ...elevation[2],
-              },
-            ]}
-          >
-            <Text style={[typography.sectionLabel, { color: colors.fg.tertiary, fontSize: 10 }]}>
-              bientôt
-            </Text>
-            <Text
-              style={{
-                color: colors.fg.primary,
-                fontSize: 28,
-                fontWeight: '700',
-                letterSpacing: -0.8,
-                lineHeight: 28,
-                marginTop: 6,
-              }}
-            >
-              {String(next3.length).padStart(2, '0')}
-            </Text>
-            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-              {next3.length === 0 ? 'tout va bien' : 'dans 3 jours'}
-            </Text>
-          </View>
-
-          {/* Série — full width */}
-          <View
-            style={[
-              styles.bentoStat,
-              {
-                backgroundColor: colors.bg.surface,
-                borderColor: colors.border.default,
-                borderRadius: componentRadius.card,
-                padding: layout.cardPaddingLg,
-                width: '100%',
-                ...elevation[2],
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  backgroundColor: colors.feedback.warning.bg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <SymbolView name="flame.fill" size={22} tintColor={colors.feedback.warning.fg} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '600',
-                    letterSpacing: -0.2,
-                    color: colors.fg.primary,
-                  }}
-                >
-                  {currentStreak === 0
-                    ? 'Lance ta série'
-                    : `Série de ${currentStreak} jour${currentStreak > 1 ? 's' : ''}`}
-                </Text>
-                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                  {longestStreak > 0 && streakRemainingForRecord > 0
-                    ? `Plus que ${streakRemainingForRecord}j pour ton record (${longestStreak}j).`
-                    : currentStreak > 0 && currentStreak >= longestStreak
-                      ? 'Nouveau record ! Continue.'
-                      : 'Consomme un aliment avant péremption pour démarrer.'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── 4b. Engagement : Challenge hebdo + MealPlanner CTA + Referral ── */}
+        {/* ── Features hors-maquette conservées ───────────────────────── */}
         {challengesState && (
           <View style={{ marginTop: layout.sectionGap }}>
             <WeeklyChallengeCard challengesState={challengesState} />
           </View>
         )}
 
-        {/* Planner — ghost row, action secondaire (visuellement subordonnée au Challenge) */}
         <Pressable
           onPress={() => navigation.navigate('MealPlanner')}
           accessibilityRole="button"
           accessibilityLabel="Planifier les repas de la semaine"
-          style={({ pressed }) => [
-            styles.plannerGhost,
-            { opacity: pressed ? 0.55 : 1 },
-          ]}
+          style={({ pressed }) => [styles.plannerGhost, { opacity: pressed ? 0.55 : 1 }]}
         >
           <SymbolView name="calendar" size={18} tintColor={colors.fg.secondary} />
           <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
@@ -733,14 +531,9 @@ export default function HomeScreen() {
             <ReferralCard userId={user.id} hasBadges={true} />
           </View>
         )}
-
       </ScrollView>
 
-      {/* Recap hebdo — déclenché par push notif weekly_recap (route param) */}
-      <WeeklyRecapModal
-        visible={recapVisible}
-        onClose={() => setRecapVisible(false)}
-      />
+      <WeeklyRecapModal visible={recapVisible} onClose={() => setRecapVisible(false)} />
     </View>
   );
 }
@@ -749,66 +542,158 @@ export default function HomeScreen() {
 // Atoms locaux
 // ────────────────────────────────────────────────────────────────────────────
 
-function SectionHead({ label, actionLabel, onAction }: { label: string; actionLabel?: string; onAction?: () => void }) {
-  const { colors, typography, layout } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        marginTop: layout.sectionGap,
-        marginBottom: 10,
-        paddingHorizontal: 4,
-      }}
-    >
-      <Text style={[typography.sectionLabel, { color: colors.fg.secondary }]}>
-        {label}
-      </Text>
-      {actionLabel && (
-        <Pressable onPress={onAction} hitSlop={8}>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '500',
-              color: colors.accent.default,
-            }}
-          >
-            {actionLabel}
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-function IconButton({
-  icon,
-  onPress,
+function SegPill({
   label,
+  dotColor,
+  active,
+  onPress,
 }: {
-  icon: SFSymbol;
-  onPress?: () => void;
   label: string;
+  dotColor?: string;
+  active: boolean;
+  onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={8}
-      style={({ pressed }) => ({
-        padding: 8,
-        opacity: pressed ? 0.5 : 1,
-      })}
+      style={({ pressed }) => [
+        styles.pillSeg,
+        {
+          backgroundColor: active ? colors.fg.primary : colors.bg.surface,
+          borderColor: active ? colors.fg.primary : colors.border.default,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
     >
-      <SymbolView name={icon} size={22} tintColor={colors.fg.primary} />
+      {dotColor && <View style={[styles.pillDot, { backgroundColor: dotColor }]} />}
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: '600',
+          letterSpacing: -0.2,
+          color: active ? Cream[50] : colors.fg.secondary,
+        }}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
-/** Monogramme ZG minimal — placeholder en attendant le vrai logo embarqué. */
+const TONE_SOLID: Record<'urgent' | 'warn' | 'ok', string> = {
+  urgent: '#D85535',
+  warn: '#C68A1E',
+  ok: Forest[500],
+};
+
+function WatchGroup({
+  tone,
+  title,
+  subtitle,
+  items,
+  defaultOpen,
+  onPressItem,
+  onConsume,
+  onTrash,
+}: {
+  tone: 'urgent' | 'warn' | 'ok';
+  title: string;
+  subtitle: string;
+  items: LiveFood[];
+  defaultOpen?: boolean;
+  onPressItem: (id: string) => void;
+  onConsume: (id: string) => void;
+  onTrash: (id: string) => void;
+}) {
+  const { colors, componentRadius, elevation } = useTheme();
+  const [open, setOpen] = useState(!!defaultOpen);
+  if (items.length === 0) return null;
+  const solid = TONE_SOLID[tone];
+
+  return (
+    <View
+      style={[
+        styles.wgroup,
+        {
+          backgroundColor: colors.bg.surface,
+          borderColor: colors.border.default,
+          borderRadius: componentRadius.card,
+        },
+        open ? elevation[2] : elevation[1],
+      ]}
+    >
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        style={styles.wgroupHead}
+      >
+        <View style={[styles.wgroupTab, { backgroundColor: solid }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', letterSpacing: -0.3, color: colors.fg.primary }}>
+            {title}
+          </Text>
+          <Text style={{ fontSize: 12, color: colors.fg.tertiary, marginTop: 2 }}>{subtitle}</Text>
+        </View>
+
+        {!open && (
+          <View style={styles.wgroupThumbs}>
+            {items.slice(0, 4).map((f, i) => {
+              const c = categoryMeta(f.category);
+              return (
+                <View
+                  key={f.id}
+                  style={[
+                    styles.wgroupThumb,
+                    {
+                      backgroundColor: c.bg,
+                      borderColor: colors.bg.surface,
+                      marginLeft: i === 0 ? 0 : -6,
+                    },
+                  ]}
+                >
+                  <SymbolView name={c.symbol} size={15} tintColor={c.fg} />
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        <View
+          style={[
+            styles.wgroupCount,
+            { backgroundColor: open ? 'transparent' : solid },
+          ]}
+        >
+          {open ? (
+            <SymbolView name="chevron.down" size={16} tintColor={colors.fg.tertiary} />
+          ) : (
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{items.length}</Text>
+          )}
+        </View>
+      </Pressable>
+
+      {open && (
+        <View style={styles.wgroupBody}>
+          {items.map((f) => (
+            <ProductCard
+              key={f.id}
+              name={f.name}
+              image={f.imageUri ? { uri: f.imageUri } : undefined}
+              daysUntilExpiration={f.daysLeft}
+              quantity={f.quantityLabel}
+              onPress={() => onPressItem(f.id)}
+              onConsume={() => onConsume(f.id)}
+              onTrash={() => onTrash(f.id)}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** Logo officiel ZeroGaspy (icône monogramme ZG) — cercle, marge blanche du PNG rognée. */
 function LogoMonogram({ size = 28 }: { size?: number }) {
   return (
     <View
@@ -816,21 +701,15 @@ function LogoMonogram({ size = 28 }: { size?: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: Sage[200],
-        alignItems: 'center',
-        justifyContent: 'center',
+        overflow: 'hidden',
+        backgroundColor: Cream[50],
       }}
     >
-      <Text
-        style={{
-          fontSize: size * 0.5,
-          fontWeight: '800',
-          color: Forest[700],
-          letterSpacing: -0.5,
-        }}
-      >
-        Z
-      </Text>
+      <Image
+        source={require('../assets/logo.png')}
+        style={{ width: size, height: size, transform: [{ scale: 1.35 }] }}
+        resizeMode="cover"
+      />
     </View>
   );
 }
@@ -840,9 +719,7 @@ function LogoMonogram({ size = 28 }: { size?: number }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   topbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -850,34 +727,111 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingBottom: 6,
   },
-  topbarLeft: { flexDirection: 'row', alignItems: 'center', minWidth: 64 },
-  topbarRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  topbarLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
-  hero: {
-    overflow: 'hidden',
-    marginBottom: 16,
+
+  // fresh-hero
+  hero: { padding: 22, marginBottom: 18, overflow: 'hidden' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    opacity: 0.72,
   },
-  bento: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  bentoStat: {
-    borderWidth: 1,
-    justifyContent: 'space-between',
-    minHeight: 96,
-  },
-  space: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  plannerCta: {
+  heroTitle: { fontSize: 25, fontWeight: '700', letterSpacing: -0.9, lineHeight: 28, marginTop: 8, marginBottom: 16 },
+  heroCta: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: 8,
     paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  ring: { width: 92, height: 92 },
+  ringLabel: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  heroStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.16)',
+    paddingTop: 14,
+    marginTop: 16,
+  },
+  fhs: { flex: 1 },
+  fhsDivider: {
+    paddingLeft: 14,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255,255,255,0.16)',
+  },
+  fhsNum: { color: '#fff', fontSize: 19, fontWeight: '700', letterSpacing: -0.5 },
+  fhsLabel: { color: '#fff', fontSize: 12, opacity: 0.82, marginTop: 2 },
+
+  // seg-scroll
+  segScroll: { marginBottom: 4 },
+  pillSeg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: 999,
     borderWidth: 1,
   },
+  pillDot: { width: 8, height: 8, borderRadius: 4 },
+
+  // section head
+  sectionHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: 22,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+
+  // watch groups
+  wgroup: { borderWidth: 1, marginBottom: 10, overflow: 'hidden' },
+  wgroupHead: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  wgroupTab: { width: 6, height: 34, borderRadius: 999 },
+  wgroupThumbs: { flexDirection: 'row', alignItems: 'center' },
+  wgroupThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  wgroupCount: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+  },
+  wgroupBody: { paddingHorizontal: 8, paddingBottom: 8, gap: 8 },
+
+  // cook-card
+  cookCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    marginTop: 18,
+    borderWidth: 1,
+  },
+  cookThumb: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+
+  // empty
+  empty: { borderWidth: 1, alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
+  emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+
   plannerGhost: {
     flexDirection: 'row',
     alignItems: 'center',

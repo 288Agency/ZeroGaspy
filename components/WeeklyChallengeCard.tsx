@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { SymbolView, SFSymbol } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +19,30 @@ interface WeeklyChallengeCardProps {
   challengesState: WeeklyChallengesState | null;
 }
 
+// Emoji des défs → SF Symbol (cohérent avec le reste de l'app, rend partout).
+const CHALLENGE_SYMBOLS: Record<string, SFSymbol> = {
+  zero_waste_week: 'arrow.3.trianglepath',
+  save_20:         'shield.fill',
+  save_5:          'leaf.fill',
+  add_15:          'shippingbox.fill',
+  add_5:           'target',
+  recipes_10:      'fork.knife',
+  recipes_3:       'book.fill',
+  daily_5:         'calendar',
+  daily_7:         'figure.run',
+  consume_10:      'fork.knife.circle.fill',
+  consume_25:      'bolt.fill',
+  add_varied_3:    'square.grid.2x2.fill',
+  streak_5:        'flame.fill',
+  no_throw_3:      'leaf.fill',
+  all_actions:     'trophy.fill',
+  add_varied_5:    'archivebox.fill',
+  recipes_15:      'fork.knife',
+  no_throw_7:      'diamond.fill',
+  consume_5:       'fork.knife',
+};
+const CHALLENGE_SYMBOL_DEFAULT: SFSymbol = 'target';
+
 export default function WeeklyChallengeCard({ challengesState }: WeeklyChallengeCardProps) {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -34,6 +59,9 @@ export default function WeeklyChallengeCard({ challengesState }: WeeklyChallenge
     : null;
 
   const allCompleted = completedCount === 3;
+  const iconSymbol: SFSymbol = allCompleted
+    ? 'trophy.fill'
+    : CHALLENGE_SYMBOLS[firstIncompleteDef?.id ?? ''] ?? CHALLENGE_SYMBOL_DEFAULT;
 
   return (
     <PressableScale
@@ -45,9 +73,7 @@ export default function WeeklyChallengeCard({ challengesState }: WeeklyChallenge
     >
       <View style={styles.leftSection}>
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>
-            {allCompleted ? '🏆' : (firstIncompleteDef?.icon ?? '🎯')}
-          </Text>
+          <SymbolView name={iconSymbol} size={22} tintColor={COLORS.primary[600]} />
         </View>
       </View>
 
