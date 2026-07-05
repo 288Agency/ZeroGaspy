@@ -118,8 +118,10 @@ const withWidgetTarget = (config) =>
             INFOPLIST_FILE: `"${WIDGET_TARGET_NAME}/Info.plist"`,
             LD_RUNPATH_SEARCH_PATHS:
               '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
-            MARKETING_VERSION: '1.0',
-            CURRENT_PROJECT_VERSION: '1',
+            // Le widget DOIT partager la version de l'app (sinon rejet App Store :
+            // « CFBundle(Short)Version mismatch »). On lit depuis la config Expo.
+            MARKETING_VERSION: config.version || '1.0',
+            CURRENT_PROJECT_VERSION: String((config.ios && config.ios.buildNumber) || '1'),
             PRODUCT_BUNDLE_IDENTIFIER: WIDGET_BUNDLE_ID,
             PRODUCT_NAME: '"$(TARGET_NAME)"',
             SKIP_INSTALL: 'YES',
@@ -157,9 +159,41 @@ const withWidgetTarget = (config) =>
     return mod;
   });
 
+// 3. Re-synchroniser la version du widget sur celle de l'app à CHAQUE prebuild.
+//    (withWidgetTarget ne pose les build settings qu'à la première création de
+//    la target ; sur un ios/ existant il faut forcer la mise à jour.)
+const withWidgetVersionSync = (config) =>
+  withXcodeProject(config, (mod) => {
+    const xcodeProject = mod.modResults;
+    const marketing = config.version || '1.0';
+    const current = String((config.ios && config.ios.buildNumber) || '1');
+
+    const targets = xcodeProject.pbxNativeTargetSection();
+    const widgetEntry = Object.values(targets).find(
+      (t) => t && (t.name === `"${WIDGET_TARGET_NAME}"` || t.name === WIDGET_TARGET_NAME)
+    );
+    if (!widgetEntry) return mod;
+
+    const configListUUID = widgetEntry.buildConfigurationList;
+    const configListSection = xcodeProject.hash.project.objects.XCConfigurationList || {};
+    const configList = configListSection[configListUUID];
+    if (configList && configList.buildConfigurations) {
+      for (const configRef of configList.buildConfigurations) {
+        const configUUID = configRef.value !== undefined ? configRef.value : configRef;
+        const buildConfig = xcodeProject.pbxXCBuildConfigurationSection()[configUUID];
+        if (buildConfig && buildConfig.buildSettings) {
+          buildConfig.buildSettings.MARKETING_VERSION = marketing;
+          buildConfig.buildSettings.CURRENT_PROJECT_VERSION = current;
+        }
+      }
+    }
+    return mod;
+  });
+
 const withIOSWidget = (config) => {
   config = withAppGroup(config);
   config = withWidgetTarget(config);
+  config = withWidgetVersionSync(config);
   return config;
 };
 
