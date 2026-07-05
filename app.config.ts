@@ -117,6 +117,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   extra: {
     eas: {
       projectId: '67db9e46-01d4-4c41-815b-237ba7f22681',
+      // Déclare l'extension widget à EAS pour qu'il provisionne ses credentials
+      // (sinon EAS ne gère que l'app principale → « No profiles for …widget »).
+      build: {
+        experimental: {
+          ios: {
+            appExtensions: [
+              {
+                targetName: 'ZeroGaspyWidget',
+                bundleIdentifier: 'com.zerogaspy.app.widget',
+                entitlements: {
+                  'com.apple.security.application-groups': [
+                    'group.com.zerogaspy.app.widget',
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
     },
     // Variables d'environnement exposées à l'application
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
