@@ -219,6 +219,15 @@ export default function AccountScreen() {
     <View style={[styles.root, { backgroundColor: colors.bg.canvas, paddingTop: insets.top }]}>
       {/* Topbar handoff */}
       <View style={styles.topbar}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back', { defaultValue: 'Retour' })}
+          hitSlop={8}
+          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.5 : 1 }]}
+        >
+          <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
             {t('account.eyebrow', { defaultValue: 'Mon profil' })}
@@ -959,6 +968,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 4,
     paddingBottom: 14,
+  },
+  backBtn: {
+    width: 32,
+    height: 32,
+    marginLeft: -6,
+    marginRight: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 12,
