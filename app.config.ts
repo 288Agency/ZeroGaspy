@@ -51,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     supportsTablet: false,
     bundleIdentifier: 'com.zerogaspy.app',
     buildNumber: '59',
-    appleTeamId: 'M32LP7D76G',
+    appleTeamId: 'CU86TBMX5S',
     infoPlist: {
       NSCameraUsageDescription:
         "Cette application a besoin d'accéder à votre caméra pour prendre des photos d'aliments.",

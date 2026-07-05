@@ -41,7 +41,7 @@
       "ios": {
         "appleId": "quentin@288.agency",
         "ascAppId": "6757676680",
-        "appleTeamId": "M32LP7D76G"
+        "appleTeamId": "CU86TBMX5S"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",

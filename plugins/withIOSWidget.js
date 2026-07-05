@@ -114,7 +114,7 @@ const withWidgetTarget = (config) =>
             ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: 'NO',
             CODE_SIGN_ENTITLEMENTS: `"${WIDGET_TARGET_NAME}/ZeroGaspyWidget.entitlements"`,
             CODE_SIGN_STYLE: 'Automatic',
-            DEVELOPMENT_TEAM: 'M32LP7D76G',
+            DEVELOPMENT_TEAM: 'CU86TBMX5S',
             INFOPLIST_FILE: `"${WIDGET_TARGET_NAME}/Info.plist"`,
             LD_RUNPATH_SEARCH_PATHS:
               '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
