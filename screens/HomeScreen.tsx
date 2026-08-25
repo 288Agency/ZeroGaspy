@@ -125,7 +125,8 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
     for (const item of list.items) {
       if (item.status === 'consumed' || item.status === 'thrown') continue;
       const days = getDaysUntilExpiration(item.expirationDate);
-      if (days == null) continue;
+      // Date manquante : visible quand même (évite les aliments "fantômes")
+      const daysLeft = days == null ? 7 : days;
       const qty = item.quantity ?? 1;
       const unit = item.unit ?? '';
       out.push({
@@ -133,7 +134,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
         listId: list.id,
         name: item.name,
         quantityLabel: unit ? `${qty} ${unit}` : `${qty}`,
-        daysLeft: days,
+        daysLeft,
         category: item.category,
         imageUri: item.imageUri,
       });

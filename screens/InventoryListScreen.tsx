@@ -55,6 +55,7 @@ import {
   trackFoodAdded as analyticsTrackFoodAdded,
   trackFoodConsumed as analyticsTrackFoodConsumed,
   trackFoodThrown as analyticsTrackFoodThrown,
+  trackFirstFoodAddedOnce,
 } from '@/services/analytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -81,7 +82,9 @@ type FilterKey = 'all' | 'urgent' | 'soon' | 'fresh' | string;
 function hydrateFood(item: FoodItem): LiveFood | null {
   if (item.status === 'consumed' || item.status === 'thrown') return null;
   const days = getDaysUntilExpiration(item.expirationDate);
-  if (days == null) return null;
+  // Date manquante / invalide : on affiche quand même (J+7 virtuel) pour ne pas
+  // faire "disparaître" des articles déjà stockés — cause de churn historique.
+  const daysLeft = days == null ? 7 : days;
   const qty = item.quantity ?? 1;
   const unit = item.unit ?? '';
   return {
@@ -89,7 +92,7 @@ function hydrateFood(item: FoodItem): LiveFood | null {
     name: item.name,
     category: item.category?.toLowerCase(),
     quantityLabel: unit ? `${qty} ${unit}` : `${qty}`,
-    daysLeft: days,
+    daysLeft,
     imageUri: item.imageUri,
   };
 }
@@ -286,6 +289,7 @@ export default function InventoryListScreen() {
           hasPrice: it.price != null,
           source: 'receipt',
         });
+        void trackFirstFoodAddedOnce();
       }
       setReceiptReviewVisible(false);
       setScannedItems([]);

@@ -38,7 +38,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string, referralCode?: string) => Promise<{ error: Error | null }>;
   signInWithApple: () => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { clearLocalData?: boolean }) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   skipAuth: () => void;
   updateProfile: (data: { fullName?: string }) => Promise<{ error: Error | null }>;
@@ -263,26 +263,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (options?: { clearLocalData?: boolean }) => {
+    const clearLocalData = options?.clearLocalData === true;
     try {
       // Deactivate push tokens before signing out
       if (user?.id) {
         await deactivatePushTokens(user.id);
       }
       await supabase.auth.signOut();
-      // Clear user-specific cached data so next user starts fresh.
-      // Sans ça, un second utilisateur sur le même device voit l'inventaire/XP/streaks du précédent.
       await clearRecipeCache(user?.id);
-      await AsyncStorage.multiRemove([
+
+      // Toujours reset le mode local + prefs de compte. L'inventaire / XP ne
+      // partent que si l'utilisateur a explicitement choisi d'effacer — sinon
+      // une déconnexion "douce" ne détruit pas le frigo (churn + perte de confiance).
+      const keysToRemove = [
         SKIP_AUTH_KEY,
         'user_recipes',
-        'inventory_lists',
-        '@zerogaspy_gamification',
-        '@zerogaspy_challenges',
-        '@zerogaspy_savings_goal',
         '@zerogaspy_pending_referral',
         '@zerogaspy_bonus_scans',
-      ]);
+      ];
+      if (clearLocalData) {
+        keysToRemove.push(
+          'inventory_lists',
+          '@zerogaspy_gamification',
+          '@zerogaspy_challenges',
+          '@zerogaspy_savings_goal',
+        );
+      }
+      await AsyncStorage.multiRemove(keysToRemove);
       setSkippedAuth(false);
       resetAnalytics();
     } catch (error) {
@@ -402,8 +410,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error: new Error(translateError(error.message)) };
       }
 
-      // Deconnecter l'utilisateur apres suppression
-      await signOut();
+      // Déconnecter après suppression — efface aussi le frigo local
+      await signOut({ clearLocalData: true });
       return { error: null };
     } catch (error: any) {
       return { error: new Error(error.message || 'Erreur lors de la suppression du compte') };

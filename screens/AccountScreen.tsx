@@ -135,9 +135,13 @@ export default function AccountScreen() {
     Alert.alert(t('account.logout'), t('account.logoutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
-        text: t('account.logoutAction'),
+        text: t('account.logoutKeepData'),
+        onPress: async () => { await signOut({ clearLocalData: false }); },
+      },
+      {
+        text: t('account.logoutEraseData'),
         style: 'destructive',
-        onPress: async () => { await signOut(); },
+        onPress: async () => { await signOut({ clearLocalData: true }); },
       },
     ]);
   }, [t, signOut]);

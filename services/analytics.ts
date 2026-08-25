@@ -1,4 +1,5 @@
 import PostHog from 'posthog-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || '';
 const POSTHOG_HOST = 'https://eu.i.posthog.com'; // EU pour RGPD
@@ -200,6 +201,19 @@ export function trackOnboardingStep(step: number, stepName: string): void {
 
 export function trackFirstFoodAdded(): void {
   track('first_food_added');
+}
+
+/** Fire once per install — activation funnel (premier aliment ajouté, toute source). */
+const FIRST_FOOD_FLAG = 'first_food_added_tracked';
+export async function trackFirstFoodAddedOnce(): Promise<void> {
+  try {
+    const already = await AsyncStorage.getItem(FIRST_FOOD_FLAG);
+    if (already === 'true') return;
+    await AsyncStorage.setItem(FIRST_FOOD_FLAG, 'true');
+    trackFirstFoodAdded();
+  } catch {
+    // Ne jamais bloquer l'ajout d'aliment pour un échec analytics
+  }
 }
 
 export function trackPaywallShown(trigger: string): void {

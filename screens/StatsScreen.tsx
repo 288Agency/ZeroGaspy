@@ -70,7 +70,7 @@ export default function StatsScreen() {
         {...paywallProps}
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
-        trigger="addList"
+        trigger="stats"
       />
     </View>
   );

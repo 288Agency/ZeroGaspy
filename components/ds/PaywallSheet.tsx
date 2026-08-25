@@ -23,13 +23,19 @@
 //   />
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
+import {
+  trackPaywallShown,
+  trackPaywallViewed,
+  trackPaywallDismissed,
+  trackPurchaseStarted,
+} from '@/services/analytics';
 
 type Plan = 'annual' | 'monthly';
 
@@ -38,7 +44,8 @@ export type PaywallTrigger =
   | 'addList'           // veut créer un 3e espace
   | 'mealPlanner'       // ouvre meal planner
   | 'share'             // veut partager une liste
-  | 'recipes';          // veut une recette IA
+  | 'recipes'           // veut une recette IA
+  | 'stats';            // veut stats avancées / partage recap
 
 const TRIGGER_COPY: Record<PaywallTrigger, { hook: string }> = {
   scanLimit: { hook: 'Continue à scanner sans limite' },
@@ -46,6 +53,7 @@ const TRIGGER_COPY: Record<PaywallTrigger, { hook: string }> = {
   mealPlanner: { hook: 'Planifie tes repas de la semaine' },
   share:     { hook: 'Partage ton frigo avec ton foyer' },
   recipes:   { hook: 'Recettes IA depuis ton frigo' },
+  stats:     { hook: 'Débloque ton impact détaillé' },
 };
 
 export interface PaywallSheetProps {
@@ -78,6 +86,25 @@ export default function PaywallSheet({
   const { colors, typography, space, radius, componentRadius } = useTheme();
   const [plan, setPlan] = useState<Plan>('annual');
   const [submitting, setSubmitting] = useState(false);
+  const trackedOpen = useRef(false);
+
+  useEffect(() => {
+    if (visible && !trackedOpen.current) {
+      trackedOpen.current = true;
+      trackPaywallShown(trigger);
+      trackPaywallViewed(trigger);
+    }
+    if (!visible) {
+      trackedOpen.current = false;
+    }
+  }, [visible, trigger]);
+
+  const handleClose = () => {
+    if (visible) {
+      trackPaywallDismissed(trigger);
+    }
+    onClose();
+  };
 
   const benefits: Array<{ icon: any; label: string }> = [
     { icon: 'barcode.viewfinder', label: 'Scans illimités · code-barres et dates' },
@@ -88,6 +115,7 @@ export default function PaywallSheet({
   const handleSubscribe = async () => {
     try {
       setSubmitting(true);
+      trackPurchaseStarted(plan);
       await onSubscribe(plan);
     } finally {
       setSubmitting(false);
@@ -95,7 +123,7 @@ export default function PaywallSheet({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} dismissable>
+    <BottomSheet visible={visible} onClose={handleClose} dismissable>
       {/* Proof point */}
       {savedThisMonthEUR != null && savedThisMonthEUR > 0 && (
         <View

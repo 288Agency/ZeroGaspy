@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReceiptScannerModal from '../ReceiptScannerModal';
 import ReceiptReviewModal from '../ReceiptReviewModal';
 import { ensureDefaultList, addItemToList } from '../../utils/localStorage';
-import { trackFoodAdded } from '../../services/analytics';
+import { trackFoodAdded, trackFirstFoodAddedOnce } from '../../services/analytics';
 import { useGamification } from '../../contexts/GamificationContext';
 import type { ReceiptScanResult, ReceiptItem } from '../../services/mindeeReceiptService';
 import type { FoodItem } from '../../types';
@@ -101,6 +101,7 @@ export default function FirstCaptureFlow({ visible, onDone }: FirstCaptureFlowPr
             hasPrice: it.price != null,
             source: 'receipt_onboarding',
           });
+          void trackFirstFoodAddedOnce();
         }
       } catch (err) {
         logger.error('[FirstCapture] ajout des articles du ticket échoué:', err);

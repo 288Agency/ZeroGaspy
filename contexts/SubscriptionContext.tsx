@@ -13,6 +13,7 @@ import {
   ENTITLEMENT_ID,
 } from '../constants/subscription';
 import logger from '../utils/logger';
+import { trackPurchaseCompleted } from '../services/analytics';
 
 // 🛠️ MODE DÉVELOPPEMENT - Désactivé pour sécurité
 // Pour tester le premium en dev : utiliser RevenueCat sandbox
@@ -241,6 +242,16 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       updateSubscriptionState(customerInfo);
 
       if (customerInfo.entitlements.active[ENTITLEMENT_ID]) {
+        const planId = pkg.identifier.toLowerCase();
+        const plan =
+          planId.includes('family') && (planId.includes('annual') || planId.includes('year'))
+            ? 'family_yearly'
+            : planId.includes('family')
+            ? 'family_monthly'
+            : planId.includes('annual') || planId.includes('year')
+            ? 'yearly'
+            : 'monthly';
+        trackPurchaseCompleted(plan, pkg.product.price);
         Alert.alert(
           'Bienvenue Premium !',
           'Merci pour votre abonnement. Profitez de toutes les fonctionnalites !',

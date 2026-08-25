@@ -47,7 +47,7 @@ import { getCategoryEmoji } from '@/services/foodEmojiService';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
-import { trackFoodAdded as analyticsTrackFoodAdded } from '@/services/analytics';
+import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAddedOnce } from '@/services/analytics';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constantes — catégories + unités (handoff vocab)
@@ -138,6 +138,7 @@ export default function AddFoodScreen() {
             hasPrice: false,
             source: 'manual',
           });
+          void trackFirstFoodAddedOnce();
         } catch {}
       }
       navigation.goBack();

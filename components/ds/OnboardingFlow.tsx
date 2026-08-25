@@ -34,6 +34,7 @@ import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import Button from './Button';
+import { trackOnboardingStep, trackOnboardingStepCompleted } from '@/services/analytics';
 
 type StepKey = 'welcome' | 'how' | 'firstScan' | 'notifications' | 'done';
 
@@ -112,6 +113,11 @@ export default function OnboardingFlow({
   const [busy, setBusy] = useState(false);
   const step = STEPS[stepIdx];
 
+  // Funnel : chaque étape vue (y compris la 1re au mount)
+  useEffect(() => {
+    trackOnboardingStep(stepIdx, step.key);
+  }, [stepIdx, step.key]);
+
   // Anim fade entre les étapes
   const fade = useRef(new Animated.Value(1)).current;
   const slide = useRef(new Animated.Value(0)).current;
@@ -130,7 +136,10 @@ export default function OnboardingFlow({
     });
   };
 
-  const goNext = () => {
+  const goNext = (completedKey?: string) => {
+    if (completedKey) {
+      trackOnboardingStepCompleted(completedKey);
+    }
     if (stepIdx < STEPS.length - 1) animateTo(stepIdx + 1);
     else onComplete();
   };
@@ -147,20 +156,23 @@ export default function OnboardingFlow({
       } finally {
         setBusy(false);
       }
-      goNext();
+      goNext('firstScan');
       return;
     }
     if (step.key === 'notifications') {
       try {
         await onRequestNotifications?.();
       } catch {/* permission refusée — on avance quand même */}
-      goNext();
+      goNext('notifications');
       return;
     }
-    goNext();
+    goNext(step.key);
   };
 
-  const handleSkip = () => goNext();
+  const handleSkip = () => {
+    trackOnboardingStepCompleted(`${step.key}_skipped`);
+    goNext();
+  };
 
   return (
     <View
