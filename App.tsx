@@ -16,6 +16,7 @@ import AuthNavigator from './navigation/AuthNavigator';
 import { ONBOARDING_KEY } from './constants/onboarding';
 import { OnboardingFlow } from './components/ds';
 import FirstCaptureFlow from './components/onboarding/FirstCaptureFlow';
+import { RECIPE_ONBOARDING_KEY } from './components/RecipeOnboardingModal';
 import { requestNotificationPermissions } from './services/notificationService';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -314,6 +315,8 @@ function RootNavigator() {
     scheduleWelcomeBackNotification(i18n.language);
     try {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      // Évite un 2e carrousel au 1er passage Recettes juste après l'onboarding principal.
+      await AsyncStorage.setItem(RECIPE_ONBOARDING_KEY, 'true');
     } catch (error) {
       logger.error('Erreur sauvegarde onboarding:', error);
     }

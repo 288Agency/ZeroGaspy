@@ -20,7 +20,6 @@
 //     onClose={() => setOpen(false)}
 //     reason="share"
 //     onAppleSignIn={...}
-//     onGoogleSignIn={...}
 //     onEmailSignUp={() => navigate('Register')}
 //     onSkip={() => { keepLocal(); setOpen(false); }}
 //   />
@@ -64,7 +63,6 @@ export interface DeferredAuthSheetProps {
   onClose: () => void;
   reason: AuthReason;
   onAppleSignIn?: () => void;
-  onGoogleSignIn?: () => void;
   onEmailSignUp?: () => void;
   /** L'utilisateur skip — l'action courante doit rester en local */
   onSkip?: () => void;
@@ -75,11 +73,10 @@ export default function DeferredAuthSheet({
   onClose,
   reason,
   onAppleSignIn,
-  onGoogleSignIn,
   onEmailSignUp,
   onSkip,
 }: DeferredAuthSheetProps) {
-  const { colors, typography, space, radius, componentRadius } = useTheme();
+  const { colors, typography, space, radius } = useTheme();
   const copy = REASON_COPY[reason];
 
   const handleSkip = () => {
@@ -110,16 +107,11 @@ export default function DeferredAuthSheet({
         {copy.sub}
       </Text>
 
-      {/* Auth buttons */}
+      {/* Auth buttons — Apple + email only (pas de Google tant que non implémenté) */}
       <View style={{ gap: space[2], marginBottom: space[3] }}>
         {Platform.OS === 'ios' && onAppleSignIn && (
           <Button variant="primary" size="lg" icon="apple.logo" onPress={onAppleSignIn}>
             Continuer avec Apple
-          </Button>
-        )}
-        {onGoogleSignIn && (
-          <Button variant="secondary" size="lg" onPress={onGoogleSignIn}>
-            Continuer avec Google
           </Button>
         )}
         {onEmailSignUp && (

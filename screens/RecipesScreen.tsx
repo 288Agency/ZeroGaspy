@@ -141,13 +141,6 @@ export default function RecipesScreen() {
     }).start();
   }, [fadeAnim]);
 
-  // ── Onboarding au premier passage ────────────────────────────────────────
-  useEffect(() => {
-    AsyncStorage.getItem(RECIPE_ONBOARDING_KEY).then((value) => {
-      if (value !== 'true') setShowRecipeOnboarding(true);
-    });
-  }, []);
-
   // ── Data load ────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     try {
@@ -225,6 +218,16 @@ export default function RecipesScreen() {
       }, 0),
     [lists],
   );
+
+  // Onboarding recettes : seulement si frigo non vide et jamais vu.
+  // Si l'onboarding principal vient d'être fini, RECIPE_ONBOARDING_KEY est déjà true.
+  useEffect(() => {
+    if (isLoading) return;
+    if (totalIngredients === 0) return;
+    AsyncStorage.getItem(RECIPE_ONBOARDING_KEY).then((value) => {
+      if (value !== 'true') setShowRecipeOnboarding(true);
+    });
+  }, [isLoading, totalIngredients]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRecipePress = useCallback(
