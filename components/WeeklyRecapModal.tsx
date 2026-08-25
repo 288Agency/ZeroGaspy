@@ -6,15 +6,19 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Share,
-  Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
+import ViewShot from 'react-native-view-shot';
+import { COLORS, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import { loadLists } from '../utils/localStorage';
 import { getGamificationData } from '../services/gamificationService';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import ShareRecapCard from './ShareRecapCard';
+import { shareRecapImage } from '../services/shareRecapService';
 
 interface WeeklyRecapModalProps {
   visible: boolean;
@@ -27,13 +31,19 @@ interface WeekStats {
   eurosSaved: number;
   currentStreak: number;
   xpGained: number;
+  co2AvoidedKg: number;
 }
+
+const DEFAULT_ITEM_PRICE = 3;
 
 export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalProps) {
   const { t } = useTranslation();
+  const { isPremium } = useSubscription();
   const [stats, setStats] = useState<WeekStats | null>(null);
+  const [sharing, setSharing] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const viewShotRef = useRef<ViewShot>(null);
 
   useEffect(() => {
     if (visible) {
@@ -45,6 +55,7 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
     } else {
       scaleAnim.setValue(0.85);
       opacityAnim.setValue(0);
+      setStats(null);
     }
   }, [visible]);
 
@@ -62,17 +73,22 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
 
     for (const list of lists) {
       for (const item of list.items) {
-        if (item.status === 'consumed' && item.consumedAt) {
-          const consumedDate = new Date(item.consumedAt);
-          if (consumedDate >= weekAgo) {
-            itemsSaved++;
-            if (item.price) eurosSaved += item.price;
-          }
+        if (!item.consumedAt) continue;
+        const eventDate = new Date(item.consumedAt);
+        if (eventDate < weekAgo) continue;
+
+        if (item.status === 'consumed') {
+          itemsSaved++;
+          const price = item.price && item.price > 0 ? item.price : DEFAULT_ITEM_PRICE;
+          eurosSaved += price * (item.quantity || 1);
         } else if (item.status === 'thrown') {
           itemsThrown++;
         }
       }
     }
+
+    // ~0.5 kg CO2 évité par aliment sauvé (même ordre de grandeur que Stats)
+    const co2AvoidedKg = Math.round(itemsSaved * 0.5 * 10) / 10;
 
     setStats({
       itemsSaved,
@@ -80,19 +96,27 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
       eurosSaved: Math.round(eurosSaved * 100) / 100,
       currentStreak: gamification.streaks.currentNoWaste,
       xpGained: gamification.totalXp,
+      co2AvoidedKg,
     });
   };
 
   const handleShare = async () => {
-    if (!stats) return;
-    const message = t('weeklyRecap.shareMessage', {
-      saved: stats.itemsSaved,
-      euros: stats.eurosSaved.toFixed(2),
-      streak: stats.currentStreak,
-    });
+    if (!stats || sharing) return;
+    setSharing(true);
     try {
-      await Share.share({ message });
-    } catch {}
+      // Laisse un frame pour que ViewShot soit monté avec les stats à jour
+      await new Promise((r) => setTimeout(r, 80));
+      await shareRecapImage(viewShotRef);
+    } catch (error: any) {
+      if (!error?.message?.includes('User did not share') && !error?.message?.includes('did not share')) {
+        Alert.alert(
+          t('common.error'),
+          t('weeklyRecap.shareError', { defaultValue: 'Impossible de partager le récap' }),
+        );
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   if (!visible || !stats) return null;
@@ -104,16 +128,18 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
           style={[styles.container, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}
         >
           <TouchableOpacity activeOpacity={1}>
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.emoji}>📊</Text>
               <Text style={styles.title}>{t('weeklyRecap.title')}</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
                 <Ionicons name="close" size={scaleSize(22)} color={COLORS.text.tertiary} />
               </TouchableOpacity>
             </View>
 
-            {/* Stats grid */}
             <View style={styles.statsGrid}>
               <StatCard
                 icon="leaf"
@@ -145,14 +171,35 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
               />
             </View>
 
-            {/* Share button */}
-            <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
-              <Ionicons name="share-outline" size={scaleSize(18)} color={COLORS.neutral.white} />
-              <Text style={styles.shareText}>{t('weeklyRecap.share')}</Text>
+            <TouchableOpacity
+              style={[styles.shareButton, sharing && styles.shareButtonDisabled]}
+              onPress={handleShare}
+              activeOpacity={0.8}
+              disabled={sharing}
+            >
+              {sharing ? (
+                <ActivityIndicator size="small" color={COLORS.neutral.white} />
+              ) : (
+                <Ionicons name="share-outline" size={scaleSize(18)} color={COLORS.neutral.white} />
+              )}
+              <Text style={styles.shareText}>
+                {sharing ? t('common.loading') : t('weeklyRecap.share')}
+              </Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </Animated.View>
       </TouchableOpacity>
+
+      {/* Off-screen card for PNG capture — € visible si économies (boucle virale) */}
+      <ShareRecapCard
+        ref={viewShotRef}
+        itemsConsumed={stats.itemsSaved}
+        itemsThrown={stats.itemsThrown}
+        netSavings={stats.eurosSaved}
+        co2AvoidedKg={stats.co2AvoidedKg}
+        currentStreak={stats.currentStreak}
+        isPremium={isPremium || stats.eurosSaved > 0}
+      />
     </Modal>
   );
 }
@@ -176,7 +223,9 @@ function StatCard({
         <Ionicons name={icon} size={scaleSize(20)} color={iconColor} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel} numberOfLines={2}>{label}</Text>
+      <Text style={styles.statLabel} numberOfLines={2}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -213,7 +262,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   closeButton: {
-    padding: 4,
+    padding: scaleSpacing(4),
   },
   statsGrid: {
     flexDirection: 'row',
@@ -223,37 +272,41 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '47%',
+    flexGrow: 1,
     borderRadius: RADIUS.xl,
     padding: scaleSpacing(14),
-    alignItems: 'center',
+    minHeight: scaleSize(100),
   },
   statIconContainer: {
     width: scaleSize(36),
     height: scaleSize(36),
-    borderRadius: RADIUS.full,
+    borderRadius: scaleSize(18),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: scaleSpacing(8),
   },
   statValue: {
-    fontSize: scaleFontSize(isSmallScreen ? 22 : 26),
+    fontSize: scaleFontSize(22),
     fontWeight: '800',
     color: COLORS.text.primary,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: scaleFontSize(11),
+    fontSize: scaleFontSize(12),
     color: COLORS.text.secondary,
-    textAlign: 'center',
-    marginTop: 2,
+    fontWeight: '500',
   },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: scaleSpacing(14),
-    borderRadius: RADIUS.xl,
     gap: scaleSpacing(8),
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.full,
+    paddingVertical: scaleSpacing(14),
+  },
+  shareButtonDisabled: {
+    opacity: 0.75,
   },
   shareText: {
     color: COLORS.neutral.white,

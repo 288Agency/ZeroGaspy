@@ -1328,6 +1328,7 @@
     "streak": "{{count}} jours de streak",
     "share": "Partager mon récap",
     "shareMessage": "Cette semaine sur ZeroGaspy : {{saved}} aliments sauvés, {{euros}}€ économisés ! Streak : {{streak}} jours 🌿",
+    "shareError": "Impossible de partager le récap",
     "pushTitle": "Ton récap hebdo est prêt !",
     "pushBody": "{{saved}} aliments sauvés, {{euros}}€ économisés cette semaine"
   },

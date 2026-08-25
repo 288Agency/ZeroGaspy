@@ -1328,6 +1328,7 @@
     "streak": "{{count}}-day streak",
     "share": "Share my recap",
     "shareMessage": "This week on ZeroGaspy: {{saved}} items saved, {{euros}}€ saved! Streak: {{streak}} days 🌿",
+    "shareError": "Couldn't share the recap",
     "pushTitle": "Your weekly recap is ready!",
     "pushBody": "{{saved}} items saved, {{euros}}€ saved this week"
   },
