@@ -43,6 +43,7 @@ import { addItemToList, updateItem, getListById } from '@/utils/localStorage';
 import { formatDateToDDMMYYYY, parseDDMMYYYY } from '@/utils/dateUtils';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import DateScannerModal from '@/components/DateScannerModal';
+import DatePickerField from '@/components/DatePickerField';
 import { getCategoryEmoji } from '@/services/foodEmojiService';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
@@ -274,24 +275,14 @@ export default function AddFoodScreen() {
           />
         </FieldInputBox>
 
-        {/* ── 3. Date péremption ──────────────────────────────────────── */}
+        {/* ── 3. Date péremption (calendrier + scan OCR via quick row) ── */}
         <FieldLabel>Date de péremption</FieldLabel>
-        <FieldInputBox icon="calendar">
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            placeholder="JJ/MM/AAAA"
-            placeholderTextColor={colors.fg.muted}
-            keyboardType="numbers-and-punctuation"
-            returnKeyType="next"
-            style={{
-              flex: 1,
-              fontSize: 16,
-              color: colors.fg.primary,
-              padding: 0,
-            }}
-          />
-        </FieldInputBox>
+        <DatePickerField
+          label=""
+          value={date}
+          onDateChange={setDate}
+          minimumDate={new Date()}
+        />
 
         {/* ── 4. Quantité + Unité ─────────────────────────────────────── */}
         <FieldLabel>Quantité</FieldLabel>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
@@ -26,13 +26,20 @@ export default function DatePickerField({
 
     if (dateString.includes('/')) {
       const [day, month, year] = dateString.split('/').map(Number);
-      return new Date(year, month - 1, day);
+      const d = new Date(year, month - 1, day);
+      return Number.isNaN(d.getTime()) ? new Date() : d;
     }
 
-    return new Date(dateString);
+    const d = new Date(dateString);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
   };
 
   const [selectedDate, setSelectedDate] = useState<Date>(parseDate(value));
+
+  // Resync si la valeur change depuis l'extérieur (ex. scan OCR date)
+  useEffect(() => {
+    setSelectedDate(parseDate(value));
+  }, [value]);
 
   const formatDate = (date: Date): string => {
     const day = date.getDate().toString().padStart(2, '0');
@@ -50,15 +57,17 @@ export default function DatePickerField({
   const displayValue = value || 'JJ/MM/AAAA';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !label ? styles.containerNoLabel : null]}>
       <PressableScale
         onPress={() => setShowPicker(true)}
         style={styles.field}
       >
-        <Text style={styles.label}>
-          {label}
-        </Text>
-        <View style={styles.valueRow}>
+        {!!label && (
+          <Text style={styles.label}>
+            {label}
+          </Text>
+        )}
+        <View style={[styles.valueRow, !label && styles.valueRowFull]}>
           <Text
             style={[
               styles.valueText,
@@ -77,7 +86,6 @@ export default function DatePickerField({
         position="center"
       >
         <View style={styles.modalContainer}>
-          {/* Header */}
           <View style={styles.modalHeader}>
             <PressableScale
               onPress={() => setShowPicker(false)}
@@ -86,7 +94,7 @@ export default function DatePickerField({
               <Text style={styles.cancelText}>Annuler</Text>
             </PressableScale>
 
-            <Text style={styles.headerTitle}>{label}</Text>
+            <Text style={styles.headerTitle}>{label || 'Date de péremption'}</Text>
 
             <PressableScale
               onPress={() => {
@@ -102,7 +110,6 @@ export default function DatePickerField({
             </PressableScale>
           </View>
 
-          {/* Calendar */}
           <View style={styles.calendarContainer}>
             <Calendar
               selectedDate={selectedDate}
@@ -119,6 +126,9 @@ export default function DatePickerField({
 const styles = StyleSheet.create({
   container: {
     marginBottom: SPACING['2xl'],
+  },
+  containerNoLabel: {
+    marginBottom: 18,
   },
   field: {
     flexDirection: 'row',
@@ -141,6 +151,10 @@ const styles = StyleSheet.create({
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  valueRowFull: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   valueText: {
     fontSize: 16,
