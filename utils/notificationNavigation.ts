@@ -7,7 +7,11 @@ export interface NotificationDestination {
 
 /**
  * Maps notification data payload to a navigation destination (screen + optional params).
- * Expiration notifications deep-link to Recipes with the ingredient name.
+ *
+ * Priorité adoption :
+ *   · expiration avec ids → ProductDetail (action consommer/jeter)
+ *   · daily_recipe (dîner) → CookTonight (idée du soir)
+ *   · rappels / réengagement → ExpiringSoon (liste urgente)
  */
 export function getScreenFromNotificationData(
   data: Record<string, unknown> | null | undefined
@@ -15,28 +19,35 @@ export function getScreenFromNotificationData(
   if (!data) return { screen: 'Home' };
 
   const type = data.type as string | undefined;
-  const foodName = data.foodName as string | undefined;
+  const foodName = typeof data.foodName === 'string' ? data.foodName : undefined;
+  const itemId = typeof data.itemId === 'string' ? data.itemId : undefined;
+  const listId = typeof data.listId === 'string' ? data.listId : undefined;
 
   switch (type) {
     case 'expiration_today':
     case 'expiration_urgent':
     case 'expiration_warning':
-      return {
-        screen: 'Recipes',
-        params: foodName ? { ingredient: foodName } : undefined,
-      };
+      if (itemId && listId) {
+        return { screen: 'ProductDetail', params: { itemId, listId } };
+      }
+      return { screen: 'ExpiringSoon' };
+
     case 'daily_recipe':
-      return {
-        screen: 'Recipes',
-        params: foodName ? { ingredient: foodName } : undefined,
-      };
+      return { screen: 'CookTonight' };
+
     case 'daily_reminder':
     case 'daily_summary':
+    case 're_engagement':
       return { screen: 'ExpiringSoon' };
+
     case 'weekly_recap':
       return { screen: 'Home', params: { showWeeklyRecap: true } };
-    case 're_engagement':
+
     default:
+      // Legacy : certaines anciennes notifs pointaient Recipes avec foodName
+      if (foodName) {
+        return { screen: 'Recipes', params: { ingredient: foodName } };
+      }
       return { screen: 'Home' };
   }
 }

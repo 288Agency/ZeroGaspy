@@ -59,6 +59,7 @@ import logger from '@/utils/logger';
 import {
   trackFoodConsumed as analyticsTrackFoodConsumed,
   trackFoodThrown as analyticsTrackFoodThrown,
+  trackSavingsCardViewed,
 } from '@/services/analytics';
 
 // Composants legacy conservés (hors-maquette, palette héritée)
@@ -248,7 +249,10 @@ export default function HomeScreen() {
   const thrown = stats?.itemsThrown ?? 0;
   const hasWasteHistory = consumed + thrown > 0;
   const score = hasWasteHistory ? Math.round((consumed / (consumed + thrown)) * 100) : 0;
-  const savedEuros = Math.floor(monthlySaved);
+  const savedEurosLabel =
+    monthlySaved > 0 && monthlySaved < 10 && !Number.isInteger(monthlySaved)
+      ? monthlySaved.toFixed(1).replace('.', ',')
+      : String(Math.round(monthlySaved));
 
   // ── Handlers (inchangés) ───────────────────────────────────────────────────
   const handlePressItem = useCallback((itemId: string) => {
@@ -264,6 +268,11 @@ export default function HomeScreen() {
   const handleSeeList = useCallback(() => {
     navigation.navigate('ExpiringSoon');
   }, [navigation]);
+
+  const handleOpenStats = useCallback(() => {
+    trackSavingsCardViewed(monthlySaved);
+    navigation.navigate('Stats');
+  }, [navigation, monthlySaved]);
 
   const handleFillFridge = useCallback(async () => {
     try {
@@ -433,17 +442,22 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* Bandeau stats */}
-          <View style={styles.heroStats}>
+          {/* Bandeau stats — € d'abord (preuve d'adoption), jetés ensuite */}
+          <Pressable
+            onPress={handleOpenStats}
+            accessibilityRole="button"
+            accessibilityLabel="Voir mes économies"
+            style={({ pressed }) => [styles.heroStats, { opacity: pressed ? 0.85 : 1 }]}
+          >
             <View style={styles.fhs}>
+              <Text style={[styles.fhsNum, styles.fhsNumHero]}>{savedEurosLabel} €</Text>
+              <Text style={styles.fhsLabel}>économisés ce mois</Text>
+            </View>
+            <View style={[styles.fhs, styles.fhsDivider]}>
               <Text style={styles.fhsNum}>{thrown}</Text>
               <Text style={styles.fhsLabel}>jetés ce mois</Text>
             </View>
-            <View style={[styles.fhs, styles.fhsDivider]}>
-              <Text style={styles.fhsNum}>{savedEuros} €</Text>
-              <Text style={styles.fhsLabel}>économisés</Text>
-            </View>
-          </View>
+          </Pressable>
         </LinearGradient>
 
         {/* ── seg-scroll : filtre d'espaces ───────────────────────────── */}
@@ -846,6 +860,7 @@ const styles = StyleSheet.create({
     borderLeftColor: 'rgba(255,255,255,0.16)',
   },
   fhsNum: { color: '#fff', fontSize: 19, fontWeight: '700', letterSpacing: -0.5 },
+  fhsNumHero: { fontSize: 24, letterSpacing: -0.8 },
   fhsLabel: { color: '#fff', fontSize: 12, opacity: 0.82, marginTop: 2 },
 
   // seg-scroll

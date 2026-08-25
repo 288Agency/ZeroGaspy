@@ -49,6 +49,8 @@ import {
   trackOnboardingFoodAdded,
   identifyUser,
   shutdownAnalytics,
+  trackNotificationTapped,
+  trackDinnerNotificationTapped,
 } from './services/analytics';
 import { savePendingReferralCode } from './services/referralService';
 
@@ -118,6 +120,7 @@ function RootNavigator() {
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [firstCaptureOpen, setFirstCaptureOpen] = useState(false);
   const firstCaptureResolve = useRef<(() => void) | null>(null);
+  const pendingNotifNav = useRef<{ screen: string; params?: object } | null>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
@@ -247,23 +250,31 @@ function RootNavigator() {
       });
 
       // Écouter les clics sur les notifications
+      const navigateFromNotification = (data: Record<string, unknown> | null) => {
+        const dest = getScreenFromNotificationData(data);
+        const type = typeof data?.type === 'string' ? data.type : 'unknown';
+        trackNotificationTapped(type, dest.screen);
+        if (type === 'daily_recipe') {
+          trackDinnerNotificationTapped();
+        }
+        if (navigationRef.isReady()) {
+          navigationRef.navigate(dest.screen as any, dest.params as any);
+        } else {
+          pendingNotifNav.current = { screen: dest.screen, params: dest.params as object | undefined };
+        }
+      };
+
       responseListener.current = addNotificationResponseListener((response) => {
         logger.info('Notification tapped:', response.notification.request.content.title);
         const data = response.notification.request.content.data as Record<string, unknown> | null;
-        const dest = getScreenFromNotificationData(data);
-        if (navigationRef.isReady()) {
-          navigationRef.navigate(dest.screen as any, dest.params as any);
-        }
+        navigateFromNotification(data);
       });
 
       // Cold-start: l'app a été lancée via un tap sur une notification
       Notifications.getLastNotificationResponseAsync().then((response) => {
         if (response) {
           const data = response.notification.request.content.data as Record<string, unknown> | null;
-          const dest = getScreenFromNotificationData(data);
-          if (navigationRef.isReady()) {
-            navigationRef.navigate(dest.screen as any, dest.params as any);
-          }
+          navigateFromNotification(data);
         }
       });
     }
@@ -350,6 +361,12 @@ function RootNavigator() {
     routeNameRef.current = currentRouteName;
     if (currentRouteName) {
       trackScreen(currentRouteName);
+    }
+    // Tap notif avant que la nav soit prête (cold start)
+    if (pendingNotifNav.current) {
+      const pending = pendingNotifNav.current;
+      pendingNotifNav.current = null;
+      navigationRef.navigate(pending.screen as any, pending.params as any);
     }
   };
 

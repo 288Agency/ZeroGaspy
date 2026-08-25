@@ -104,6 +104,22 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+/** Annule seulement les notifs d'expiration / rappel quotidien — préserve dîner + weekly. */
+async function cancelExpirationRelatedNotifications(): Promise<void> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const toCancel = scheduled.filter((n) => {
+      const t = (n.content.data as { type?: string } | undefined)?.type;
+      return t === 'expiration_today' || t === 'expiration_warning' || t === 'daily_reminder';
+    });
+    await Promise.all(
+      toCancel.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+    );
+  } catch (err) {
+    logger.error('cancelExpirationRelatedNotifications failed:', err);
+  }
+}
+
 // Programmer les notifications d'expiration
 export async function scheduleExpirationNotifications(): Promise<void> {
   const settings = await loadNotificationSettings();
@@ -113,11 +129,17 @@ export async function scheduleExpirationNotifications(): Promise<void> {
     return;
   }
 
-  // Annuler les anciennes notifications
-  await cancelAllNotifications();
+  // Ne PAS cancelAll : ça effaçait dîner + weekly à chaque saveLists.
+  await cancelExpirationRelatedNotifications();
 
   const lists = await loadLists();
-  const expiringItems: Array<{ name: string; days: number; listTitle: string }> = [];
+  const expiringItems: Array<{
+    name: string;
+    days: number;
+    listTitle: string;
+    itemId: string;
+    listId: string;
+  }> = [];
 
   // Collecter tous les aliments qui expirent bientôt
   lists.forEach((list) => {
@@ -130,6 +152,8 @@ export async function scheduleExpirationNotifications(): Promise<void> {
           name: item.name,
           days,
           listTitle: list.title,
+          itemId: item.id,
+          listId: list.id,
         });
       }
     });
@@ -142,13 +166,19 @@ export async function scheduleExpirationNotifications(): Promise<void> {
     // Notification immédiate pour les items qui expirent aujourd'hui
     const expiringToday = expiringItems.filter((item) => item.days === 0);
     if (expiringToday.length > 0) {
+      const first = expiringToday[0];
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '⚠️ Aliments à consommer aujourd\'hui !',
           body: expiringToday.length === 1
-            ? `${expiringToday[0].name} expire aujourd'hui`
+            ? `${first.name} expire aujourd'hui`
             : `${expiringToday.length} aliments expirent aujourd'hui`,
-          data: { type: 'expiration_today', foodName: expiringToday[0].name },
+          data: {
+            type: 'expiration_today',
+            foodName: first.name,
+            itemId: first.itemId,
+            listId: first.listId,
+          },
           sound: 'default',
         },
         trigger: {
@@ -198,13 +228,20 @@ export async function scheduleExpirationNotifications(): Promise<void> {
     // Ne pas programmer dans le passé
     if (triggerDate.getTime() <= Date.now()) continue;
 
+    const first = items[0];
     await Notifications.scheduleNotificationAsync({
       content: {
         title: days === 1 ? '⏰ Expire demain !' : `📅 Expire dans ${days} jours`,
         body: items.length === 1
-          ? `${items[0].name} (${items[0].listTitle})`
+          ? `${first.name} (${first.listTitle})`
           : `${items.length} aliments arrivent à expiration`,
-        data: { type: 'expiration_warning', days, foodName: items[0].name },
+        data: {
+          type: 'expiration_warning',
+          days,
+          foodName: first.name,
+          itemId: first.itemId,
+          listId: first.listId,
+        },
         sound: 'default',
       },
       trigger: {
@@ -329,37 +366,42 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
     await Notifications.cancelScheduledNotificationAsync(DINNER_NOTIFICATION_ID).catch(() => {});
 
     const lists = await loadLists();
-    const expiringNames: string[] = [];
+    const expiring: Array<{ name: string; itemId: string; listId: string }> = [];
 
     for (const list of lists) {
       for (const item of list.items) {
         if (item.status === 'consumed' || item.status === 'thrown') continue;
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 2) {
-          expiringNames.push(item.name);
+          expiring.push({ name: item.name, itemId: item.id, listId: list.id });
         }
       }
     }
 
-    if (expiringNames.length === 0) return;
+    if (expiring.length === 0) return;
 
-    const firstName = expiringNames[0];
-    const others = expiringNames.length > 1 ? ` et ${expiringNames.length - 1} autre${expiringNames.length > 2 ? 's' : ''}` : '';
+    const first = expiring[0];
+    const others = expiring.length > 1 ? ` et ${expiring.length - 1} autre${expiring.length > 2 ? 's' : ''}` : '';
 
     const title = lang === 'fr'
       ? '🍽️ Ce soir, mange ça !'
       : '🍽️ Tonight, use this!';
 
     const body = lang === 'fr'
-      ? `${firstName}${others} expire${expiringNames.length > 1 ? 'nt' : ''} bientôt. Voir une recette ?`
-      : `${firstName}${others} expire${expiringNames.length > 1 ? '' : 's'} soon. Check a recipe?`;
+      ? `${first.name}${others} expire${expiring.length > 1 ? 'nt' : ''} bientôt. Cuisiner ce soir ?`
+      : `${first.name}${others} expire${expiring.length > 1 ? '' : 's'} soon. Cook tonight?`;
 
     await Notifications.scheduleNotificationAsync({
       identifier: DINNER_NOTIFICATION_ID,
       content: {
         title,
         body,
-        data: { type: 'daily_recipe', foodName: firstName },
+        data: {
+          type: 'daily_recipe',
+          foodName: first.name,
+          itemId: first.itemId,
+          listId: first.listId,
+        },
         sound: true,
       },
       trigger: {
@@ -369,7 +411,7 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
       },
     });
 
-    logger.info('Notification dîner planifiée:', { itemsExpiring: expiringNames.length });
+    logger.info('Notification dîner planifiée:', { itemsExpiring: expiring.length });
   } catch (error) {
     logger.error('scheduleDinnerReminderNotification error:', error);
   }

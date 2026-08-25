@@ -232,6 +232,10 @@ export function trackDinnerNotificationTapped(): void {
   track('dinner_notification_tapped');
 }
 
+export function trackNotificationTapped(type: string, screen: string): void {
+  track('notification_tapped', { type, screen });
+}
+
 export function trackSavingsCardViewed(amount: number): void {
   track('savings_card_viewed', { amount });
 }
