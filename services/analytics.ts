@@ -18,9 +18,18 @@ export async function initAnalytics() {
   posthog = new PostHog(POSTHOG_API_KEY, {
     host: POSTHOG_HOST,
     enableSessionReplay: false,
-    flushAt: 10,
+    // Volume dérisoire à notre échelle, et un utilisateur qui tue l'app juste
+    // après l'onboarding ne doit pas emporter ses événements avec lui : la
+    // fiabilité du funnel d'activation vaut plus que les requêtes économisées.
+    flushAt: 3,
     flushInterval: 30000,
   });
+
+  // Sans ça, les sessions de développement (simulateur, Expo Go) sont
+  // indiscernables des vrais utilisateurs dans le même projet PostHog, et
+  // gonflent le funnel d'activation. Sentry fait déjà cette distinction via
+  // `environment` — cf. config/sentry.ts.
+  posthog.register({ environment: __DEV__ ? 'development' : 'production' });
 }
 
 // ── Identification ──────────────────────────────────────────────

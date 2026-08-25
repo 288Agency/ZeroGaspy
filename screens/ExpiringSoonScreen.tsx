@@ -18,7 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest } from '@/tokens';
 import { Badge } from '@/components/ds';
 import { SkeletonExpiringList } from '@/components/Skeleton';
-import { loadLists } from '@/utils/localStorage';
+import { loadLists, ensureDefaultList } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
@@ -39,6 +39,7 @@ export default function ExpiringSoonScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<ExpiringItem[]>([]);
+  const [activeCount, setActiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -48,21 +49,20 @@ export default function ExpiringSoonScreen() {
       else setLoading(true);
       const data = await loadLists();
       const flat: ExpiringItem[] = [];
+      let live = 0;
       data.forEach((list) => {
         list.items.forEach((item) => {
+          if (item.status === 'consumed' || item.status === 'thrown') return;
+          live += 1;
           const days = getDaysUntilExpiration(item.expirationDate);
-          if (
-            days !== null &&
-            days >= 0 &&
-            days <= 7 &&
-            (item.status === 'active' || !item.status)
-          ) {
+          if (days !== null && days >= 0 && days <= 7) {
             flat.push({ ...item, listTitle: list.title, listId: list.id, daysLeft: days });
           }
         });
       });
       flat.sort((a, b) => a.daysLeft - b.daysLeft);
       setItems(flat);
+      setActiveCount(live);
     } catch (err) {
       logger.error('[ExpiringSoonV2] load failed:', err);
       Alert.alert(t('common.error'), t('inventory.loadError'), [{ text: t('common.ok') }]);
@@ -80,6 +80,22 @@ export default function ExpiringSoonScreen() {
     },
     [navigation],
   );
+
+  const handleFillFridge = useCallback(async () => {
+    try {
+      const list = await ensureDefaultList();
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        listIcon: list.icon,
+      });
+    } catch (err) {
+      logger.error('[ExpiringSoon] fill fridge failed:', err);
+    }
+  }, [navigation]);
+
+  const isFridgeEmpty = activeCount === 0;
 
   const renderItem = useCallback(
     ({ item }: { item: ExpiringItem }) => {
@@ -193,14 +209,34 @@ export default function ExpiringSoonScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: Sage[100] }]}>
-                <SymbolView name="checkmark.circle.fill" size={32} tintColor={Forest[600]} />
+                <SymbolView
+                  name={isFridgeEmpty ? 'plus.circle.fill' : 'checkmark.circle.fill'}
+                  size={32}
+                  tintColor={Forest[600]}
+                />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>
-                {t('home.noExpiringSoon')}
+                {isFridgeEmpty ? 'Ton frigo est vide' : t('home.noExpiringSoon')}
               </Text>
               <Text style={[styles.emptySub, { color: colors.fg.secondary }]}>
-                {t('home.allGood')}
+                {isFridgeEmpty
+                  ? 'Ajoute des aliments pour suivre ce qui périme bientôt.'
+                  : t('home.allGood')}
               </Text>
+              {isFridgeEmpty && (
+                <Pressable
+                  onPress={handleFillFridge}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.emptyCta,
+                    { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
+                    {t('inventory.addFood')}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           }
           showsVerticalScrollIndicator={false}
@@ -300,5 +336,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingHorizontal: 32,
     lineHeight: 20,
+  },
+  emptyCta: {
+    marginTop: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
   },
 });

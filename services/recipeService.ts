@@ -2278,7 +2278,10 @@ export async function fetchRecipesFromCloud(variantGroup?: string | null): Promi
     if (cachedTs) {
       const age = Date.now() - parseInt(cachedTs, 10);
       if (age < CLOUD_CACHE_TTL_MS && cached) {
-        return JSON.parse(cached) as Recipe[];
+        const fresh = JSON.parse(cached) as Recipe[];
+        // Un cache vide est le symptôme d'une lecture bloquée, pas un catalogue
+        // légitime : on le re-tente au lieu de le servir jusqu'à expiration.
+        if (fresh.length > 0) return fresh;
       }
     }
 
@@ -2300,6 +2303,14 @@ export async function fetchRecipesFromCloud(variantGroup?: string | null): Promi
 
     const recipes = (data as CloudRecipe[]).map(convertCloudRecipeToLocal);
 
+    // RLS refuse une lecture en renvoyant « succès, 0 ligne », pas une erreur :
+    // sans ce garde, un catalogue inaccessible était mis en cache 24 h et le
+    // repli sur RECIPES_DATABASE n'était jamais atteint.
+    if (recipes.length === 0) {
+      logger.warn('[RecipeService] Catalogue cloud vide — repli sur les recettes embarquées');
+      return await getCachedOrFallback(cacheKey);
+    }
+
     await AsyncStorage.setItem(cacheKey, JSON.stringify(recipes));
     await AsyncStorage.setItem(cacheTsKey, Date.now().toString());
 
@@ -2314,7 +2325,10 @@ async function getCachedOrFallback(cacheKey?: string): Promise<Recipe[]> {
   try {
     const key = cacheKey ?? CLOUD_RECIPES_CACHE_KEY;
     const cached = await AsyncStorage.getItem(key);
-    if (cached) return JSON.parse(cached) as Recipe[];
+    if (cached) {
+      const parsed = JSON.parse(cached) as Recipe[];
+      if (parsed.length > 0) return parsed;
+    }
   } catch { /* ignore */ }
   return RECIPES_DATABASE;
 }

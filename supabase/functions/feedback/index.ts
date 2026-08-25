@@ -1,7 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-const RECIPIENT_EMAIL = Deno.env.get('FEEDBACK_RECIPIENT_EMAIL') || 'feedback@zerogaspy.com'
+// Destinataire des feedbacks (reception : aucune verification Resend requise,
+// il suffit que la boite contact@zerogaspy.fr recoive bien le mail via ses MX).
+const RECIPIENT_EMAIL = Deno.env.get('FEEDBACK_RECIPIENT_EMAIL') || 'contact@zerogaspy.fr'
+// Expediteur : le domaine utilise DOIT etre verifie dans Resend (DNS DKIM/SPF),
+// sinon l'API Resend rejette l'envoi (403). Le fallback reste onboarding@resend.dev
+// (toujours valide). Passer a "ZeroGaspy <contact@zerogaspy.fr>" via le secret
+// RESEND_FROM_EMAIL UNIQUEMENT une fois zerogaspy.fr verifie dans Resend.
 const FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') || 'ZeroGaspy <onboarding@resend.dev>'
 
 interface FeedbackRequest {

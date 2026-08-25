@@ -27,12 +27,14 @@
     "all": "Tout",
     "clear": "Effacer",
     "day": "jour",
-    "day_plural": "jours",
+    "day_one": "jour",
+    "day_other": "jours",
     "dayShort": "j",
     "permissionRequired": "Permission requise",
     "syncTitle": "Synchronisation",
     "foodItem": "aliment",
-    "foodItem_plural": "aliments",
+    "foodItem_one": "aliment",
+    "foodItem_other": "aliments",
     "remove": "Retirer",
     "share": "Partager"
   },
@@ -48,7 +50,8 @@
     "greeting": "Prêt à réduire le gaspillage ?",
     "today": "Aujourd'hui",
     "activeLists": "{{count}} liste active",
-    "activeLists_plural": "{{count}} listes actives",
+    "activeLists_one": "{{count}} liste active",
+    "activeLists_other": "{{count}} listes actives",
     "expiringToday": "Expire aujourd'hui",
     "expiringSoon": "Expire bientôt",
     "expiredItems": "Éléments expirés",
@@ -79,7 +82,8 @@
     "loadListsError": "Impossible de charger vos listes. Veuillez réessayer.",
     "tonightCook": "Ce soir, cuisinez !",
     "expiresInDays": "expire dans {{count}} jour",
-    "expiresInDays_plural": "expire dans {{count}} jours",
+    "expiresInDays_one": "expire dans {{count}} jour",
+    "expiresInDays_other": "expire dans {{count}} jours",
     "expiresInDays_zero": "expire aujourd'hui"
   },
   "lists": {
@@ -94,7 +98,8 @@
     "emptyListsDesc": "Créez votre première liste pour commencer à suivre vos aliments",
     "emptyListsAction": "Créez-en une pour commencer !",
     "itemsCount": "{{count}} aliment",
-    "itemsCount_plural": "{{count}} aliments",
+    "itemsCount_one": "{{count}} aliment",
+    "itemsCount_other": "{{count}} aliments",
     "defaultList": "Ma liste",
     "shareList": "Partager la liste",
     "duplicateList": "Dupliquer",
@@ -154,14 +159,17 @@
     "sevenDays": "7 jours",
     "fresh": "Frais",
     "results": "{{count}} résultat",
-    "results_plural": "{{count}} résultats",
+    "results_one": "{{count}} résultat",
+    "results_other": "{{count}} résultats",
     "activeItems": "{{count}} aliment actif",
-    "activeItems_plural": "{{count}} aliments actifs",
+    "activeItems_one": "{{count}} aliment actif",
+    "activeItems_other": "{{count}} aliments actifs",
     "noResults": "Aucun résultat",
     "noMatchFor": "Aucun aliment ne correspond à \"{{query}}\"",
     "clearSearch": "Effacer la recherche",
     "selected": "{{count}} sélectionné",
-    "selected_plural": "{{count}} sélectionnés",
+    "selected_one": "{{count}} sélectionné",
+    "selected_other": "{{count}} sélectionnés",
     "deselectAll": "Désélect.",
     "selectAll": "Tout",
     "scanReceipt": "Scanner un ticket",
@@ -176,10 +184,12 @@
     "openingDate": "Date d'ouverture",
     "durationAfterOpening": "Durée après ouverture",
     "expiredSince": "Expiré depuis {{count}} jour",
-    "expiredSince_plural": "Expiré depuis {{count}} jours",
+    "expiredSince_one": "Expiré depuis {{count}} jour",
+    "expiredSince_other": "Expiré depuis {{count}} jours",
     "expiresToday": "Expire aujourd'hui",
     "expiresIn": "Expire dans {{count}} jour",
-    "expiresIn_plural": "Expire dans {{count}} jours",
+    "expiresIn_one": "Expire dans {{count}} jour",
+    "expiresIn_other": "Expire dans {{count}} jours",
     "freshStatus": "Frais",
     "listNotFound": "Liste introuvable",
     "loadError": "Impossible de charger la liste",
@@ -188,18 +198,23 @@
     "thrownError": "Impossible de marquer comme jeté",
     "openedError": "Impossible de marquer comme ouvert",
     "productsAdded": "{{count}} produit ajouté à la liste",
-    "productsAdded_plural": "{{count}} produits ajoutés à la liste",
+    "productsAdded_one": "{{count}} produit ajouté à la liste",
+    "productsAdded_other": "{{count}} produits ajoutés à la liste",
     "productsAddError": "Impossible d'ajouter les produits",
     "deleteForever": "Supprimer définitivement",
     "deleteCountConfirm": "Supprimer {{count}} aliment de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.",
-    "deleteCountConfirm_plural": "Supprimer {{count}} aliments de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.",
+    "deleteCountConfirm_one": "Supprimer {{count}} aliment de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.",
+    "deleteCountConfirm_other": "Supprimer {{count}} aliments de la liste ?\n\nCes aliments ne seront pas comptabilisés dans les statistiques.",
     "confirmAction": "Confirmer l'action",
     "markCountAs": "Marquer {{count}} aliment comme {{action}} ?",
-    "markCountAs_plural": "Marquer {{count}} aliments comme {{action}} ?",
+    "markCountAs_one": "Marquer {{count}} aliment comme {{action}} ?",
+    "markCountAs_other": "Marquer {{count}} aliments comme {{action}} ?",
     "consumedAction": "consommé",
-    "consumedAction_plural": "consommés",
+    "consumedAction_one": "consommé",
+    "consumedAction_other": "consommés",
     "thrownAction": "jeté",
-    "thrownAction_plural": "jetés",
+    "thrownAction_one": "jeté",
+    "thrownAction_other": "jetés",
     "bulkConsumedError": "Impossible de marquer comme consommés",
     "bulkThrownError": "Impossible de marquer comme jetés",
     "bulkDeleteError": "Impossible de supprimer les aliments",
@@ -208,7 +223,8 @@
     "dateRequired": "Veuillez entrer une date d'expiration",
     "deleteError": "Impossible de supprimer l'aliment",
     "daysAfterOpeningValue": "{{count}} jour",
-    "daysAfterOpeningValue_plural": "{{count}} jours",
+    "daysAfterOpeningValue_one": "{{count}} jour",
+    "daysAfterOpeningValue_other": "{{count}} jours",
     "invalidDate": "Date invalide",
     "expiredDays": "Expiré ({{count}}j)",
     "expiresTomorrow": "Expire demain",
@@ -220,7 +236,8 @@
     "daysPositive": "Le nombre de jours doit être positif",
     "whatQuantity": "Quelle quantité ?",
     "available": "{{count}} disponible",
-    "available_plural": "{{count}} disponibles",
+    "available_one": "{{count}} disponible",
+    "available_other": "{{count}} disponibles",
     "markAllAs": "Tout marquer comme {{action}}",
     "markAsAction": "Marquer {{count}} comme {{action}}"
   },
@@ -308,11 +325,14 @@
     "missingIngredients": "Ingrédients manquants",
     "availableIngredients": "Ingrédients disponibles",
     "availableCount": "{{count}} aliment disponible",
-    "availableCount_plural": "{{count}} aliments disponibles",
+    "availableCount_one": "{{count}} aliment disponible",
+    "availableCount_other": "{{count}} aliments disponibles",
     "possibleRecipes": "{{count}} recette possible",
-    "possibleRecipes_plural": "{{count}} recettes possibles",
+    "possibleRecipes_one": "{{count}} recette possible",
+    "possibleRecipes_other": "{{count}} recettes possibles",
     "personalRecipes": "{{count}} recette personnelle",
-    "personalRecipes_plural": "{{count}} recettes personnelles",
+    "personalRecipes_one": "{{count}} recette personnelle",
+    "personalRecipes_other": "{{count}} recettes personnelles",
     "all": "Tout",
     "myRecipes": "Mes recettes",
     "breakfast": "Petit-déj",
@@ -327,7 +347,8 @@
     "changeFilterHint": "Essayez d'ajouter plus d'aliments ou changez de filtre",
     "addRecipeHint": "Ajoutez vos propres recettes avec le bouton + ci-dessous",
     "suggestedCount": "{{count}} recette suggérée pour vous",
-    "suggestedCount_plural": "{{count}} recettes suggérées pour vous",
+    "suggestedCount_one": "{{count}} recette suggérée pour vous",
+    "suggestedCount_other": "{{count}} recettes suggérées pour vous",
     "unlockSuggestions": "Débloquez les suggestions personnalisées basées sur vos ingrédients",
     "whatToDo": "Que voulez-vous faire ?",
     "myRecipe": "Ma recette",
@@ -347,7 +368,8 @@
     "aiNoIngredientsHint": "Ajoute des aliments avec une date d'expiration proche pour générer une recette IA.",
     "antiWasteBadge": "Anti-gaspi",
     "expiringCount": "{{count}} aliment expire bientôt",
-    "expiringCount_plural": "{{count}} aliments expirent bientôt",
+    "expiringCount_one": "{{count}} aliment expire bientôt",
+    "expiringCount_other": "{{count}} aliments expirent bientôt",
     "onboarding": {
       "slide1Title": "Des recettes sur mesure",
       "slide1Subtitle": "On analyse tes ingrédients et on te propose les recettes qui matchent le mieux. Plus le % est élevé, plus tu as ce qu'il faut !",
@@ -442,7 +464,8 @@
     "sync": "Sync",
     "synced": "Tout est synchronisé",
     "pendingChanges": "{{count}} modification en attente",
-    "pendingChanges_plural": "{{count}} modifications en attente",
+    "pendingChanges_one": "{{count}} modification en attente",
+    "pendingChanges_other": "{{count}} modifications en attente",
     "accountSettings": "Paramètres du compte",
     "user": "Utilisateur",
     "sectionAccount": "👤 Compte",
@@ -555,11 +578,11 @@
     "getStarted": "Commencer",
     "skip": "Passer",
     "next": "Suivant",
-    "slide1Title": "Bienvenue sur\nZeroGaspy",
+    "slide1Title": "Finis le gaspillage alimentaire",
     "slide1Subtitle": "Votre allié pour réduire le gaspillage alimentaire et économiser au quotidien",
-    "slide2Title": "Suivez vos\naliments",
+    "slide2Title": "Ne rate plus jamais une date de péremption",
     "slide2Subtitle": "Ajoutez vos produits en un clic et gardez un œil sur leurs dates de péremption",
-    "slide3Title": "Organisez vos\nespaces",
+    "slide3Title": "Des recettes avec ce que tu as déjà",
     "slide3Subtitle": "Frigo, congélateur, placard... Créez vos espaces et retrouvez tout facilement",
     "slide4Title": "Soyez alerté\nà temps",
     "slide4Subtitle": "Recevez des rappels intelligents avant que vos aliments ne périment",
@@ -594,11 +617,13 @@
     "exploreApp": "Explorer l'app",
     "defaultListName": "Mon Frigo",
     "itemsAdded": "{{count}} aliment ajouté",
-    "itemsAdded_plural": "{{count}} aliments ajoutés",
+    "itemsAdded_one": "{{count}} aliment ajouté",
+    "itemsAdded_other": "{{count}} aliments ajoutés",
     "ahaMoment": "Premier aliment sauvé ! Tu viens peut-être d'éviter ~0.30€ de gaspillage 🌱",
     "matching": "{{percent}}% de match",
     "missingCount": "{{count}} ingrédient manquant",
-    "missingCount_plural": "{{count}} ingrédients manquants",
+    "missingCount_one": "{{count}} ingrédient manquant",
+    "missingCount_other": "{{count}} ingrédients manquants",
     "categoryFruits": "Fruits",
     "categoryVegetables": "Légumes",
     "categoryMeat": "Viande",
@@ -607,15 +632,12 @@
     "categoryGrocery": "Épicerie",
     "categoryFrozen": "Surgelés",
     "categoryOther": "Autre",
-    "slide1Title": "Finis le gaspillage alimentaire",
     "slide1Sub": "Suis tes aliments, reçois des alertes avant qu'ils expirent, cuisine ce que tu as.",
     "slide1Pill1": "📦 Inventaire facile",
     "slide1Pill2": "🔔 Alertes expiration",
-    "slide2Title": "Ne rate plus jamais une date de péremption",
     "slide2Sub": "ZeroGaspy te prévient 3 jours avant. Tu agis à temps, rien ne finit à la poubelle.",
     "slide2Pill1": "🔥 Alerte 3 jours avant",
     "slide2Pill2": "♻️ Zéro déchet",
-    "slide3Title": "Des recettes avec ce que tu as déjà",
     "slide3Sub": "L'IA analyse ton frigo et propose les meilleures recettes anti-gaspi du jour.",
     "slide3Pill1": "✨ Suggestions IA",
     "slide3Pill2": "🎯 Recettes sur-mesure",
@@ -1125,7 +1147,8 @@
     "shareCodeMessage": "Rejoins ma liste « {{title}} » sur ZeroGaspy avec le code {{code}} : {{link}}",
     "members": "Membres",
     "membersCount": "{{count}} membre",
-    "membersCount_plural": "{{count}} membres",
+    "membersCount_one": "{{count}} membre",
+    "membersCount_other": "{{count}} membres",
     "inviteByEmail": "Inviter par email",
     "emailPlaceholder": "email@exemple.com",
     "invite": "Inviter",
@@ -1168,31 +1191,106 @@
     "searchError": "Erreur lors de la recherche du produit"
   },
   "badges": {
-    "zero_waste_7":   { "name": "Éco-débutant",       "description": "7 jours sans gaspillage" },
-    "zero_waste_14":  { "name": "Éco-apprenti",       "description": "14 jours sans gaspillage" },
-    "zero_waste_30":  { "name": "Éco-warrior",        "description": "30 jours sans gaspillage" },
-    "zero_waste_60":  { "name": "Éco-champion",       "description": "60 jours sans gaspillage" },
-    "zero_waste_90":  { "name": "Éco-légende",        "description": "90 jours sans gaspillage" },
-    "saver_10":       { "name": "Petit Sauveur",      "description": "10 aliments consommés avant expiration" },
-    "saver_50":       { "name": "Gardien du frigo",   "description": "50 aliments sauvés" },
-    "saver_100":      { "name": "Héros anti-gaspi",   "description": "100 aliments sauvés" },
-    "saver_250":      { "name": "Super Sauveur",      "description": "250 aliments sauvés" },
-    "saver_500":      { "name": "Maître du zéro déchet", "description": "500 aliments sauvés" },
-    "explorer_5":     { "name": "Curieux",            "description": "5 recettes consultées" },
-    "explorer_25":    { "name": "Apprenti chef",      "description": "25 recettes consultées" },
-    "explorer_50":    { "name": "Chef confirmé",      "description": "50 recettes consultées" },
-    "explorer_100":   { "name": "Chef étoilé",        "description": "100 recettes consultées" },
-    "first_list":     { "name": "Organisateur",       "description": "Créer sa première liste" },
-    "organizer_5":    { "name": "Bien rangé",         "description": "5 listes créées" },
-    "organizer_10":   { "name": "Maître de l'organisation", "description": "10 listes créées" },
-    "streak_7":       { "name": "Régulier",           "description": "7 jours d'utilisation consécutifs" },
-    "streak_14":      { "name": "Assidu",             "description": "14 jours d'utilisation consécutifs" },
-    "streak_30":      { "name": "Inarrêtable",        "description": "30 jours d'utilisation consécutifs" },
-    "streak_60":      { "name": "Machine",            "description": "60 jours d'utilisation consécutifs" },
-    "first_food":     { "name": "Premier pas",        "description": "Ajouter son premier aliment" },
-    "foods_100":      { "name": "Centenaire",         "description": "100 aliments ajoutés au total" },
-    "foods_500":      { "name": "Vétéran",            "description": "500 aliments ajoutés au total" },
-    "foods_1000":     { "name": "Légendaire",         "description": "1000 aliments ajoutés au total" }
+    "zero_waste_7": {
+      "name": "Éco-débutant",
+      "description": "7 jours sans gaspillage"
+    },
+    "zero_waste_14": {
+      "name": "Éco-apprenti",
+      "description": "14 jours sans gaspillage"
+    },
+    "zero_waste_30": {
+      "name": "Éco-warrior",
+      "description": "30 jours sans gaspillage"
+    },
+    "zero_waste_60": {
+      "name": "Éco-champion",
+      "description": "60 jours sans gaspillage"
+    },
+    "zero_waste_90": {
+      "name": "Éco-légende",
+      "description": "90 jours sans gaspillage"
+    },
+    "saver_10": {
+      "name": "Petit Sauveur",
+      "description": "10 aliments consommés avant expiration"
+    },
+    "saver_50": {
+      "name": "Gardien du frigo",
+      "description": "50 aliments sauvés"
+    },
+    "saver_100": {
+      "name": "Héros anti-gaspi",
+      "description": "100 aliments sauvés"
+    },
+    "saver_250": {
+      "name": "Super Sauveur",
+      "description": "250 aliments sauvés"
+    },
+    "saver_500": {
+      "name": "Maître du zéro déchet",
+      "description": "500 aliments sauvés"
+    },
+    "explorer_5": {
+      "name": "Curieux",
+      "description": "5 recettes consultées"
+    },
+    "explorer_25": {
+      "name": "Apprenti chef",
+      "description": "25 recettes consultées"
+    },
+    "explorer_50": {
+      "name": "Chef confirmé",
+      "description": "50 recettes consultées"
+    },
+    "explorer_100": {
+      "name": "Chef étoilé",
+      "description": "100 recettes consultées"
+    },
+    "first_list": {
+      "name": "Organisateur",
+      "description": "Créer sa première liste"
+    },
+    "organizer_5": {
+      "name": "Bien rangé",
+      "description": "5 listes créées"
+    },
+    "organizer_10": {
+      "name": "Maître de l'organisation",
+      "description": "10 listes créées"
+    },
+    "streak_7": {
+      "name": "Régulier",
+      "description": "7 jours d'utilisation consécutifs"
+    },
+    "streak_14": {
+      "name": "Assidu",
+      "description": "14 jours d'utilisation consécutifs"
+    },
+    "streak_30": {
+      "name": "Inarrêtable",
+      "description": "30 jours d'utilisation consécutifs"
+    },
+    "streak_60": {
+      "name": "Machine",
+      "description": "60 jours d'utilisation consécutifs"
+    },
+    "first_food": {
+      "name": "Premier pas",
+      "description": "Ajouter son premier aliment"
+    },
+    "foods_100": {
+      "name": "Centenaire",
+      "description": "100 aliments ajoutés au total"
+    },
+    "foods_500": {
+      "name": "Vétéran",
+      "description": "500 aliments ajoutés au total"
+    },
+    "foods_1000": {
+      "name": "Légendaire",
+      "description": "1000 aliments ajoutés au total"
+    }
   },
   "badgeCategories": {
     "zero_waste": "Zéro Gaspillage",
@@ -1219,9 +1317,11 @@
   "weeklyRecap": {
     "title": "Ton récap de la semaine",
     "itemsSaved": "{{count}} aliment sauvé",
-    "itemsSaved_plural": "{{count}} aliments sauvés",
+    "itemsSaved_one": "{{count}} aliment sauvé",
+    "itemsSaved_other": "{{count}} aliments sauvés",
     "itemsThrown": "{{count}} aliment gaspillé",
-    "itemsThrown_plural": "{{count}} aliments gaspillés",
+    "itemsThrown_one": "{{count}} aliment gaspillé",
+    "itemsThrown_other": "{{count}} aliments gaspillés",
     "eurosSaved": "{{amount}}€ économisés",
     "streak": "{{count}} jours de streak",
     "share": "Partager mon récap",
@@ -1254,7 +1354,8 @@
     "alreadyHave": "Déjà dans ton frigo",
     "inInventory": "Tu l'as",
     "missingSummary": "{{count}} ingrédient à acheter",
-    "missingSummary_plural": "{{count}} ingrédients à acheter",
+    "missingSummary_one": "{{count}} ingrédient à acheter",
+    "missingSummary_other": "{{count}} ingrédients à acheter",
     "clearChecked": "Effacer les cochés",
     "clearConfirmTitle": "Effacer les éléments cochés ?",
     "clearConfirmMessage": "Ils seront décochés et remis dans la liste.",

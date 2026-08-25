@@ -49,8 +49,9 @@ import { useGamification } from '@/contexts/GamificationContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 import AddRecipeModal from '@/components/AddRecipeModal';
+import Emoji from '@/components/Emoji';
 import RecipeOnboardingModal, { RECIPE_ONBOARDING_KEY } from '@/components/RecipeOnboardingModal';
-import { loadLists } from '@/utils/localStorage';
+import { loadLists, ensureDefaultList } from '@/utils/localStorage';
 import {
   findMatchingRecipesWithUser,
   deleteUserRecipe,
@@ -234,6 +235,20 @@ export default function RecipesScreen() {
     },
     [navigation, trackRecipeViewed],
   );
+
+  const handleFillFridge = useCallback(async () => {
+    try {
+      const list = lists[0] ?? (await ensureDefaultList());
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        listIcon: list.icon,
+      });
+    } catch (err) {
+      logger.error('[Recipes] fill fridge failed:', err);
+    }
+  }, [lists, navigation]);
 
   const handleRecipeLongPress = useCallback(
     (match: RecipeMatch) => {
@@ -443,6 +458,20 @@ export default function RecipesScreen() {
                   : isPremium
                   ? t('recipes.changeFilterHint')
                   : t('recipes.addRecipeHint')
+              }
+              actionLabel={
+                totalIngredients === 0
+                  ? t('inventory.addFood')
+                  : !isPremium
+                  ? t('recipes.addRecipe')
+                  : undefined
+              }
+              onAction={
+                totalIngredients === 0
+                  ? handleFillFridge
+                  : !isPremium
+                  ? () => setAddModalVisible(true)
+                  : undefined
               }
             />
           )}
@@ -720,7 +749,7 @@ function RecipeCard({
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <Text style={styles.cardCoverEmoji}>{recipe.imageEmoji}</Text>
+        <Emoji glyph={recipe.imageEmoji} size={78} style={styles.cardCoverEmoji} />
 
         {/* Badges en haut à gauche : match + urgents */}
         <View style={styles.cardCoverBadges}>
@@ -1161,7 +1190,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 18,
     bottom: 8,
-    fontSize: 78,
+    width: 78,
+    height: 78,
     opacity: 0.88,
   },
   cardCoverBadges: {

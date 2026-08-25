@@ -20,6 +20,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import RecipePickerModal from '@/components/RecipePickerModal';
+import Emoji from '@/components/Emoji';
 import { Recipe, getAllRecipesWithUser } from '@/services/recipeService';
 import {
   loadMealPlans,
@@ -251,7 +252,7 @@ export default function MealPlannerScreen() {
                           { backgroundColor: Sage[100], opacity: pressed ? 0.85 : 1 },
                         ]}
                       >
-                        <Text style={styles.filledEmoji}>{recipe.imageEmoji}</Text>
+                        <Emoji glyph={recipe.imageEmoji} size={18} />
                         <Text
                           style={[styles.filledName, { color: colors.fg.primary }]}
                           numberOfLines={1}
@@ -401,9 +402,6 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 12,
-  },
-  filledEmoji: {
-    fontSize: 18,
   },
   filledName: {
     fontSize: 13,

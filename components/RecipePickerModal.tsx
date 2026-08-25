@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import Emoji from './Emoji';
 import { useAuth } from '../contexts/AuthContext';
 import { Recipe, findMatchingRecipesWithUser, getAllRecipesWithUser } from '../services/recipeService';
 import { loadLists } from '../utils/localStorage';
@@ -86,7 +87,7 @@ export default function RecipePickerModal({ visible, onClose, onSelect }: Props)
       }}
       activeOpacity={0.7}
     >
-      <Text style={styles.rowEmoji}>{item.imageEmoji}</Text>
+      <Emoji glyph={item.imageEmoji} size={28} />
       <View style={styles.rowContent}>
         <View style={styles.rowTitleLine}>
           <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
@@ -215,9 +216,6 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     ...SHADOWS.xs,
-  },
-  rowEmoji: {
-    fontSize: 28,
   },
   rowContent: {
     flex: 1,

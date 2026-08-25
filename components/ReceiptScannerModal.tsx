@@ -217,6 +217,17 @@ export default function ReceiptScannerModal({
           <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
             <Text style={styles.permissionButtonText}>{t('receiptScanner.allowAccess')}</Text>
           </TouchableOpacity>
+          {/* Importer une photo ne demande pas la caméra : refuser l'accès ne
+              doit pas fermer cette porte-là aussi. */}
+          <TouchableOpacity onPress={pickFromGallery} style={styles.permissionAlt} hitSlop={8}>
+            <Ionicons name="images-outline" size={20} color={COLORS.primary[500]} />
+            <Text style={styles.permissionAltText}>{t('receiptScanner.galleryLabel')}</Text>
+          </TouchableOpacity>
+          {/* Sans cette sortie, refuser la caméra enferme l'utilisateur sur cet
+              écran — et, depuis l'onboarding, dans l'onboarding lui-même. */}
+          <TouchableOpacity onPress={onClose} style={styles.permissionDismiss} hitSlop={8}>
+            <Text style={styles.permissionDismissText}>{t('common.cancel')}</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -434,6 +445,28 @@ const styles = StyleSheet.create({
   permissionButtonText: {
     color: 'white',
     fontWeight: '600',
+    fontSize: 16,
+  },
+  permissionAlt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  permissionAltText: {
+    color: COLORS.primary[500],
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  permissionDismiss: {
+    marginTop: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  permissionDismissText: {
+    color: COLORS.text.tertiary,
     fontSize: 16,
   },
   cameraContainer: {

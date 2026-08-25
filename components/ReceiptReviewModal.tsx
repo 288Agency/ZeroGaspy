@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ReceiptItem } from '../services/mindeeReceiptService';
 import { COLORS, SHADOWS, RADIUS, TYPOGRAPHY, hexToRgba } from '../utils/designSystem';
+import { formatDateToDDMMYYYY } from '../utils/dateUtils';
 import PressableScale from './PressableScale';
 import DatePickerField from './DatePickerField';
 
@@ -45,7 +46,13 @@ export default function ReceiptReviewModal({
   useEffect(() => {
     if (visible) {
       setItems(initialItems.map(item => ({ ...item, selected: true, expirationDate: '' })));
-      setGlobalExpirationDate('');
+      // Date par défaut à J+7, ajustable. Sans elle, confirmer sans toucher au
+      // champ enregistre les articles avec expirationDate '' : ils sont bien
+      // stockés mais getDaysUntilExpiration renvoie null, donc l'inventaire ne
+      // les affiche jamais.
+      const inAWeek = new Date();
+      inAWeek.setDate(inAWeek.getDate() + 7);
+      setGlobalExpirationDate(formatDateToDDMMYYYY(inAWeek));
       setEditingItemId(null);
       setExpandedItemId(null);
     }

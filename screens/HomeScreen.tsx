@@ -28,9 +28,12 @@ import {
   StyleSheet,
   Pressable,
   Image,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SFSymbol } from 'expo-symbols';
+import { SymbolView } from 'expo-symbols';
+import FoodEmoji from '@/components/FoodEmoji';
+import Gaspie from '@/components/Gaspie';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
@@ -45,6 +48,7 @@ import {
   loadLists,
   markItemConsumed,
   markItemThrown,
+  ensureDefaultList,
 } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import { calculateUserStats } from '@/services/statsService';
@@ -52,6 +56,10 @@ import { getMonthlySavings } from '@/services/monthlySavingsService';
 import type { List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import {
+  trackFoodConsumed as analyticsTrackFoodConsumed,
+  trackFoodThrown as analyticsTrackFoodThrown,
+} from '@/services/analytics';
 
 // Composants legacy conservés (hors-maquette, palette héritée)
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
@@ -81,29 +89,30 @@ type LiveSpace = {
   color?: string;
 };
 
-// Vignette catégorie (handoff FoodCard thumb) — SF Symbol + tint doux brand.
-type CatMeta = { symbol: SFSymbol; bg: string; fg: string };
+// Vignette catégorie (handoff FoodCard thumb) — pastille teintée, l'illustration
+// de l'aliment est rendue par <FoodEmoji> par-dessus.
+type CatMeta = { bg: string };
 const CATEGORY_META: Record<string, CatMeta> = {
-  dairy:       { symbol: 'drop.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  laitiers:    { symbol: 'drop.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  fruits:      { symbol: 'leaf.fill',    bg: '#FBE5DC', fg: '#B23A1A' },
-  veg:         { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
-  vegetables:  { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
-  'légumes':   { symbol: 'carrot.fill',  bg: Sage[200], fg: Forest[700] },
-  meat:        { symbol: 'fork.knife',   bg: '#F3D9D2', fg: '#B23A1A' },
-  viande:      { symbol: 'fork.knife',   bg: '#F3D9D2', fg: '#B23A1A' },
-  fish:        { symbol: 'fish.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  poisson:     { symbol: 'fish.fill',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  bakery:      { symbol: 'birthday.cake.fill', bg: '#FAE9C3', fg: '#7A5414' },
-  boulangerie: { symbol: 'birthday.cake.fill', bg: '#FAE9C3', fg: '#7A5414' },
-  beverages:   { symbol: 'cup.and.saucer.fill', bg: '#DCEAF6', fg: '#1F4A7A' },
-  boissons:    { symbol: 'cup.and.saucer.fill', bg: '#DCEAF6', fg: '#1F4A7A' },
-  frozen:      { symbol: 'snowflake',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  'surgelés':  { symbol: 'snowflake',    bg: '#DCEAF6', fg: '#1F4A7A' },
-  snacks:      { symbol: 'takeoutbag.and.cup.and.straw.fill', bg: '#FAE9C3', fg: '#7A5414' },
-  condiments:  { symbol: 'drop.fill',    bg: '#FAE9C3', fg: '#7A5414' },
+  dairy:       { bg: '#DCEAF6' },
+  laitiers:    { bg: '#DCEAF6' },
+  fruits:      { bg: '#FBE5DC' },
+  veg:         { bg: Sage[200] },
+  vegetables:  { bg: Sage[200] },
+  'légumes':   { bg: Sage[200] },
+  meat:        { bg: '#F3D9D2' },
+  viande:      { bg: '#F3D9D2' },
+  fish:        { bg: '#DCEAF6' },
+  poisson:     { bg: '#DCEAF6' },
+  bakery:      { bg: '#FAE9C3' },
+  boulangerie: { bg: '#FAE9C3' },
+  beverages:   { bg: '#DCEAF6' },
+  boissons:    { bg: '#DCEAF6' },
+  frozen:      { bg: '#DCEAF6' },
+  'surgelés':  { bg: '#DCEAF6' },
+  snacks:      { bg: '#FAE9C3' },
+  condiments:  { bg: '#FAE9C3' },
 };
-const CATEGORY_DEFAULT: CatMeta = { symbol: 'cube.fill', bg: Cream[200], fg: Cream[600] };
+const CATEGORY_DEFAULT: CatMeta = { bg: Cream[200] };
 
 function categoryMeta(cat?: string): CatMeta {
   if (!cat) return CATEGORY_DEFAULT;
@@ -172,7 +181,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoutePropT>();
   const { user } = useAuth();
-  const { challengesState, gamificationData } = useGamification();
+  const { challengesState, gamificationData, trackFoodConsumed, trackFoodThrown } = useGamification();
 
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -229,10 +238,15 @@ export default function HomeScreen() {
 
   const dateLabel = useMemo(() => formatEyebrowDate(new Date()), []);
 
-  // Anneau anti-gaspi : part de nourriture consommée vs jetée
+  // Anneau anti-gaspi : part de nourriture consommée vs jetée.
+  // Sans historique, le ratio n'est pas défini — on affichait 100 %, ce qui
+  // annonçait un sans-faute à quelqu'un qui n'a encore rien fait, et
+  // contredisait le titre « N aliments à consommer vite » juste à côté.
+  // On masque l'anneau tant qu'il n'y a rien à mesurer.
   const consumed = stats?.itemsConsumed ?? 0;
   const thrown = stats?.itemsThrown ?? 0;
-  const score = consumed + thrown > 0 ? Math.round((consumed / (consumed + thrown)) * 100) : 100;
+  const hasWasteHistory = consumed + thrown > 0;
+  const score = hasWasteHistory ? Math.round((consumed / (consumed + thrown)) * 100) : 0;
   const savedEuros = Math.floor(monthlySaved);
 
   // ── Handlers (inchangés) ───────────────────────────────────────────────────
@@ -250,6 +264,20 @@ export default function HomeScreen() {
     navigation.navigate('ExpiringSoon');
   }, [navigation]);
 
+  const handleFillFridge = useCallback(async () => {
+    try {
+      const list = lists[0] ?? (await ensureDefaultList());
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        listIcon: list.icon,
+      });
+    } catch (err) {
+      logger.error('[Home] fill fridge navigation failed:', err);
+    }
+  }, [lists, navigation]);
+
   const handleProfile = useCallback(() => {
     navigation.navigate('Account');
   }, [navigation]);
@@ -259,24 +287,39 @@ export default function HomeScreen() {
     if (!f) return;
     try {
       await markItemConsumed(f.listId, itemId);
+      const beforeExpiration = f.daysLeft >= 0;
+      trackFoodConsumed(beforeExpiration);
+      analyticsTrackFoodConsumed({
+        category: f.category,
+        daysBeforeExpiry: f.daysLeft,
+      });
       await refresh();
     } catch (err) {
       logger.error('[Home] markItemConsumed failed:', err);
+      Alert.alert('Erreur', "Impossible de marquer l'aliment comme consommé.");
     }
-  }, [foods, refresh]);
+  }, [foods, refresh, trackFoodConsumed]);
 
   const handleTrash = useCallback(async (itemId: string) => {
     const f = foods.find((x) => x.id === itemId);
     if (!f) return;
     try {
       await markItemThrown(f.listId, itemId);
+      trackFoodThrown();
+      analyticsTrackFoodThrown({
+        category: f.category,
+        daysExpired: f.daysLeft < 0 ? Math.abs(f.daysLeft) : undefined,
+      });
       await refresh();
     } catch (err) {
       logger.error('[Home] markItemThrown failed:', err);
+      Alert.alert('Erreur', "Impossible de jeter l'aliment.");
     }
-  }, [foods, refresh]);
+  }, [foods, refresh, trackFoodThrown]);
 
   const hasUrgent = urgents.length > 0;
+  // Frigo vraiment vide (aucun aliment actif) ≠ « tout est frais ».
+  const isFridgeEmpty = foods.length === 0;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -327,7 +370,12 @@ export default function HomeScreen() {
               <Text style={[styles.heroEyebrow, { color: Cream[50] }]}>{dateLabel}</Text>
 
               <Text style={[styles.heroTitle, { color: Cream[50] }]}>
-                {hasUrgent ? (
+                {isFridgeEmpty ? (
+                  <>
+                    Ton frigo est{'\n'}
+                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>vide.</Text>
+                  </>
+                ) : hasUrgent ? (
                   <>
                     {urgents.length} aliment{urgents.length > 1 ? 's' : ''} à{'\n'}consommer{' '}
                     <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>vite.</Text>
@@ -341,22 +389,23 @@ export default function HomeScreen() {
               </Text>
 
               <Pressable
-                onPress={hasUrgent ? handleCookTonight : handleSeeList}
+                onPress={isFridgeEmpty ? handleFillFridge : hasUrgent ? handleCookTonight : handleSeeList}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.8 : 1 }]}
               >
                 <SymbolView
-                  name={hasUrgent ? 'book.closed.fill' : 'arrow.right'}
+                  name={isFridgeEmpty ? 'plus' : hasUrgent ? 'book.closed.fill' : 'arrow.right'}
                   size={14}
                   tintColor="#fff"
                 />
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
-                  {hasUrgent ? 'Cuisiner ce soir' : 'Voir la liste'}
+                  {isFridgeEmpty ? 'Ajouter des aliments' : hasUrgent ? 'Cuisiner ce soir' : 'Voir la liste'}
                 </Text>
               </Pressable>
             </View>
 
-            {/* Anneau anti-gaspi */}
+            {/* Anneau anti-gaspi — seulement quand le ratio veut dire quelque chose */}
+            {hasWasteHistory && (
             <View style={styles.ring}>
               <Svg width={92} height={92} viewBox="0 0 92 92">
                 <Circle cx={46} cy={46} r={40} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={8} />
@@ -380,6 +429,7 @@ export default function HomeScreen() {
                 <Text style={{ color: '#fff', fontSize: 11, opacity: 0.8, marginTop: 1 }}>anti-gaspi</Text>
               </View>
             </View>
+            )}
           </View>
 
           {/* Bandeau stats */}
@@ -431,15 +481,40 @@ export default function HomeScreen() {
               { backgroundColor: colors.bg.surface, borderColor: colors.border.default, borderRadius: componentRadius.card },
             ]}
           >
-            <View style={[styles.emptyIcon, { backgroundColor: Sage[200] }]}>
-              <SymbolView name="checkmark" size={26} tintColor={Forest[600]} />
-            </View>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
-              Tout est frais
-            </Text>
-            <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 4, textAlign: 'center' }]}>
-              Rien ne périme dans cet espace cette semaine.
-            </Text>
+            {isFridgeEmpty ? (
+              <>
+                <Gaspie pose="emptyFridge" size={140} style={{ marginBottom: 10 }} />
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
+                  Remplis ton frigo
+                </Text>
+                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 4, textAlign: 'center' }]}>
+                  Ajoute un aliment ou scanne ton ticket de courses pour voir ce qui périme.
+                </Text>
+                <Pressable
+                  onPress={handleFillFridge}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.emptyCta,
+                    { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <SymbolView name="plus" size={14} tintColor="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Commencer</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <View style={[styles.emptyIcon, { backgroundColor: Sage[200] }]}>
+                  <SymbolView name="checkmark" size={26} tintColor={Forest[600]} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
+                  Tout est frais
+                </Text>
+                <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 4, textAlign: 'center' }]}>
+                  Rien ne périme dans cet espace cette semaine.
+                </Text>
+              </>
+            )}
           </View>
         ) : (
           <>
@@ -652,7 +727,7 @@ function WatchGroup({
                     },
                   ]}
                 >
-                  <SymbolView name={c.symbol} size={15} tintColor={c.fg} />
+                  <FoodEmoji name={f.name} category={f.category} size={17} />
                 </View>
               );
             })}
@@ -679,6 +754,7 @@ function WatchGroup({
             <ProductCard
               key={f.id}
               name={f.name}
+              category={f.category}
               image={f.imageUri ? { uri: f.imageUri } : undefined}
               daysUntilExpiration={f.daysLeft}
               quantity={f.quantityLabel}
@@ -831,6 +907,15 @@ const styles = StyleSheet.create({
   // empty
   empty: { borderWidth: 1, alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
   emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyCta: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
 
   plannerGhost: {
     flexDirection: 'row',

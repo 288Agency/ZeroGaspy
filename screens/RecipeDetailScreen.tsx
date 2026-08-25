@@ -34,6 +34,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest, Cream } from '@/tokens';
 import { Badge } from '@/components/ds';
+import Emoji from '@/components/Emoji';
 import { loadLists } from '@/utils/localStorage';
 import { findMatchingRecipes, getRecipeById, type Recipe } from '@/services/recipeService';
 import type { FoodItem } from '@/types';
@@ -170,7 +171,7 @@ export default function RecipeDetailScreen() {
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.card }]}
           />
-          <Text style={styles.coverEmoji}>{recipe.imageEmoji}</Text>
+          <Emoji glyph={recipe.imageEmoji} size={110} style={styles.coverEmoji} />
 
           <View style={styles.coverTagRow}>
             <Badge tone="success" variant="solid" dot={false}>
@@ -514,7 +515,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 22,
     bottom: 56,
-    fontSize: 110,
+    width: 110,
+    height: 110,
     opacity: 0.9,
   },
   coverTagRow: {

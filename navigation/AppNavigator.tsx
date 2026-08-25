@@ -26,6 +26,9 @@ import { Forest } from '../tokens';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createNativeBottomTabNavigator();
 
+const TOQUE_FILLED = require('../assets/icons/toque.png');
+const TOQUE_OUTLINE = require('../assets/icons/toque-outline.png');
+
 // Tab Navigator natif (UITabBar iOS 26 → Liquid Glass automatique).
 // 4 onglets fidèles au handoff : Accueil / Espaces / Recettes / Stats.
 // Le profil s'ouvre via l'avatar du Home (route stack `Account`), pas d'onglet.
@@ -40,7 +43,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: t('tabs.home'),
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'leaf.fill' : 'leaf' }),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'house.fill' : 'house' }),
         }}
       />
       <Tab.Screen
@@ -56,7 +59,8 @@ function MainTabs() {
         component={RecipesScreen}
         options={{
           tabBarLabel: t('tabs.recipes'),
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? 'book.fill' : 'book' }),
+          // Pas de toque dans SF Symbols → asset template maison (teinté par la tab bar).
+          tabBarIcon: ({ focused }) => (focused ? TOQUE_FILLED : TOQUE_OUTLINE),
         }}
       />
       <Tab.Screen

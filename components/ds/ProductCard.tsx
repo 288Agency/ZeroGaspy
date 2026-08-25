@@ -26,14 +26,17 @@ import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import FoodEmoji from '../FoodEmoji';
 import Badge from './Badge';
 
 export type ProductState = 'fresh' | 'warning' | 'urgent' | 'expired';
 
 export interface ProductCardProps {
   name: string;
-  /** Source RN Image (uri ou require) */
+  /** Source RN Image (uri ou require) — la photo utilisateur prime sur l'illustration */
   image?: ImageSourcePropType;
+  /** Catégorie de l'aliment — repli pour choisir l'illustration si le nom ne matche pas */
+  category?: string;
   /** Jours avant péremption — négatif si périmé */
   daysUntilExpiration?: number;
   /** Force le state (ignore daysUntilExpiration) */
@@ -70,6 +73,7 @@ function formatExpirationLabel(days: number | undefined): string {
 export default function ProductCard({
   name,
   image,
+  category,
   daysUntilExpiration,
   state: stateProp,
   quantity,
@@ -150,7 +154,7 @@ export default function ProductCard({
           {image ? (
             <Image source={image} style={styles.imageInner} resizeMode="cover" />
           ) : (
-            <SymbolView name="cube.box" size={22} tintColor={colors.fg.tertiary} />
+            <FoodEmoji name={name} category={category} size={30} />
           )}
         </View>
 

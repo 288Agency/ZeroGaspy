@@ -27,12 +27,14 @@
     "all": "All",
     "clear": "Clear",
     "day": "day",
-    "day_plural": "days",
+    "day_one": "day",
+    "day_other": "days",
     "dayShort": "d",
     "permissionRequired": "Permission required",
     "syncTitle": "Synchronization",
     "foodItem": "item",
-    "foodItem_plural": "items",
+    "foodItem_one": "item",
+    "foodItem_other": "items",
     "remove": "Remove",
     "share": "Share"
   },
@@ -48,7 +50,8 @@
     "greeting": "Ready to reduce waste?",
     "today": "Today",
     "activeLists": "{{count}} active list",
-    "activeLists_plural": "{{count}} active lists",
+    "activeLists_one": "{{count}} active list",
+    "activeLists_other": "{{count}} active lists",
     "expiringToday": "Expires today",
     "expiringSoon": "Expiring soon",
     "expiredItems": "Expired items",
@@ -60,7 +63,8 @@
     "loadListsError": "Unable to load your lists. Please try again.",
     "tonightCook": "Tonight, let's cook!",
     "expiresInDays": "expires in {{count}} day",
-    "expiresInDays_plural": "expires in {{count}} days",
+    "expiresInDays_one": "expires in {{count}} day",
+    "expiresInDays_other": "expires in {{count}} days",
     "expiresInDays_zero": "expires today",
     "quickActions": "Quick actions",
     "addFood": "Add food",
@@ -94,7 +98,8 @@
     "emptyListsDesc": "Create your first list to start tracking your food",
     "emptyListsAction": "Create one to get started!",
     "itemsCount": "{{count}} item",
-    "itemsCount_plural": "{{count}} items",
+    "itemsCount_one": "{{count}} item",
+    "itemsCount_other": "{{count}} items",
     "defaultList": "My list",
     "shareList": "Share list",
     "duplicateList": "Duplicate",
@@ -154,14 +159,17 @@
     "sevenDays": "7 days",
     "fresh": "Fresh",
     "results": "{{count}} result",
-    "results_plural": "{{count}} results",
+    "results_one": "{{count}} result",
+    "results_other": "{{count}} results",
     "activeItems": "{{count}} active item",
-    "activeItems_plural": "{{count}} active items",
+    "activeItems_one": "{{count}} active item",
+    "activeItems_other": "{{count}} active items",
     "noResults": "No results",
     "noMatchFor": "No food matches \"{{query}}\"",
     "clearSearch": "Clear search",
     "selected": "{{count}} selected",
-    "selected_plural": "{{count}} selected",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
     "deselectAll": "Deselect",
     "selectAll": "All",
     "scanReceipt": "Scan receipt",
@@ -176,10 +184,12 @@
     "openingDate": "Opening date",
     "durationAfterOpening": "Duration after opening",
     "expiredSince": "Expired {{count}} day ago",
-    "expiredSince_plural": "Expired {{count}} days ago",
+    "expiredSince_one": "Expired {{count}} day ago",
+    "expiredSince_other": "Expired {{count}} days ago",
     "expiresToday": "Expires today",
     "expiresIn": "Expires in {{count}} day",
-    "expiresIn_plural": "Expires in {{count}} days",
+    "expiresIn_one": "Expires in {{count}} day",
+    "expiresIn_other": "Expires in {{count}} days",
     "freshStatus": "Fresh",
     "listNotFound": "List not found",
     "loadError": "Unable to load the list",
@@ -188,18 +198,23 @@
     "thrownError": "Unable to mark as thrown",
     "openedError": "Unable to mark as opened",
     "productsAdded": "{{count}} product added to the list",
-    "productsAdded_plural": "{{count}} products added to the list",
+    "productsAdded_one": "{{count}} product added to the list",
+    "productsAdded_other": "{{count}} products added to the list",
     "productsAddError": "Unable to add products",
     "deleteForever": "Delete permanently",
     "deleteCountConfirm": "Delete {{count}} food from the list?\n\nThese items will not be counted in statistics.",
-    "deleteCountConfirm_plural": "Delete {{count}} foods from the list?\n\nThese items will not be counted in statistics.",
+    "deleteCountConfirm_one": "Delete {{count}} food from the list?\n\nThese items will not be counted in statistics.",
+    "deleteCountConfirm_other": "Delete {{count}} foods from the list?\n\nThese items will not be counted in statistics.",
     "confirmAction": "Confirm action",
     "markCountAs": "Mark {{count}} food as {{action}}?",
-    "markCountAs_plural": "Mark {{count}} foods as {{action}}?",
+    "markCountAs_one": "Mark {{count}} food as {{action}}?",
+    "markCountAs_other": "Mark {{count}} foods as {{action}}?",
     "consumedAction": "consumed",
-    "consumedAction_plural": "consumed",
+    "consumedAction_one": "consumed",
+    "consumedAction_other": "consumed",
     "thrownAction": "thrown away",
-    "thrownAction_plural": "thrown away",
+    "thrownAction_one": "thrown away",
+    "thrownAction_other": "thrown away",
     "bulkConsumedError": "Unable to mark as consumed",
     "bulkThrownError": "Unable to mark as thrown",
     "bulkDeleteError": "Unable to delete foods",
@@ -208,7 +223,8 @@
     "dateRequired": "Please enter an expiration date",
     "deleteError": "Unable to delete food",
     "daysAfterOpeningValue": "{{count}} day",
-    "daysAfterOpeningValue_plural": "{{count}} days",
+    "daysAfterOpeningValue_one": "{{count}} day",
+    "daysAfterOpeningValue_other": "{{count}} days",
     "invalidDate": "Invalid date",
     "expiredDays": "Expired ({{count}}d)",
     "expiresTomorrow": "Expires tomorrow",
@@ -220,7 +236,8 @@
     "daysPositive": "Number of days must be positive",
     "whatQuantity": "How many?",
     "available": "{{count}} available",
-    "available_plural": "{{count}} available",
+    "available_one": "{{count}} available",
+    "available_other": "{{count}} available",
     "markAllAs": "Mark all as {{action}}",
     "markAsAction": "Mark {{count}} as {{action}}"
   },
@@ -308,11 +325,14 @@
     "missingIngredients": "Missing ingredients",
     "availableIngredients": "Available ingredients",
     "availableCount": "{{count}} available item",
-    "availableCount_plural": "{{count}} available items",
+    "availableCount_one": "{{count}} available item",
+    "availableCount_other": "{{count}} available items",
     "possibleRecipes": "{{count}} possible recipe",
-    "possibleRecipes_plural": "{{count}} possible recipes",
+    "possibleRecipes_one": "{{count}} possible recipe",
+    "possibleRecipes_other": "{{count}} possible recipes",
     "personalRecipes": "{{count}} personal recipe",
-    "personalRecipes_plural": "{{count}} personal recipes",
+    "personalRecipes_one": "{{count}} personal recipe",
+    "personalRecipes_other": "{{count}} personal recipes",
     "all": "All",
     "myRecipes": "My recipes",
     "breakfast": "Breakfast",
@@ -327,7 +347,8 @@
     "changeFilterHint": "Try adding more food or change the filter",
     "addRecipeHint": "Add your own recipes with the + button below",
     "suggestedCount": "{{count}} recipe suggested for you",
-    "suggestedCount_plural": "{{count}} recipes suggested for you",
+    "suggestedCount_one": "{{count}} recipe suggested for you",
+    "suggestedCount_other": "{{count}} recipes suggested for you",
     "unlockSuggestions": "Unlock personalized suggestions based on your ingredients",
     "whatToDo": "What would you like to do?",
     "myRecipe": "My recipe",
@@ -347,7 +368,8 @@
     "aiNoIngredientsHint": "Add items with an upcoming expiration date to generate an AI recipe.",
     "antiWasteBadge": "Anti-waste",
     "expiringCount": "{{count}} item expiring soon",
-    "expiringCount_plural": "{{count}} items expiring soon",
+    "expiringCount_one": "{{count}} item expiring soon",
+    "expiringCount_other": "{{count}} items expiring soon",
     "onboarding": {
       "slide1Title": "Tailored recipes",
       "slide1Subtitle": "We analyze your ingredients and suggest recipes that match best. The higher the %, the more you have what you need!",
@@ -442,7 +464,8 @@
     "sync": "Sync",
     "synced": "Everything is synced",
     "pendingChanges": "{{count}} pending change",
-    "pendingChanges_plural": "{{count}} pending changes",
+    "pendingChanges_one": "{{count}} pending change",
+    "pendingChanges_other": "{{count}} pending changes",
     "accountSettings": "Account settings",
     "user": "User",
     "sectionAccount": "👤 Account",
@@ -555,11 +578,11 @@
     "getStarted": "Get started",
     "skip": "Skip",
     "next": "Next",
-    "slide1Title": "Welcome to\nZeroGaspy",
+    "slide1Title": "Stop food waste for good",
     "slide1Subtitle": "Your ally to reduce food waste and save money every day",
-    "slide2Title": "Track your\nfood",
+    "slide2Title": "Never miss an expiry date again",
     "slide2Subtitle": "Add your products in one click and keep an eye on their expiration dates",
-    "slide3Title": "Organize your\nspaces",
+    "slide3Title": "Recipes from what you already have",
     "slide3Subtitle": "Fridge, freezer, cupboard... Create your spaces and find everything easily",
     "slide4Title": "Get alerted\nin time",
     "slide4Subtitle": "Receive smart reminders before your food expires",
@@ -594,11 +617,13 @@
     "exploreApp": "Explore the app",
     "defaultListName": "My Fridge",
     "itemsAdded": "{{count}} item added",
-    "itemsAdded_plural": "{{count}} items added",
+    "itemsAdded_one": "{{count}} item added",
+    "itemsAdded_other": "{{count}} items added",
     "ahaMoment": "First item saved! You just potentially avoided ~€0.30 of waste 🌱",
     "matching": "{{percent}}% match",
     "missingCount": "{{count}} missing ingredient",
-    "missingCount_plural": "{{count}} missing ingredients",
+    "missingCount_one": "{{count}} missing ingredient",
+    "missingCount_other": "{{count}} missing ingredients",
     "categoryFruits": "Fruits",
     "categoryVegetables": "Vegetables",
     "categoryMeat": "Meat",
@@ -607,15 +632,12 @@
     "categoryGrocery": "Grocery",
     "categoryFrozen": "Frozen",
     "categoryOther": "Other",
-    "slide1Title": "Stop food waste for good",
     "slide1Sub": "Track your food, get alerts before items expire, cook what you have.",
     "slide1Pill1": "📦 Easy inventory",
     "slide1Pill2": "🔔 Expiry alerts",
-    "slide2Title": "Never miss an expiry date again",
     "slide2Sub": "ZeroGaspy alerts you 3 days before. Act in time, nothing ends up in the bin.",
     "slide2Pill1": "🔥 3-day alert",
     "slide2Pill2": "♻️ Zero waste",
-    "slide3Title": "Recipes from what you already have",
     "slide3Sub": "AI scans your fridge and suggests the best anti-waste recipes of the day.",
     "slide3Pill1": "✨ AI suggestions",
     "slide3Pill2": "🎯 Tailored recipes",
@@ -1125,7 +1147,8 @@
     "shareCodeMessage": "Join my list \"{{title}}\" on ZeroGaspy with code {{code}}: {{link}}",
     "members": "Members",
     "membersCount": "{{count}} member",
-    "membersCount_plural": "{{count}} members",
+    "membersCount_one": "{{count}} member",
+    "membersCount_other": "{{count}} members",
     "inviteByEmail": "Invite by email",
     "emailPlaceholder": "email@example.com",
     "invite": "Invite",
@@ -1168,31 +1191,106 @@
     "searchError": "Error searching for the product"
   },
   "badges": {
-    "zero_waste_7":   { "name": "Eco Beginner",       "description": "7 days without waste" },
-    "zero_waste_14":  { "name": "Eco Apprentice",     "description": "14 days without waste" },
-    "zero_waste_30":  { "name": "Eco Warrior",        "description": "30 days without waste" },
-    "zero_waste_60":  { "name": "Eco Champion",       "description": "60 days without waste" },
-    "zero_waste_90":  { "name": "Eco Legend",         "description": "90 days without waste" },
-    "saver_10":       { "name": "Little Saver",       "description": "10 items eaten before expiry" },
-    "saver_50":       { "name": "Fridge Guardian",    "description": "50 items saved" },
-    "saver_100":      { "name": "Anti-Waste Hero",    "description": "100 items saved" },
-    "saver_250":      { "name": "Super Saver",        "description": "250 items saved" },
-    "saver_500":      { "name": "Zero Waste Master",  "description": "500 items saved" },
-    "explorer_5":     { "name": "Curious",            "description": "5 recipes viewed" },
-    "explorer_25":    { "name": "Apprentice Chef",    "description": "25 recipes viewed" },
-    "explorer_50":    { "name": "Experienced Chef",   "description": "50 recipes viewed" },
-    "explorer_100":   { "name": "Star Chef",          "description": "100 recipes viewed" },
-    "first_list":     { "name": "Organizer",          "description": "Create your first list" },
-    "organizer_5":    { "name": "Well Organized",     "description": "5 lists created" },
-    "organizer_10":   { "name": "Master Organizer",   "description": "10 lists created" },
-    "streak_7":       { "name": "Regular",            "description": "7 days in a row" },
-    "streak_14":      { "name": "Dedicated",          "description": "14 days in a row" },
-    "streak_30":      { "name": "Unstoppable",        "description": "30 days in a row" },
-    "streak_60":      { "name": "Machine",            "description": "60 days in a row" },
-    "first_food":     { "name": "First Step",         "description": "Add your first item" },
-    "foods_100":      { "name": "Centenarian",        "description": "100 items added in total" },
-    "foods_500":      { "name": "Veteran",            "description": "500 items added in total" },
-    "foods_1000":     { "name": "Legendary",          "description": "1000 items added in total" }
+    "zero_waste_7": {
+      "name": "Eco Beginner",
+      "description": "7 days without waste"
+    },
+    "zero_waste_14": {
+      "name": "Eco Apprentice",
+      "description": "14 days without waste"
+    },
+    "zero_waste_30": {
+      "name": "Eco Warrior",
+      "description": "30 days without waste"
+    },
+    "zero_waste_60": {
+      "name": "Eco Champion",
+      "description": "60 days without waste"
+    },
+    "zero_waste_90": {
+      "name": "Eco Legend",
+      "description": "90 days without waste"
+    },
+    "saver_10": {
+      "name": "Little Saver",
+      "description": "10 items eaten before expiry"
+    },
+    "saver_50": {
+      "name": "Fridge Guardian",
+      "description": "50 items saved"
+    },
+    "saver_100": {
+      "name": "Anti-Waste Hero",
+      "description": "100 items saved"
+    },
+    "saver_250": {
+      "name": "Super Saver",
+      "description": "250 items saved"
+    },
+    "saver_500": {
+      "name": "Zero Waste Master",
+      "description": "500 items saved"
+    },
+    "explorer_5": {
+      "name": "Curious",
+      "description": "5 recipes viewed"
+    },
+    "explorer_25": {
+      "name": "Apprentice Chef",
+      "description": "25 recipes viewed"
+    },
+    "explorer_50": {
+      "name": "Experienced Chef",
+      "description": "50 recipes viewed"
+    },
+    "explorer_100": {
+      "name": "Star Chef",
+      "description": "100 recipes viewed"
+    },
+    "first_list": {
+      "name": "Organizer",
+      "description": "Create your first list"
+    },
+    "organizer_5": {
+      "name": "Well Organized",
+      "description": "5 lists created"
+    },
+    "organizer_10": {
+      "name": "Master Organizer",
+      "description": "10 lists created"
+    },
+    "streak_7": {
+      "name": "Regular",
+      "description": "7 days in a row"
+    },
+    "streak_14": {
+      "name": "Dedicated",
+      "description": "14 days in a row"
+    },
+    "streak_30": {
+      "name": "Unstoppable",
+      "description": "30 days in a row"
+    },
+    "streak_60": {
+      "name": "Machine",
+      "description": "60 days in a row"
+    },
+    "first_food": {
+      "name": "First Step",
+      "description": "Add your first item"
+    },
+    "foods_100": {
+      "name": "Centenarian",
+      "description": "100 items added in total"
+    },
+    "foods_500": {
+      "name": "Veteran",
+      "description": "500 items added in total"
+    },
+    "foods_1000": {
+      "name": "Legendary",
+      "description": "1000 items added in total"
+    }
   },
   "badgeCategories": {
     "zero_waste": "Zero Waste",
@@ -1219,9 +1317,11 @@
   "weeklyRecap": {
     "title": "Your weekly recap",
     "itemsSaved": "{{count}} item saved",
-    "itemsSaved_plural": "{{count}} items saved",
+    "itemsSaved_one": "{{count}} item saved",
+    "itemsSaved_other": "{{count}} items saved",
     "itemsThrown": "{{count}} item wasted",
-    "itemsThrown_plural": "{{count}} items wasted",
+    "itemsThrown_one": "{{count}} item wasted",
+    "itemsThrown_other": "{{count}} items wasted",
     "eurosSaved": "{{amount}}€ saved",
     "streak": "{{count}}-day streak",
     "share": "Share my recap",
@@ -1254,7 +1354,8 @@
     "alreadyHave": "Already in your fridge",
     "inInventory": "You have it",
     "missingSummary": "{{count}} ingredient to buy",
-    "missingSummary_plural": "{{count}} ingredients to buy",
+    "missingSummary_one": "{{count}} ingredient to buy",
+    "missingSummary_other": "{{count}} ingredients to buy",
     "clearChecked": "Clear checked",
     "clearConfirmTitle": "Clear checked items?",
     "clearConfirmMessage": "They will be unchecked and put back in the list.",

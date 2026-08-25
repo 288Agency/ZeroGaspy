@@ -13,6 +13,7 @@ import {
   Image,
   StyleSheet,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -20,13 +21,20 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import { Button, Badge, AlertModal } from '@/components/ds';
 import { loadLists, updateItem, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
+import FoodEmoji from '@/components/FoodEmoji';
 import MarkAsOpenedModal from '@/components/MarkAsOpenedModal';
 import QuantityModal from '@/components/QuantityModal';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
+import logger from '@/utils/logger';
+import {
+  trackFoodConsumed as analyticsTrackFoodConsumed,
+  trackFoodThrown as analyticsTrackFoodThrown,
+} from '@/services/analytics';
 
 type ProductDetailNav = NativeStackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type ProductDetailRoute = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -37,6 +45,7 @@ export default function ProductDetailScreen() {
   const nav = useNavigation<ProductDetailNav>();
   const route = useRoute<ProductDetailRoute>();
   const { itemId, listId } = route.params;
+  const { trackFoodConsumed, trackFoodThrown } = useGamification();
 
   const [item, setItem] = useState<FoodItem | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -70,27 +79,69 @@ export default function ProductDetailScreen() {
           : `Périme dans ${days} jours`;
 
   const handleConsume = async () => {
-    await updateItem(listId, itemId, { status: 'consumed' });
-    nav.goBack();
+    try {
+      await updateItem(listId, itemId, { status: 'consumed' });
+      const beforeExpiration = days == null || days >= 0;
+      trackFoodConsumed(beforeExpiration);
+      analyticsTrackFoodConsumed({
+        category: item.category,
+        daysBeforeExpiry: days ?? undefined,
+      });
+      nav.goBack();
+    } catch (err) {
+      logger.error('[ProductDetail] consume failed:', err);
+      Alert.alert('Erreur', "Impossible de marquer l'aliment comme consommé.");
+    }
   };
   const handleTrash = async () => {
-    await updateItem(listId, itemId, { status: 'thrown' });
-    nav.goBack();
+    try {
+      await updateItem(listId, itemId, { status: 'thrown' });
+      trackFoodThrown();
+      analyticsTrackFoodThrown({
+        category: item.category,
+        daysExpired: days != null && days < 0 ? Math.abs(days) : undefined,
+      });
+      nav.goBack();
+    } catch (err) {
+      logger.error('[ProductDetail] trash failed:', err);
+      Alert.alert('Erreur', "Impossible de jeter l'aliment.");
+    }
   };
   const handleConfirmOpened = async (openedDate: string, daysAfterOpening: number) => {
-    await markItemAsOpened(listId, itemId, openedDate, daysAfterOpening);
-    setOpenedModalOpen(false);
-    reload();
+    try {
+      await markItemAsOpened(listId, itemId, openedDate, daysAfterOpening);
+      setOpenedModalOpen(false);
+      reload();
+    } catch (err) {
+      logger.error('[ProductDetail] mark opened failed:', err);
+      Alert.alert('Erreur', "Impossible d'enregistrer l'ouverture.");
+    }
   };
   const handleConfirmPartial = async (qty: number) => {
     if (!partialAction || !item) return;
-    await updateItemStatusWithQuantity(listId, itemId, partialAction, qty);
-    setPartialAction(null);
-    // Si on a tout consommé/jeté, l'item passe en status final → goBack
-    if (qty >= (item.quantity ?? 1)) {
-      nav.goBack();
-    } else {
-      reload();
+    try {
+      await updateItemStatusWithQuantity(listId, itemId, partialAction, qty);
+      if (qty >= (item.quantity ?? 1)) {
+        if (partialAction === 'consumed') {
+          const beforeExpiration = days == null || days >= 0;
+          trackFoodConsumed(beforeExpiration);
+          analyticsTrackFoodConsumed({ category: item.category, daysBeforeExpiry: days ?? undefined });
+        } else {
+          trackFoodThrown();
+          analyticsTrackFoodThrown({
+            category: item.category,
+            daysExpired: days != null && days < 0 ? Math.abs(days) : undefined,
+          });
+        }
+        setPartialAction(null);
+        nav.goBack();
+      } else {
+        setPartialAction(null);
+        reload();
+      }
+    } catch (err) {
+      logger.error('[ProductDetail] partial action failed:', err);
+      Alert.alert('Erreur', "Impossible de mettre à jour la quantité.");
     }
   };
   const canPartialAct = (item.quantity ?? 1) > 1;
@@ -149,7 +200,7 @@ export default function ProductDetailScreen() {
             {item.imageUri ? (
               <Image source={{ uri: item.imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             ) : (
-              <SymbolView name="cube.box" size={40} tintColor={colors.fg.muted} />
+              <FoodEmoji name={item.name} category={item.category} size={64} />
             )}
           </View>
 

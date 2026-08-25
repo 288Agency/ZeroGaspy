@@ -26,7 +26,9 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://jiyhldfgztzknkccuidq.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppeWhsZGZnenR6a25rY2N1aWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MzQyODksImV4cCI6MjA4NDMxMDI4OX0.GRcHVqfo9CUuBn8-1VcOKn4KwjnDXg8XatPd2b7pHws",
-        "EXPO_PUBLIC_FEEDBACK_EMAIL": "contact@288agency.com"
+        "EXPO_PUBLIC_FEEDBACK_EMAIL": "contact@288agency.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_AqRUdwFjdy7GtJaCyBzDwuXr2nQXdyD3VDDVDM28vG4T",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://6b8092012ae67107007779534e237672@o4511061148303360.ingest.de.sentry.io/4511061153087568"
       },
       "android": {
         "buildType": "app-bundle"

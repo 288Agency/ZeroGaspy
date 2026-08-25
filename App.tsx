@@ -15,6 +15,7 @@ import AppNavigator from './navigation/AppNavigator';
 import AuthNavigator from './navigation/AuthNavigator';
 import { ONBOARDING_KEY } from './constants/onboarding';
 import { OnboardingFlow } from './components/ds';
+import FirstCaptureFlow from './components/onboarding/FirstCaptureFlow';
 import { requestNotificationPermissions } from './services/notificationService';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -26,6 +27,7 @@ import { ThemeProvider as DSThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ds';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './config/supabase';
+import { ensureDefaultList } from './utils/localStorage';
 import {
   checkAndScheduleNotifications,
   addNotificationReceivedListener,
@@ -43,6 +45,7 @@ import {
   trackAppOpened,
   trackScreen,
   trackOnboardingCompleted,
+  trackOnboardingFoodAdded,
   identifyUser,
   shutdownAnalytics,
 } from './services/analytics';
@@ -112,6 +115,8 @@ function RootNavigator() {
   const { user, isLoading: authLoading, isLocalMode, skipAuth } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+  const [firstCaptureOpen, setFirstCaptureOpen] = useState(false);
+  const firstCaptureResolve = useRef<(() => void) | null>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
@@ -284,6 +289,26 @@ function RootNavigator() {
     }
   };
 
+  // Étape "firstScan" de l'onboarding : on ouvre le scanner de ticket et on ne
+  // rend la main à OnboardingFlow qu'une fois l'utilisateur revenu, pour qu'il
+  // enchaîne sur l'étape suivante au lieu de rester bloqué.
+  const handleLaunchFirstCapture = () =>
+    new Promise<void>((resolve) => {
+      firstCaptureResolve.current = resolve;
+      setFirstCaptureOpen(true);
+    });
+
+  const handleFirstCaptureDone = (itemsAdded: number) => {
+    setFirstCaptureOpen(false);
+    // Un abandon ne doit pas compter comme un ajout : sinon le funnel
+    // d'activation se remplit d'événements à count = 0.
+    if (itemsAdded > 0) {
+      trackOnboardingFoodAdded(itemsAdded);
+    }
+    firstCaptureResolve.current?.();
+    firstCaptureResolve.current = null;
+  };
+
   const handleOnboardingComplete = async () => {
     trackOnboardingCompleted();
     scheduleWelcomeBackNotification(i18n.language);
@@ -291,6 +316,13 @@ function RootNavigator() {
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
     } catch (error) {
       logger.error('Erreur sauvegarde onboarding:', error);
+    }
+    // Même si le scan ticket a été skippé : un espace vide vaut mieux qu'un
+    // accueil sans liste ni CTA clair vers l'ajout.
+    try {
+      await ensureDefaultList();
+    } catch (error) {
+      logger.error('Erreur création liste par défaut:', error);
     }
     if (!user) {
       skipAuth();
@@ -305,6 +337,17 @@ function RootNavigator() {
       trackScreen(currentRouteName);
     }
     routeNameRef.current = currentRouteName;
+  };
+
+  // `onStateChange` ne se déclenche pas pour l'état initial : sans ça, l'écran
+  // d'atterrissage de chaque session (l'Accueil dans la majorité des cas) n'est
+  // jamais tracké, et une session sans navigation n'émet aucun $screen.
+  const onNavigationReady = () => {
+    const currentRouteName = navigationRef.getCurrentRoute()?.name;
+    routeNameRef.current = currentRouteName;
+    if (currentRouteName) {
+      trackScreen(currentRouteName);
+    }
   };
 
   const statusBarStyle = 'dark' as const;
@@ -325,8 +368,10 @@ function RootNavigator() {
       <>
         <OnboardingFlow
           onComplete={handleOnboardingComplete}
+          onLaunchScanner={handleLaunchFirstCapture}
           onRequestNotifications={requestNotificationPermissions}
         />
+        <FirstCaptureFlow visible={firstCaptureOpen} onDone={handleFirstCaptureDone} />
         <StatusBar style={statusBarStyle} />
       </>
     );
@@ -338,7 +383,7 @@ function RootNavigator() {
   // Si pas authentifié, afficher l'écran de connexion
   if (!isAuthenticated) {
     return (
-      <NavigationContainer ref={navigationRef} linking={linking} onStateChange={onNavigationStateChange}>
+      <NavigationContainer ref={navigationRef} linking={linking} onReady={onNavigationReady} onStateChange={onNavigationStateChange}>
         <AuthNavigator />
         <StatusBar style={statusBarStyle} />
       </NavigationContainer>
@@ -347,7 +392,7 @@ function RootNavigator() {
 
   // Utilisateur authentifié ou en mode local, afficher l'app principale
   return (
-    <NavigationContainer ref={navigationRef} linking={linking} onStateChange={onNavigationStateChange}>
+    <NavigationContainer ref={navigationRef} linking={linking} onReady={onNavigationReady} onStateChange={onNavigationStateChange}>
       <AppNavigator />
       <StatusBar style={statusBarStyle} />
     </NavigationContainer>

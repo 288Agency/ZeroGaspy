@@ -161,6 +161,16 @@ export async function createList(title: string, color?: string, icon?: string): 
   return newList;
 }
 
+/**
+ * Garantit qu'il existe au moins une liste (sinon crée « Mon frigo »).
+ * Évite l'accueil / l'inventaire sans espace après un onboarding skippé.
+ */
+export async function ensureDefaultList(title = 'Mon frigo'): Promise<List> {
+  const lists = await loadLists();
+  if (lists.length > 0) return lists[0];
+  return createList(title);
+}
+
 export async function deleteList(id: string): Promise<void> {
   const lists = await loadLists();
   await saveLists(lists.filter((list) => list.id !== id));

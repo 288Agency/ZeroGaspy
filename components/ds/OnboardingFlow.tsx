@@ -64,10 +64,10 @@ const STEPS: Step[] = [
   },
   {
     key: 'firstScan',
-    icon: 'wand.and.stars',
-    title: 'Ajoute ton premier aliment.',
-    body: 'Essaie maintenant — prends n\'importe quel produit du frigo et scanne son code-barres.',
-    primaryLabel: 'Scanner',
+    icon: 'doc.text.viewfinder',
+    title: 'Remplis ton frigo en 10 s.',
+    body: 'Scanne ton dernier ticket de courses : on ajoute tous les produits d\'un coup. C\'est offert, sans compte.',
+    primaryLabel: 'Scanner mon ticket',
     showSkip: true,
   },
   {
@@ -89,8 +89,11 @@ const STEPS: Step[] = [
 
 export interface OnboardingFlowProps {
   onComplete: () => void;
-  /** Appelé à l'étape "firstScan" — tu navigues vers le scanner */
-  onLaunchScanner?: () => void;
+  /**
+   * Appelé à l'étape "firstScan". Résoudre la promesse fait avancer à l'étape
+   * suivante — que l'utilisateur ait scanné ou abandonné.
+   */
+  onLaunchScanner?: () => Promise<void>;
   /** Appelé à l'étape "notifications" — tu demandes la permission iOS */
   onRequestNotifications?: () => Promise<boolean>;
 }
@@ -104,6 +107,9 @@ export default function OnboardingFlow({
   const insets = useSafeAreaInsets();
 
   const [stepIdx, setStepIdx] = useState(0);
+  // Vrai pendant que le scanner de ticket est ouvert — évite les doubles taps
+  // qui feraient sauter une étape.
+  const [busy, setBusy] = useState(false);
   const step = STEPS[stepIdx];
 
   // Anim fade entre les étapes
@@ -130,10 +136,18 @@ export default function OnboardingFlow({
   };
 
   const handlePrimary = async () => {
+    if (busy) return;
+
     if (step.key === 'firstScan') {
-      onLaunchScanner?.();
-      // L'écran scanner doit, en cas de succès, faire revenir l'utilisateur ici
-      // sur l'étape "notifications" (via prop or navigation param)
+      setBusy(true);
+      try {
+        await onLaunchScanner?.();
+      } catch (err) {
+        // Scan raté ou annulé : on n'enferme pas l'utilisateur dans l'onboarding.
+      } finally {
+        setBusy(false);
+      }
+      goNext();
       return;
     }
     if (step.key === 'notifications') {
@@ -211,12 +225,13 @@ export default function OnboardingFlow({
 
       {/* Actions */}
       <View style={{ gap: space[2] }}>
-        <Button variant="primary" size="lg" onPress={handlePrimary}>
+        <Button variant="primary" size="lg" onPress={handlePrimary} disabled={busy}>
           {step.primaryLabel}
         </Button>
         {step.showSkip && (
           <Pressable
             onPress={handleSkip}
+            disabled={busy}
             hitSlop={8}
             style={{ alignItems: 'center', paddingVertical: space[3] }}
           >

@@ -28,6 +28,7 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, SFSymbol } from 'expo-symbols';
@@ -36,11 +37,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import { Sage, Forest } from '@/tokens';
 import { addItemToList, updateItem, getListById } from '@/utils/localStorage';
 import { formatDateToDDMMYYYY, parseDDMMYYYY } from '@/utils/dateUtils';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import DateScannerModal from '@/components/DateScannerModal';
+import { getCategoryEmoji } from '@/services/foodEmojiService';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
@@ -50,13 +53,14 @@ import { trackFoodAdded as analyticsTrackFoodAdded } from '@/services/analytics'
 // Constantes — catégories + unités (handoff vocab)
 // ────────────────────────────────────────────────────────────────────────────
 
-const CATEGORIES: { id: string; label: string; icon: SFSymbol }[] = [
-  { id: 'dairy',      label: 'Laitiers',   icon: 'drop.fill' },
-  { id: 'vegetables', label: 'Légumes',    icon: 'leaf.fill' },
-  { id: 'fruits',     label: 'Fruits',     icon: 'applelogo' },
-  { id: 'meat',       label: 'Viande',     icon: 'fork.knife' },
-  { id: 'bakery',     label: 'Boulangerie', icon: 'birthday.cake.fill' },
-  { id: 'other',      label: 'Autres',     icon: 'square.grid.2x2.fill' },
+// L'illustration de chaque tuile vient de getCategoryEmoji(id) — cf. foodEmojiService.
+const CATEGORIES: { id: string; label: string }[] = [
+  { id: 'dairy',      label: 'Laitiers' },
+  { id: 'vegetables', label: 'Légumes' },
+  { id: 'fruits',     label: 'Fruits' },
+  { id: 'meat',       label: 'Viande' },
+  { id: 'bakery',     label: 'Boulangerie' },
+  { id: 'other',      label: 'Autres' },
 ];
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'L', 'pots', 'tranches'];
@@ -74,6 +78,7 @@ export default function AddFoodScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
   const { listId, editItem } = route.params;
+  const { trackFoodAdded } = useGamification();
 
   const isEditing = !!editItem;
 
@@ -125,6 +130,7 @@ export default function AddFoodScreen() {
           status: 'active',
         };
         await addItemToList(listId, newItem);
+        trackFoodAdded(listId);
         try {
           analyticsTrackFoodAdded({
             category: itemBody.category,
@@ -137,8 +143,9 @@ export default function AddFoodScreen() {
       navigation.goBack();
     } catch (err) {
       logger.error('[AddFoodV2] save failed:', err);
+      Alert.alert('Erreur', "Impossible d'enregistrer l'aliment. Réessaie.");
     }
-  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, imageUri, navigation]);
+  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, imageUri, navigation, trackFoodAdded]);
 
   const handleBarcodeFound = useCallback(
     (product: { name: string; quantity?: string; category?: string; imageUrl?: string; brand?: string }) => {
@@ -346,11 +353,7 @@ export default function AddFoodScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
               >
-                <SymbolView
-                  name={c.icon}
-                  size={24}
-                  tintColor={active ? Forest[700] : colors.fg.primary}
-                />
+                <Image source={getCategoryEmoji(c.id)} style={styles.catEmoji} resizeMode="contain" />
                 <Text
                   style={{
                     fontSize: 12,
@@ -605,6 +608,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1.4,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  catEmoji: {
+    width: 30,
+    height: 30,
   },
   cta: {
     height: 52,

@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import Toast from './Toast';
+import Emoji from './Emoji';
 import { useToast } from '../hooks/useToast';
 import PressableScale from './PressableScale';
 import Button from './Button';
@@ -213,7 +214,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
           style={styles.emojiButton}
           hapticType="light"
         >
-          <Text style={styles.selectedEmoji}>{selectedEmoji}</Text>
+          <Emoji glyph={selectedEmoji} size={scaleFontSize(40)} />
           <Text style={styles.emojiButtonText}>{t('addRecipe.change')}</Text>
         </PressableScale>
 
@@ -231,7 +232,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                   emoji === selectedEmoji && styles.emojiItemSelected,
                 ]}
               >
-                <Text style={styles.emojiItemText}>{emoji}</Text>
+                <Emoji glyph={emoji} size={scaleFontSize(24)} />
               </TouchableOpacity>
             ))}
           </View>
@@ -606,9 +607,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral.gray200,
   },
-  selectedEmoji: {
-    fontSize: scaleFontSize(40),
-  },
   emojiButtonText: {
     fontSize: scaleFontSize(14),
     color: COLORS.primary[500],
@@ -635,9 +633,6 @@ const styles = StyleSheet.create({
   },
   emojiItemSelected: {
     backgroundColor: hexToRgba(COLORS.primary[500], 0.15),
-  },
-  emojiItemText: {
-    fontSize: scaleFontSize(24),
   },
   chipRow: {
     flexDirection: 'row',

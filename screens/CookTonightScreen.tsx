@@ -35,7 +35,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest, Cream } from '@/tokens';
 import { Badge } from '@/components/ds';
-import { loadLists } from '@/utils/localStorage';
+import Emoji from '@/components/Emoji';
+import { loadLists, ensureDefaultList } from '@/utils/localStorage';
 import { findMatchingRecipes, type RecipeMatch } from '@/services/recipeService';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem } from '@/types';
@@ -90,6 +91,20 @@ export default function CookTonightScreen() {
     [navigation],
   );
   const handleSeeAll = useCallback(() => navigation.navigate('Recipes', undefined), [navigation]);
+  const handleFillFridge = useCallback(async () => {
+    try {
+      const lists = await loadLists();
+      const list = lists[0] ?? (await ensureDefaultList());
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        listIcon: list.icon,
+      });
+    } catch (err) {
+      logger.error('[CookTonight] fill fridge failed:', err);
+    }
+  }, [navigation]);
 
   // ── États dégradés ───────────────────────────────────────────────────────
   if (ranked.length === 0) {
@@ -137,6 +152,24 @@ export default function CookTonightScreen() {
           >
             Ajoute des aliments dans tes listes et on te proposera une recette qui sauve tes urgents.
           </Text>
+          <Pressable
+            onPress={handleFillFridge}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              marginTop: 22,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: Forest[600],
+              paddingHorizontal: 18,
+              paddingVertical: 12,
+              borderRadius: 999,
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <SymbolView name="plus" size={14} tintColor="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Ajouter des aliments</Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -221,7 +254,7 @@ export default function CookTonightScreen() {
               style={StyleSheet.absoluteFill}
             />
             {/* Emoji as visual placeholder */}
-            <Text style={styles.heroEmoji}>{hero.recipe.imageEmoji}</Text>
+            <Emoji glyph={hero.recipe.imageEmoji} size={84} style={styles.heroEmoji} />
 
             {/* Tag row top */}
             <View style={styles.tagRow}>
@@ -353,7 +386,7 @@ export default function CookTonightScreen() {
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}
                     />
-                    <Text style={{ fontSize: 28 }}>{m.recipe.imageEmoji}</Text>
+                    <Emoji glyph={m.recipe.imageEmoji} size={28} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                     <Text
@@ -483,7 +516,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 18,
     bottom: 60,
-    fontSize: 84,
+    width: 84,
+    height: 84,
     opacity: 0.85,
   },
   tagRow: {

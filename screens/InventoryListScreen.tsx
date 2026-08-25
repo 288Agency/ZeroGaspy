@@ -24,6 +24,7 @@ import {
   Pressable,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -33,6 +34,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest } from '@/tokens';
 import { ProductCard } from '@/components/ds';
+import Gaspie from '@/components/Gaspie';
 import {
   getListById,
   markItemConsumed,
@@ -48,10 +50,16 @@ import ReceiptReviewModal from '@/components/ReceiptReviewModal';
 import type { ReceiptScanResult, ReceiptItem } from '@/services/mindeeReceiptService';
 import { canScanReceipt, markFreeReceiptScanAsUsed } from '@/services/premiumFeaturesService';
 import { useBonusScan } from '@/services/referralService';
-import { trackBonusScanUsed } from '@/services/analytics';
+import {
+  trackBonusScanUsed,
+  trackFoodAdded as analyticsTrackFoodAdded,
+  trackFoodConsumed as analyticsTrackFoodConsumed,
+  trackFoodThrown as analyticsTrackFoodThrown,
+} from '@/services/analytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { PaywallSheet } from '@/components/ds';
+import { useGamification } from '@/contexts/GamificationContext';
+import { PaywallSheet, DeferredAuthSheet } from '@/components/ds';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -100,8 +108,9 @@ export default function InventoryListScreen() {
   const route = useRoute<Rt>();
   const { listId, listTitle, listColor } = route.params;
 
-  const { user } = useAuth();
+  const { user, signInWithApple } = useAuth();
   const { isPremium } = useSubscription();
+  const { trackFoodAdded, trackFoodConsumed, trackFoodThrown } = useGamification();
   const paywallProps = usePaywallSheetProps();
 
   const [list, setList] = useState<List | null>(null);
@@ -110,6 +119,7 @@ export default function InventoryListScreen() {
 
   // Receipt scanner flow state
   const [paywallVisible, setPaywallVisible] = useState(false);
+  const [authSheetVisible, setAuthSheetVisible] = useState(false);
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [receiptReviewVisible, setReceiptReviewVisible] = useState(false);
   const [scannedItems, setScannedItems] = useState<ReceiptItem[]>([]);
@@ -159,6 +169,10 @@ export default function InventoryListScreen() {
     return items;
   }, [allFoods, filter, query]);
 
+  // Liste réellement vide (aucun aliment) vs simplement filtrée/cherchée sans
+  // résultat — l'empty state n'affiche la mascotte que dans le premier cas.
+  const isTrulyEmpty = allFoods.length === 0;
+
   // Sections par urgence (tri par daysLeft)
   const urgentList = useMemo(
     () => filtered.filter((f) => f.daysLeft <= 1).sort((a, b) => a.daysLeft - b.daysLeft),
@@ -185,38 +199,57 @@ export default function InventoryListScreen() {
     navigation.navigate('ProductDetail', { itemId, listId });
   }, [navigation, listId]);
   const handleConsume = useCallback(async (itemId: string) => {
+    const food = allFoods.find((f) => f.id === itemId);
     try {
       await markItemConsumed(listId, itemId);
+      const beforeExpiration = food == null || food.daysLeft >= 0;
+      trackFoodConsumed(beforeExpiration);
+      analyticsTrackFoodConsumed({
+        category: food?.category,
+        daysBeforeExpiry: food?.daysLeft,
+      });
       await refresh();
     } catch (err) {
       logger.error('[InventoryV2] markItemConsumed failed:', err);
+      Alert.alert('Erreur', "Impossible de marquer l'aliment comme consommé.");
     }
-  }, [listId, refresh]);
+  }, [listId, refresh, allFoods, trackFoodConsumed]);
   const handleTrash = useCallback(async (itemId: string) => {
+    const food = allFoods.find((f) => f.id === itemId);
     try {
       await markItemThrown(listId, itemId);
+      trackFoodThrown();
+      analyticsTrackFoodThrown({
+        category: food?.category,
+        daysExpired: food != null && food.daysLeft < 0 ? Math.abs(food.daysLeft) : undefined,
+      });
       await refresh();
     } catch (err) {
       logger.error('[InventoryV2] markItemThrown failed:', err);
+      Alert.alert('Erreur', "Impossible de jeter l'aliment.");
     }
-  }, [listId, refresh]);
+  }, [listId, refresh, allFoods, trackFoodThrown]);
 
   // ── Receipt scanner flow (premium-gated) ─────────────────────────────────
+  // Mode local : les 2 scans gratuits/mois restent utilisables (canScanReceipt
+  // accepte userId null). Paywall seulement si compte + quota épuisé.
+  // Sans compte + quota épuisé → DeferredAuthSheet (pas un paywall trompeur).
   const handleOpenReceiptScan = useCallback(async () => {
     try {
-      if (!user) {
-        setPaywallVisible(true);
-        return;
-      }
-      const { allowed, source } = await canScanReceipt(user.id, isPremium);
+      const userId = user?.id ?? null;
+      const { allowed, source } = await canScanReceipt(userId, isPremium);
       if (!allowed) {
-        setPaywallVisible(true);
+        if (!user) {
+          setAuthSheetVisible(true);
+        } else {
+          setPaywallVisible(true);
+        }
         return;
       }
       if (source === 'monthly_free') {
-        await markFreeReceiptScanAsUsed(user.id);
-      } else if (source === 'bonus') {
-        await useBonusScan(user.id);
+        await markFreeReceiptScanAsUsed(userId);
+      } else if (source === 'bonus' && userId) {
+        await useBonusScan(userId);
         trackBonusScanUsed();
       }
       setReceiptScannerVisible(true);
@@ -246,14 +279,22 @@ export default function InventoryListScreen() {
           price: it.price,
         };
         await addItemToList(listId, newItem);
+        trackFoodAdded(listId);
+        analyticsTrackFoodAdded({
+          category: it.category,
+          hasExpiryDate: Boolean(newItem.expirationDate),
+          hasPrice: it.price != null,
+          source: 'receipt',
+        });
       }
       setReceiptReviewVisible(false);
       setScannedItems([]);
       await refresh();
     } catch (err) {
       logger.error('[InventoryV2] receipt items add failed:', err);
+      Alert.alert('Erreur', "Impossible d'ajouter les articles du ticket.");
     }
-  }, [listId, refresh]);
+  }, [listId, refresh, trackFoodAdded]);
 
   // Titre fallback : route.params.listTitle si list pas encore chargée
   const title = list?.title ?? listTitle ?? 'Stock';
@@ -422,19 +463,26 @@ export default function InventoryListScreen() {
               },
             ]}
           >
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: Sage[100],
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 14,
-              }}
-            >
-              <SymbolView name="leaf.fill" size={26} tintColor={Forest[600]} />
-            </View>
+            {isTrulyEmpty ? (
+              // Liste réellement vide → Gaspie devant son frigo vide
+              <Gaspie pose="emptyFridge" size={170} style={{ marginBottom: 14 }} />
+            ) : (
+              // Filtre/recherche sans résultat → pastille discrète, la mascotte
+              // serait dramatique pour un simple "aucun match"
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: Sage[100],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 14,
+                }}
+              >
+                <SymbolView name="leaf.fill" size={26} tintColor={Forest[600]} />
+              </View>
+            )}
             <Text
               style={{
                 fontSize: 17,
@@ -498,6 +546,23 @@ export default function InventoryListScreen() {
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
       />
+      <DeferredAuthSheet
+        visible={authSheetVisible}
+        onClose={() => setAuthSheetVisible(false)}
+        reason="sync"
+        onAppleSignIn={async () => {
+          const { error } = await signInWithApple();
+          if (!error) {
+            setAuthSheetVisible(false);
+            // Après auth : retente le gate (crédits / premium / bonus).
+            await handleOpenReceiptScan();
+          }
+        }}
+        onEmailSignUp={() => {
+          setAuthSheetVisible(false);
+          navigation.navigate('Register');
+        }}
+      />
     </View>
   );
 }
@@ -547,6 +612,7 @@ function Section({
           <ProductCard
             key={f.id}
             name={f.name}
+            category={f.category}
             image={f.imageUri ? { uri: f.imageUri } : undefined}
             daysUntilExpiration={f.daysLeft}
             quantity={f.quantityLabel}
