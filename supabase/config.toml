@@ -382,3 +382,51 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Edge Functions — verification du JWT
+# ─────────────────────────────────────────────────────────────────────────────
+# Le projet signe desormais les jetons utilisateur en ES256 (cles asymetriques),
+# algorithme que la passerelle Edge Functions ne sait pas verifier : elle renvoie
+# 401 UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM avant meme d'executer la fonction.
+#
+# Plutot que d'epingler le projet sur une cle HS256 legacy, chaque fonction porte
+# sa propre authentification. Elle reste ainsi correcte quelle que soit la cle de
+# signature en vigueur, aujourd'hui comme apres une rotation.
+#
+# verify_jwt = false N'EST LEGITIME QUE parce que la fonction valide elle-meme :
+#   - via supabase.auth.getUser() sur l'en-tete Authorization, ou
+#   - via un secret partage pour les appels serveur-a-serveur (cron).
+# Ne jamais passer une fonction a false sans verifier ce point dans son code.
+
+[functions.delete-user]
+# Verifie le jeton (auth.getUser) ET que userId == user.id avant toute suppression.
+verify_jwt = false
+
+[functions.validate-scan-credit]
+# Verifie le jeton (auth.getUser) avant de decompter un credit de scan.
+verify_jwt = false
+
+[functions.generate-ai-recipe]
+# Verifie le jeton (auth.getUser) avant d'appeler le fournisseur IA.
+verify_jwt = false
+
+[functions.grant-referral-premium]
+# Verifie le jeton (auth.getUser) avant d'accorder le premium de parrainage.
+verify_jwt = false
+
+[functions.ocr-scan]
+# Verifie le jeton (auth.getUser) : la fonction consomme du credit Mindee /
+# Google Vision et ne doit jamais etre appelable sans utilisateur valide.
+verify_jwt = false
+
+[functions.send-push-notifications]
+# Appelee uniquement par pg_cron en serveur-a-serveur, sans jeton utilisateur.
+# S'authentifie par l'en-tete x-cron-secret compare au secret CRON_SECRET.
+# C'est l'absence de ce reglage qui empechait le cron d'aboutir depuis mars 2026.
+verify_jwt = false
+
+[functions.feedback]
+# Appelee avec la cle anon (HS256), acceptee par la passerelle : on garde la
+# verification passerelle, la fonction ne validant pas le jeton elle-meme.
+verify_jwt = true
