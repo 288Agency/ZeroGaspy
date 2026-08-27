@@ -130,6 +130,20 @@ export async function saveLists(lists: List[]): Promise<void> {
   updateWidgetData().catch((e) => logger.error('Erreur widget data:', e.message));
 }
 
+/**
+ * Id local d'une liste. Doit rester purement numerique : la sync distingue les
+ * ids locaux des UUID cloud par la presence d'un tiret (cf. `isUUID` dans
+ * syncService / listSharingService), donc pas de suffixe aleatoire ici.
+ * Deux listes creees dans la meme milliseconde partageaient le meme id, ce qui
+ * faisait supprimer les deux d'un coup par `deleteList`.
+ */
+function generateLocalListId(existing: List[]): string {
+  const taken = new Set(existing.map((list) => list.id));
+  let candidate = Date.now();
+  while (taken.has(String(candidate))) candidate += 1;
+  return String(candidate);
+}
+
 export async function createList(title: string, color?: string, icon?: string): Promise<List> {
   const validation = validateListTitle(title);
   if (!validation.valid) {
@@ -138,7 +152,7 @@ export async function createList(title: string, color?: string, icon?: string): 
 
   const lists = await loadLists();
   const newList: List = {
-    id: Date.now().toString(),
+    id: generateLocalListId(lists),
     title: sanitizeString(title, 50),
     createdAt: new Date().toISOString(),
     items: [],
