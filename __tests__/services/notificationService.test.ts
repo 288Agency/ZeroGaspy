@@ -124,7 +124,7 @@ describe('NotificationService - Gestion des paramètres', () => {
       );
     });
 
-    it('devrait reprogrammer les notifications après la sauvegarde', async () => {
+    it('devrait reprogrammer les notifs d\'expiration sans effacer dîner/weekly', async () => {
       const settings: NotificationSettings = {
         enabled: true,
         dailyReminder: true,
@@ -135,11 +135,37 @@ describe('NotificationService - Gestion des paramètres', () => {
       mockAsyncStorage.setItem.mockResolvedValue(undefined);
       mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(settings));
       mockLocalStorage.loadLists.mockResolvedValue([]);
+      mockNotifications.getAllScheduledNotificationsAsync.mockResolvedValue([
+        { identifier: 'exp-1', content: { data: { type: 'expiration_today' } } },
+        { identifier: 'dinner-1', content: { data: { type: 'dinner_reminder' } } },
+      ] as any);
+      mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue(undefined);
       mockNotifications.cancelAllScheduledNotificationsAsync.mockResolvedValue(undefined);
 
       await saveNotificationSettings(settings);
 
-      // Devrait appeler cancelAllNotifications via scheduleExpirationNotifications
+      // Annulation sélective : seules les notifs d'expiration sont annulées
+      expect(mockNotifications.getAllScheduledNotificationsAsync).toHaveBeenCalled();
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('exp-1');
+      expect(mockNotifications.cancelScheduledNotificationAsync).not.toHaveBeenCalledWith('dinner-1');
+      // cancelAll effacerait dîner + weekly : interdit quand les notifs sont activées
+      expect(mockNotifications.cancelAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+    });
+
+    it('devrait tout annuler quand les notifications sont désactivées', async () => {
+      const settings: NotificationSettings = {
+        enabled: false,
+        dailyReminder: true,
+        dailyReminderTime: '09:00',
+        daysBeforeExpiration: 3,
+      };
+
+      mockAsyncStorage.setItem.mockResolvedValue(undefined);
+      mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(settings));
+      mockNotifications.cancelAllScheduledNotificationsAsync.mockResolvedValue(undefined);
+
+      await saveNotificationSettings(settings);
+
       expect(mockNotifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
     });
 
