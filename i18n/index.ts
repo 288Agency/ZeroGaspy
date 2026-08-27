@@ -1,6 +1,15 @@
+// Hermes (iOS) n'expose PAS Intl.PluralRules : i18next retombe alors sur des
+// regles anglaises et rend « 0 aliments » au lieu de « 0 aliment » en francais.
+// Le polyfill doit etre charge AVANT i18n.init.
+if (typeof (Intl as unknown as { PluralRules?: unknown }).PluralRules === 'undefined') {
+  require('@formatjs/intl-pluralrules/polyfill-force');
+  require('@formatjs/intl-pluralrules/locale-data/fr');
+  require('@formatjs/intl-pluralrules/locale-data/en');
+}
+
+import * as Localization from 'expo-localization';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import fr from './locales/fr.json';

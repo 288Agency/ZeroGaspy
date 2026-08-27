@@ -347,7 +347,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
         {/* Center content */}
         <View style={styles.donutCenter}>
           <Text style={styles.donutTotal}>{total}</Text>
-          <Text style={styles.donutTotalLabel}>{t('common.foodItem_plural')}</Text>
+          <Text style={styles.donutTotalLabel}>{t('common.foodItem', { count: total })}</Text>
         </View>
       </View>
 

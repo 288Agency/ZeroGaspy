@@ -12,12 +12,15 @@
     "test:coverage": "jest --coverage",
     "test:env": "npx ts-node scripts/test-env.ts",
     "test:mindee": "npx ts-node scripts/test-mindee.ts",
+    "test:smoke": "npx ts-node scripts/smoke-ios.ts",
+    "test:functions": "npx ts-node scripts/check-edge-functions.ts",
     "prebuild:ios": "npm run test:env",
     "prebuild:android": "npm run test:env"
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.3.1",
     "@expo/vector-icons": "^15.0.3",
+    "@formatjs/intl-pluralrules": "^6.3.13",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-community/netinfo": "11.4.1",
