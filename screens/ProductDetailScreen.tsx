@@ -16,6 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SymbolView } from 'expo-symbols';
@@ -41,6 +42,7 @@ type ProductDetailRoute = RouteProp<RootStackParamList, 'ProductDetail'>;
 
 export default function ProductDetailScreen() {
   const { colors, typography, space, componentRadius, radius, layout, elevation } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const nav = useNavigation<ProductDetailNav>();
   const route = useRoute<ProductDetailRoute>();
@@ -146,7 +148,15 @@ export default function ProductDetailScreen() {
   };
   const canPartialAct = (item.quantity ?? 1) > 1;
 
-  const quantityLabel = item.quantity != null ? String(item.quantity) : '—';
+  const quantityLabel =
+    item.quantity != null
+      ? `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`
+      : '—';
+
+  // item.category est une clé technique ('dairy', 'frozen'…) — jamais l'afficher brute.
+  const categoryLabel = item.category
+    ? t(`categories.${item.category}`, { defaultValue: item.category })
+    : t('categories.other');
 
   // Compute "Ouvert il y a Nj" depuis openedDate (DD/MM/YYYY)
   let openedAgoLabel: string | null = null;
@@ -228,7 +238,7 @@ export default function ProductDetailScreen() {
             <MetaRow icon="seal" label="Ouvert depuis" value={openedAgoLabel} />
           )}
           <MetaRow icon="scalemass" label="Quantité" value={quantityLabel} />
-          <MetaRow icon="folder" label="Catégorie" value={item.category ?? 'Autre'} last />
+          <MetaRow icon="folder" label="Catégorie" value={categoryLabel} last />
         </View>
 
         <View style={{ gap: space[2] }}>

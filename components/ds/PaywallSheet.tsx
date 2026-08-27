@@ -65,11 +65,13 @@ export interface PaywallSheetProps {
   /** Reçoit le plan choisi ; tu branches sur RevenueCat / Apple */
   onSubscribe: (plan: Plan) => void | Promise<void>;
   onRestore?: () => void;
-  /** Override des prix (par défaut : place-holders à brancher sur RC) */
+  /** Prix formatés par le store (RevenueCat `product.priceString`). */
   annualPriceLabel?: string;
   monthlyPriceLabel?: string;
-  /** "/mois équivalent" si annuel */
+  /** "/mois équivalent" si annuel — dérivé du prix réel du store. */
   annualMonthlyLabel?: string;
+  /** Remise annuel vs mensuel, en % entiers. Badge masqué si absent. */
+  annualSavingsPercent?: number;
 }
 
 export default function PaywallSheet({
@@ -79,9 +81,10 @@ export default function PaywallSheet({
   savedThisMonthEUR,
   onSubscribe,
   onRestore,
-  annualPriceLabel = '39,99 €/an',
-  monthlyPriceLabel = '4,99 €/mois',
-  annualMonthlyLabel = '3,33 €/mois',
+  annualPriceLabel,
+  monthlyPriceLabel,
+  annualMonthlyLabel,
+  annualSavingsPercent,
 }: PaywallSheetProps) {
   const { colors, typography, space, radius, componentRadius } = useTheme();
   const [plan, setPlan] = useState<Plan>('annual');
@@ -185,7 +188,7 @@ export default function PaywallSheet({
           title="Annuel"
           price={annualPriceLabel}
           sub={annualMonthlyLabel}
-          recommended
+          savePercent={annualSavingsPercent}
         />
         <PlanRow
           selected={plan === 'monthly'}
@@ -222,14 +225,14 @@ function PlanRow({
   title,
   price,
   sub,
-  recommended,
+  savePercent,
 }: {
   selected: boolean;
   onPress: () => void;
   title: string;
-  price: string;
+  price?: string;
   sub?: string;
-  recommended?: boolean;
+  savePercent?: number;
 }) {
   const { colors, typography, space, radius, componentRadius } = useTheme();
 
@@ -271,7 +274,7 @@ function PlanRow({
       <View style={{ flex: 1, marginLeft: space[3] }}>
         <View style={styles.titleRow}>
           <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{title}</Text>
-          {recommended && (
+          {savePercent != null && savePercent > 0 && (
             <View
               style={[
                 styles.savePill,
@@ -281,7 +284,9 @@ function PlanRow({
                 },
               ]}
             >
-              <Text style={[typography.caption, { color: colors.accent.softFg }]}>Économise 33%</Text>
+              <Text style={[typography.caption, { color: colors.accent.softFg }]}>
+                {`Économise ${savePercent}%`}
+              </Text>
             </View>
           )}
         </View>
@@ -293,7 +298,7 @@ function PlanRow({
       </View>
 
       {/* Price */}
-      <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{price}</Text>
+      <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{price ?? '—'}</Text>
     </Pressable>
   );
 }

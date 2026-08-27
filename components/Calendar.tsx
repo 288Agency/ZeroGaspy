@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
@@ -13,7 +13,14 @@ export default function Calendar({
   onDateSelect,
   minimumDate,
 }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Ouvrir sur le mois de la date déjà enregistrée, sinon sur le mois courant :
+  // sinon, éditer un aliment qui périme le mois suivant affiche un calendrier
+  // où la date sélectionnée est invisible.
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => selectedDate ?? new Date());
+
+  useEffect(() => {
+    if (selectedDate) setCurrentMonth(selectedDate);
+  }, [selectedDate]);
 
   const monthNames = [
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',

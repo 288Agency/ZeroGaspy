@@ -2,8 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getMonthlySavings } from '../services/monthlySavingsService';
+import i18n from '../i18n';
 
 type Plan = 'annual' | 'monthly';
+
+/** Formate un montant dans la devise du store, avec la locale de l'app. */
+function formatPrice(amount: number, currencyCode?: string): string {
+  if (!currencyCode) return amount.toFixed(2);
+  try {
+    return new Intl.NumberFormat(i18n.language, {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currencyCode}`;
+  }
+}
 
 const isAnnualPkg = (pkg: PurchasesPackage): boolean => {
   const id = pkg.identifier.toLowerCase();
@@ -61,11 +75,29 @@ export function usePaywallSheetProps() {
     void restorePurchases();
   }, [restorePurchases]);
 
+  // Le "/mois équivalent" et la remise doivent suivre la devise et le tarif
+  // RÉELS du store : les coder en dur ne vaut que pour la boutique française.
+  const annualMonthlyLabel = useMemo(() => {
+    const product = annualPkg?.product;
+    if (!product || !(product.price > 0)) return undefined;
+    return `${formatPrice(product.price / 12, product.currencyCode)}/mois`;
+  }, [annualPkg]);
+
+  const annualSavingsPercent = useMemo(() => {
+    const annual = annualPkg?.product.price;
+    const monthly = monthlyPkg?.product.price;
+    if (!annual || !monthly || monthly <= 0) return undefined;
+    const percent = Math.round((1 - annual / (monthly * 12)) * 100);
+    return percent > 0 ? percent : undefined;
+  }, [annualPkg, monthlyPkg]);
+
   return {
     savedThisMonthEUR,
     onSubscribe,
     onRestore,
     annualPriceLabel: annualPkg?.product.priceString,
     monthlyPriceLabel: monthlyPkg?.product.priceString,
+    annualMonthlyLabel,
+    annualSavingsPercent,
   };
 }
