@@ -368,29 +368,43 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
 
     const lists = await loadLists();
     const expiring: Array<{ name: string; itemId: string; listId: string }> = [];
+    const anyItem: Array<{ name: string; itemId: string; listId: string }> = [];
 
     for (const list of lists) {
       for (const item of list.items) {
         if (!isActiveItem(item)) continue;
+        const entry = { name: item.name, itemId: item.id, listId: list.id };
+        anyItem.push(entry);
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 2) {
-          expiring.push({ name: item.name, itemId: item.id, listId: list.id });
+          expiring.push(entry);
         }
       }
     }
 
-    if (expiring.length === 0) return;
+    // Ce rappel ne partait QUE si quelque chose expirait sous 48 h. Or on
+    // remplit son frigo avec du frais : rien ne perime avant 4 ou 5 jours, donc
+    // il restait muet pendant toute la premiere semaine — exactement quand
+    // l'habitude se forme. Il part desormais des qu'il y a de quoi cuisiner, et
+    // ne mentionne l'urgence que lorsqu'elle existe reellement.
+    const source = expiring.length > 0 ? expiring : anyItem;
+    if (source.length === 0) return;
 
-    const first = expiring[0];
-    const others = expiring.length > 1 ? ` et ${expiring.length - 1} autre${expiring.length > 2 ? 's' : ''}` : '';
+    const isUrgent = expiring.length > 0;
+    const first = source[0];
+    const others = source.length > 1 ? ` et ${source.length - 1} autre${source.length > 2 ? 's' : ''}` : '';
 
     const title = lang === 'fr'
       ? '🍽️ Ce soir, mange ça !'
       : '🍽️ Tonight, use this!';
 
-    const body = lang === 'fr'
-      ? `${first.name}${others} expire${expiring.length > 1 ? 'nt' : ''} bientôt. Cuisiner ce soir ?`
-      : `${first.name}${others} expire${expiring.length > 1 ? '' : 's'} soon. Cook tonight?`;
+    const body = isUrgent
+      ? (lang === 'fr'
+        ? `${first.name}${others} expire${source.length > 1 ? 'nt' : ''} bientôt. Cuisiner ce soir ?`
+        : `${first.name}${others} expire${source.length > 1 ? '' : 's'} soon. Cook tonight?`)
+      : (lang === 'fr'
+        ? `Tu as ${first.name}${others} sous la main. On te trouve une recette ?`
+        : `You have ${first.name}${others} on hand. Want a recipe?`);
 
     await Notifications.scheduleNotificationAsync({
       identifier: DINNER_NOTIFICATION_ID,

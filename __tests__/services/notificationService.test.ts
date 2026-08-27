@@ -449,7 +449,10 @@ describe('scheduleDinnerReminderNotification', () => {
     );
   });
 
-  it('ne planifie pas si aucun item n\'expire dans 48h', async () => {
+  it('planifie aussi quand rien n\'est urgent, sans parler de péremption', async () => {
+    // Le rappel ne partait que si quelque chose expirait sous 48 h. Or on remplit
+    // son frigo avec du frais : il restait muet toute la première semaine, pile
+    // quand l'habitude se forme. Il part désormais dès qu'il y a de quoi cuisiner.
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 10);
 
@@ -466,10 +469,27 @@ describe('scheduleDinnerReminderNotification', () => {
 
     await scheduleDinnerReminderNotification('fr');
 
-    const calls = mockNotifications.scheduleNotificationAsync.mock.calls;
-    const dinnerCalls = calls.filter((c: any[]) =>
-      c[0]?.trigger?.hour === 17
-    );
+    const dinner = mockNotifications.scheduleNotificationAsync.mock.calls
+      .find((c: any[]) => c[0]?.trigger?.hour === 17);
+
+    expect(dinner).toBeDefined();
+    // ...et surtout : pas de fausse urgence sur un aliment qui périme dans 10 jours.
+    expect(dinner![0].content.body).not.toMatch(/expire|bientôt/i);
+    expect(dinner![0].content.body).toContain('Yaourt');
+  });
+
+  it('ne planifie rien quand le frigo est vide', async () => {
+    mockLocalStorage.loadLists.mockResolvedValue([{
+      id: '1', title: 'Frigo', createdAt: '2024-01-01T00:00:00Z', items: [],
+    }]);
+
+    mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue(undefined);
+    mockNotifications.scheduleNotificationAsync.mockClear();
+
+    await scheduleDinnerReminderNotification('fr');
+
+    const dinnerCalls = mockNotifications.scheduleNotificationAsync.mock.calls
+      .filter((c: any[]) => c[0]?.trigger?.hour === 17);
     expect(dinnerCalls.length).toBe(0);
   });
 });
