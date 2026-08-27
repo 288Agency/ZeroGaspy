@@ -13,7 +13,14 @@ export type RootStackParamList = {
   Lists: undefined;
   CreateList: undefined;
   AddFood: { listId: string; editItem?: FoodItem };
-  InventoryList: { listId: string; listTitle: string; listColor?: string; listIcon?: string };
+  InventoryList: {
+    listId: string;
+    listTitle: string;
+    listColor?: string;
+    listIcon?: string;
+    /** Ouvre directement le scan de ticket à l'arrivée (CTA « Scanner mon ticket »). */
+    openReceiptScanner?: boolean;
+  };
   Account: undefined;
   ExpiringSoon: undefined;
   ThrownFoods: undefined;

@@ -80,6 +80,8 @@ type LiveFood = {
   daysLeft: number;
   category?: string;
   imageUri?: string;
+  /** Prix payé, quand il vient d'un ticket scanné. Sert à valoriser le frigo. */
+  price?: number;
 };
 
 type LiveSpace = {
@@ -139,6 +141,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
         daysLeft,
         category: item.category,
         imageUri: item.imageUri,
+        price: item.price,
       });
     }
   }
@@ -250,10 +253,19 @@ export default function HomeScreen() {
   const thrown = stats?.itemsThrown ?? 0;
   const hasWasteHistory = consumed + thrown > 0;
   const score = hasWasteHistory ? Math.round((consumed / (consumed + thrown)) * 100) : 0;
-  const savedEurosLabel =
-    monthlySaved > 0 && monthlySaved < 10 && !Number.isInteger(monthlySaved)
-      ? monthlySaved.toFixed(1).replace('.', ',')
-      : String(Math.round(monthlySaved));
+  const formatEuros = (value: number): string =>
+    value > 0 && value < 10 && !Number.isInteger(value)
+      ? value.toFixed(1).replace('.', ',')
+      : String(Math.round(value));
+
+  const savedEurosLabel = formatEuros(monthlySaved);
+
+  // Tant qu'on n'a rien economise, « 0 € » contredit la promesse d'onboarding
+  // (« ~50 €/mois ») au moment ou l'utilisateur est le plus sceptique. La valeur
+  // de ce qu'il y a DANS le frigo est vraie immediatement, et ce qu'on risque de
+  // perdre pese plus lourd que ce qu'on a deja gagne.
+  const fridgeValue = foods.reduce((total, f) => total + (f.price ?? 0), 0);
+  const showFridgeValue = monthlySaved <= 0 && fridgeValue > 0;
 
   // ── Handlers (inchangés) ───────────────────────────────────────────────────
   const handlePressItem = useCallback((itemId: string) => {
@@ -274,6 +286,24 @@ export default function HomeScreen() {
     trackSavingsCardViewed(monthlySaved);
     navigation.navigate('Stats');
   }, [navigation, monthlySaved]);
+
+  // Saisir 18 aliments a la main, c'est ce que nos utilisateurs ont fait — et
+  // c'est aussi le plafond : personne ne recommence apres les courses suivantes.
+  // Le scan de ticket remplit le frigo en une action ; il merite le CTA, pas une
+  // icone dans une barre.
+  const handleScanReceipt = useCallback(async () => {
+    try {
+      const list = lists[0] ?? (await ensureDefaultList());
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        openReceiptScanner: true,
+      });
+    } catch (err) {
+      logger.error('[Home] handleScanReceipt failed:', err);
+    }
+  }, [lists, navigation]);
 
   const handleFillFridge = useCallback(async () => {
     try {
@@ -331,6 +361,12 @@ export default function HomeScreen() {
   const hasUrgent = urgents.length > 0;
   // Frigo vraiment vide (aucun aliment actif) ≠ « tout est frais ».
   const isFridgeEmpty = foods.length === 0;
+
+  // « Cuisiner ce soir » etait conditionne a l'urgence, donc muet pendant les
+  // premiers jours — on remplit son frigo avec du frais, rien ne perime avant
+  // 4 ou 5 jours, et l'app n'avait rien a dire pile quand l'habitude se forme.
+  // L'alarme de peremption fait revenir ; la suggestion du soir cree l'habitude.
+  const canCookTonight = !isFridgeEmpty;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -400,17 +436,17 @@ export default function HomeScreen() {
               </Text>
 
               <Pressable
-                onPress={isFridgeEmpty ? handleFillFridge : hasUrgent ? handleCookTonight : handleSeeList}
+                onPress={canCookTonight ? handleCookTonight : handleScanReceipt}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.8 : 1 }]}
               >
                 <SymbolView
-                  name={isFridgeEmpty ? 'plus' : hasUrgent ? 'book.closed.fill' : 'arrow.right'}
+                  name={canCookTonight ? 'book.closed.fill' : 'doc.text.viewfinder'}
                   size={14}
                   tintColor="#fff"
                 />
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
-                  {isFridgeEmpty ? 'Ajouter des aliments' : hasUrgent ? 'Cuisiner ce soir' : 'Voir la liste'}
+                  {canCookTonight ? 'Cuisiner ce soir' : 'Scanner mon ticket'}
                 </Text>
               </Pressable>
             </View>
@@ -451,8 +487,12 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.heroStats, { opacity: pressed ? 0.85 : 1 }]}
           >
             <View style={styles.fhs}>
-              <Text style={[styles.fhsNum, styles.fhsNumHero]}>{savedEurosLabel} €</Text>
-              <Text style={styles.fhsLabel}>économisés ce mois</Text>
+              <Text style={[styles.fhsNum, styles.fhsNumHero]}>
+                {showFridgeValue ? formatEuros(fridgeValue) : savedEurosLabel} €
+              </Text>
+              <Text style={styles.fhsLabel}>
+                {showFridgeValue ? 'dans ton frigo' : 'économisés ce mois'}
+              </Text>
             </View>
             <View style={[styles.fhs, styles.fhsDivider]}>
               <Text style={styles.fhsNum}>{thrown}</Text>

@@ -15,7 +15,7 @@
 // wire les actions consume/trash, navigue vers ProductDetail / AddFood.
 // ============================================================================
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -110,7 +110,7 @@ export default function InventoryListScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const { listId, listTitle, listColor } = route.params;
+  const { listId, listTitle, listColor, openReceiptScanner } = route.params;
 
   const { user, signInWithApple } = useAuth();
   const { isPremium } = useSubscription();
@@ -261,6 +261,16 @@ export default function InventoryListScreen() {
       logger.error('[InventoryV2] receipt scan gate failed:', err);
     }
   }, [user, isPremium]);
+
+  // Le CTA « Scanner mon ticket » de l'accueil arrive ici. On repasse par
+  // handleOpenReceiptScan pour que le quota, le premium et le DeferredAuthSheet
+  // s'appliquent exactement comme depuis le bouton de la barre.
+  const autoScanDone = useRef(false);
+  useEffect(() => {
+    if (!openReceiptScanner || autoScanDone.current) return;
+    autoScanDone.current = true;
+    void handleOpenReceiptScan();
+  }, [openReceiptScanner, handleOpenReceiptScan]);
 
   const handleReceiptScanComplete = useCallback((result: ReceiptScanResult) => {
     setScannedItems(result.items);
