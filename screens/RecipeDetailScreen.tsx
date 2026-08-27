@@ -10,13 +10,13 @@
 //   3. Meta row     — temps · difficulté · portions
 //   4. Section ingr — "Ingrédients · N · M en stock" + liste check/cross
 //   5. Section étap — "Étapes · N" + steps numérotés avec pastilles accent
-//   6. CTA          — pill primary "Commencer" (toast back)
+//   6. CTA          — pill primary "J'ai cuisiné" (consomme les matchés)
 //
 // Data : utilise getRecipeById + findMatchingRecipes pour classer chaque
 // ingrédient "en stock" (✓) vs "à acheter" (+).
 // ============================================================================
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import {
   StyleSheet,
   Pressable,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,12 +34,20 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { useGamification } from '@/contexts/GamificationContext';
 import { Sage, Forest, Cream } from '@/tokens';
 import { Badge } from '@/components/ds';
 import Emoji from '@/components/Emoji';
-import { loadLists } from '@/utils/localStorage';
-import { findMatchingRecipes, getRecipeById, type Recipe } from '@/services/recipeService';
-import type { FoodItem } from '@/types';
+import { loadLists, markItemConsumed } from '@/utils/localStorage';
+import {
+  findMatchingRecipes,
+  getRecipeById,
+  ingredientMatches,
+  type Recipe,
+} from '@/services/recipeService';
+import { trackFoodConsumed as analyticsTrackFoodConsumed } from '@/services/analytics';
+import { getDaysUntilExpiration } from '@/utils/dateUtils';
+import type { FoodItem, List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
 import { isActiveItem } from '@/utils/foodItems';
@@ -60,24 +70,37 @@ function inlineMatch(ingredient: string, foodNames: string[]): boolean {
   return false;
 }
 
+type MatchedStockItem = {
+  listId: string;
+  itemId: string;
+  name: string;
+  category?: string;
+  daysLeft: number | null;
+};
+
 export default function RecipeDetailScreen() {
   const { colors, typography, layout, componentRadius, radius, elevation } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
   const { recipeId } = route.params;
+  const { trackFoodConsumed } = useGamification();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [items, setItems] = useState<FoodItem[]>([]);
+  const [lists, setLists] = useState<List[]>([]);
+  const [cooking, setCooking] = useState(false);
+
+  const items = useMemo(() => {
+    const flat: FoodItem[] = [];
+    for (const l of lists) for (const it of l.items) flat.push(it);
+    return flat;
+  }, [lists]);
 
   const refresh = useCallback(async () => {
     try {
       const r = getRecipeById(recipeId);
       setRecipe(r ?? null);
-      const lists = await loadLists();
-      const flat: FoodItem[] = [];
-      for (const l of lists) for (const it of l.items) flat.push(it);
-      setItems(flat);
+      setLists(await loadLists());
     } catch (err) {
       logger.error('[RecipeDetailV2] refresh failed:', err);
     }
@@ -109,11 +132,94 @@ export default function RecipeDetailScreen() {
     [inStockByIngredient],
   );
 
+  const findMatchedStockItems = useCallback((): MatchedStockItem[] => {
+    if (!recipe) return [];
+    const used = new Set<string>();
+    const matched: MatchedStockItem[] = [];
+
+    for (const ing of recipe.ingredients) {
+      if (!inStockByIngredient[ing]) continue;
+      let found: MatchedStockItem | null = null;
+
+      for (const list of lists) {
+        for (const item of list.items) {
+          if (!isActiveItem(item) || used.has(item.id)) continue;
+          if (!ingredientMatches(item.name, ing)) continue;
+          const days = item.expirationDate
+            ? getDaysUntilExpiration(item.expirationDate)
+            : null;
+          found = {
+            listId: list.id,
+            itemId: item.id,
+            name: item.name,
+            category: item.category,
+            daysLeft: days,
+          };
+          break;
+        }
+        if (found) break;
+      }
+
+      if (found) {
+        used.add(found.itemId);
+        matched.push(found);
+      }
+    }
+
+    return matched;
+  }, [recipe, lists, inStockByIngredient]);
+
+  const consumeMatchedItems = useCallback(async (matched: MatchedStockItem[]) => {
+    setCooking(true);
+    try {
+      for (const m of matched) {
+        await markItemConsumed(m.listId, m.itemId);
+        const beforeExpiration = m.daysLeft == null || m.daysLeft >= 0;
+        trackFoodConsumed(beforeExpiration);
+        analyticsTrackFoodConsumed({
+          category: m.category,
+          daysBeforeExpiry: m.daysLeft ?? undefined,
+        });
+      }
+      navigation.goBack();
+    } catch (err) {
+      logger.error('[RecipeDetail] cook consume failed:', err);
+      Alert.alert('Erreur', 'Impossible de marquer les aliments comme consommés.');
+    } finally {
+      setCooking(false);
+    }
+  }, [navigation, trackFoodConsumed]);
+
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);
-  const handleStart = useCallback(() => {
-    // Pas de notion "commencer" en prod → simple goBack pour fermer le détail.
-    navigation.goBack();
-  }, [navigation]);
+
+  const handleCooked = useCallback(() => {
+    const matched = findMatchedStockItems();
+    if (matched.length === 0) {
+      navigation.goBack();
+      return;
+    }
+
+    const preview = matched
+      .slice(0, 4)
+      .map((m) => `• ${m.name}`)
+      .join('\n');
+    const more =
+      matched.length > 4 ? `\n… et ${matched.length - 4} autre(s)` : '';
+
+    Alert.alert(
+      "J'ai cuisiné",
+      `Marquer ${matched.length} aliment${matched.length > 1 ? 's' : ''} comme consommé${matched.length > 1 ? 's' : ''} ?\n\n${preview}${more}`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: () => {
+            void consumeMatchedItems(matched);
+          },
+        },
+      ],
+    );
+  }, [findMatchedStockItems, consumeMatchedItems, navigation]);
 
   if (!recipe) {
     return (
@@ -390,32 +496,40 @@ export default function RecipeDetailScreen() {
           </View>
         )}
 
-        {/* ── 7. CTA Commencer ────────────────────────────────────────── */}
+        {/* ── 7. CTA J'ai cuisiné ──────────────────────────────────────── */}
         <TouchableOpacity
-          onPress={handleStart}
+          onPress={handleCooked}
           activeOpacity={0.85}
+          disabled={cooking}
           style={[
             styles.cta,
             {
               backgroundColor: colors.accent.default,
               borderRadius: radius.full,
               marginTop: 24,
+              opacity: cooking ? 0.7 : 1,
               ...elevation[1],
             },
           ]}
         >
-          <SymbolView name="flame.fill" size={18} tintColor="#FFFFFF" />
-          <Text
-            style={{
-              color: '#FFFFFF',
-              fontSize: 16,
-              fontWeight: '600',
-              letterSpacing: 0.3,
-              marginLeft: 8,
-            }}
-          >
-            Commencer
-          </Text>
+          {cooking ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <SymbolView name="flame.fill" size={18} tintColor="#FFFFFF" />
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 16,
+                  fontWeight: '600',
+                  letterSpacing: 0.3,
+                  marginLeft: 8,
+                }}
+              >
+                {inStockCount > 0 ? "J'ai cuisiné" : 'Retour'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>

@@ -2062,7 +2062,7 @@ function containsAsWholeWord(text: string, word: string): boolean {
 /**
  * Vérifie si un aliment correspond à un ingrédient de recette
  */
-function ingredientMatches(foodName: string, recipeIngredient: string): boolean {
+export function ingredientMatches(foodName: string, recipeIngredient: string): boolean {
   const normalizedFood = normalizeIngredient(foodName);
   const normalizedIngredient = normalizeIngredient(recipeIngredient);
 

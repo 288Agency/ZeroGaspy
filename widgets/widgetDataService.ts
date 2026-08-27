@@ -22,7 +22,7 @@ export interface ExpiringFood {
   listName: string;
 }
 
-const LISTS_KEY = '@zerogaspy_lists';
+const LISTS_KEY = 'inventory_lists';
 
 function getDaysUntilExpiration(dateString: string): number {
   if (!dateString) return Infinity;
@@ -54,7 +54,8 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
       if (!list.items) continue;
 
       for (const item of list.items) {
-        if (item.status !== 'active') continue;
+        // Aligné avec isActiveItem : pas seulement status === 'active'
+        if (item.status === 'consumed' || item.status === 'thrown') continue;
         if (!item.expirationDate) continue;
 
         const daysLeft = getDaysUntilExpiration(item.expirationDate);

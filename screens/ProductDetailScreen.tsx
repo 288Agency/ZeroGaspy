@@ -24,7 +24,7 @@ import { SymbolView } from 'expo-symbols';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { Button, Badge, AlertModal } from '@/components/ds';
-import { loadLists, updateItem, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
+import { loadLists, markItemConsumed, markItemThrown, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import FoodEmoji from '@/components/FoodEmoji';
 import MarkAsOpenedModal from '@/components/MarkAsOpenedModal';
@@ -82,7 +82,7 @@ export default function ProductDetailScreen() {
 
   const handleConsume = async () => {
     try {
-      await updateItem(listId, itemId, { status: 'consumed' });
+      await markItemConsumed(listId, itemId);
       const beforeExpiration = days == null || days >= 0;
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
@@ -97,7 +97,7 @@ export default function ProductDetailScreen() {
   };
   const handleTrash = async () => {
     try {
-      await updateItem(listId, itemId, { status: 'thrown' });
+      await markItemThrown(listId, itemId);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: item.category,
