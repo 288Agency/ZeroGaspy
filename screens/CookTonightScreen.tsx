@@ -67,7 +67,20 @@ export default function CookTonightScreen() {
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   // Recettes scorées (tri : urgencyScore desc, puis matchPercentage)
-  const ranked = useMemo<RecipeMatch[]>(() => findMatchingRecipes(items), [items]);
+  //
+  // Cet écran est devenu la raison quotidienne d'ouvrir l'app, pas seulement la
+  // réponse à une urgence. Or avec un frigo peu rempli, aucune recette
+  // n'atteignait les 50 % de correspondance et l'écran renvoyait « Pas encore
+  // d'idée » — un cul-de-sac, alors que des aliments étaient bien là. On
+  // rattrape avec un seuil abaissé, en assumant les ingrédients manquants
+  // plutôt qu'en ne proposant rien.
+  const strict = useMemo<RecipeMatch[]>(() => findMatchingRecipes(items), [items]);
+  const ranked = useMemo<RecipeMatch[]>(
+    () => (strict.length > 0 ? strict : findMatchingRecipes(items, 20).slice(0, 5)),
+    [strict, items],
+  );
+  const isApproximate = strict.length === 0 && ranked.length > 0;
+  const hasActiveItems = useMemo(() => items.some(isActiveItem), [items]);
 
   // Compte les aliments urgents (≤1j) pour le sous-titre
   const urgentCount = useMemo(() => {
@@ -143,7 +156,7 @@ export default function CookTonightScreen() {
               textAlign: 'center',
             }}
           >
-            Pas encore d'idée.
+            {hasActiveItems ? 'Rien qui colle ce soir.' : "Pas encore d'idée."}
           </Text>
           <Text
             style={[
@@ -151,7 +164,9 @@ export default function CookTonightScreen() {
               { color: colors.fg.secondary, marginTop: 10, textAlign: 'center', maxWidth: 320 },
             ]}
           >
-            Ajoute des aliments dans tes listes et on te proposera une recette qui sauve tes urgents.
+            {hasActiveItems
+              ? 'Aucune recette ne correspond à ce que tu as. Ajoute deux ou trois ingrédients de base et on te trouve quelque chose.'
+              : 'Ajoute des aliments dans tes listes et on te proposera une recette qui sauve tes urgents.'}
           </Text>
           <Pressable
             onPress={handleFillFridge}
@@ -229,9 +244,14 @@ export default function CookTonightScreen() {
               lineHeight: 20,
             }}
           >
-            {urgentCount > 0 && hero.expiringIngredients.length > 0
-              ? `Sauve ${hero.expiringIngredients.length} aliment${hero.expiringIngredients.length > 1 ? 's' : ''} qui périme${hero.expiringIngredients.length > 1 ? 'nt' : ''}.`
-              : 'Profite des bons ingrédients que tu as.'}
+            {/* Une suggestion rattrapée au seuil bas doit se présenter comme telle :
+                annoncer un match parfait alors qu'il manque des ingrédients,
+                c'est la meilleure façon de perdre la confiance à la 2e recette. */}
+            {isApproximate
+              ? `Il te manque ${hero.missingIngredients.length} ingrédient${hero.missingIngredients.length > 1 ? 's' : ''}, mais c'est le plus proche de ton frigo.`
+              : urgentCount > 0 && hero.expiringIngredients.length > 0
+                ? `Sauve ${hero.expiringIngredients.length} aliment${hero.expiringIngredients.length > 1 ? 's' : ''} qui périme${hero.expiringIngredients.length > 1 ? 'nt' : ''}.`
+                : 'Profite des bons ingrédients que tu as.'}
           </Text>
         </View>
 

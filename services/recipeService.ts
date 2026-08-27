@@ -2112,7 +2112,16 @@ function ingredientMatches(foodName: string, recipeIngredient: string): boolean 
 /**
  * Trouve les recettes possibles avec les aliments disponibles
  */
-export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
+/**
+ * @param minMatchPercentage seuil de correspondance. Par defaut 50 % : c'est le
+ * bon niveau pour « voila ce que tu peux cuisiner ». L'abaisser sert aux ecrans
+ * qui doivent proposer QUELQUE CHOSE plutot que rien — a condition d'afficher
+ * honnetement les ingredients manquants.
+ */
+export function findMatchingRecipes(
+  foodItems: FoodItem[],
+  minMatchPercentage: number = MIN_MATCH_THRESHOLD,
+): RecipeMatch[] {
   // Filtrer les aliments actifs uniquement
   const activeItems = getActiveItems(foodItems);
 
@@ -2143,8 +2152,8 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
-    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
+    // Ne garder que les recettes au-dessus du seuil demande
+    if (matchPercentage >= minMatchPercentage && matchingIngredients.length > 0) {
       matches.push({
         recipe,
         matchingIngredients,
