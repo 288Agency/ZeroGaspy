@@ -66,6 +66,7 @@ import {
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
 import ReferralCard from '@/components/ReferralCard';
 import WeeklyRecapModal from '@/components/WeeklyRecapModal';
+import { isActiveItem } from '@/utils/foodItems';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne — flatten d'items rattachés à leur liste source
@@ -124,7 +125,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
   const out: LiveFood[] = [];
   for (const list of lists) {
     for (const item of list.items) {
-      if (item.status === 'consumed' || item.status === 'thrown') continue;
+      if (!isActiveItem(item)) continue;
       const days = getDaysUntilExpiration(item.expirationDate);
       // Date manquante : visible quand même (évite les aliments "fantômes")
       const daysLeft = days == null ? 7 : days;

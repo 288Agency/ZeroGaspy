@@ -62,6 +62,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { PaywallSheet, DeferredAuthSheet } from '@/components/ds';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
+import { isActiveItem } from '@/utils/foodItems';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne
@@ -80,7 +81,7 @@ type LiveFood = {
 type FilterKey = 'all' | 'urgent' | 'soon' | 'fresh' | string;
 
 function hydrateFood(item: FoodItem): LiveFood | null {
-  if (item.status === 'consumed' || item.status === 'thrown') return null;
+  if (!isActiveItem(item)) return null;
   const days = getDaysUntilExpiration(item.expirationDate);
   // Date manquante / invalide : on affiche quand même (J+7 virtuel) pour ne pas
   // faire "disparaître" des articles déjà stockés — cause de churn historique.

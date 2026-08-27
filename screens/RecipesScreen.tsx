@@ -65,6 +65,7 @@ import { trackRecipeViewed as analyticsTrackRecipeViewed } from '@/services/anal
 import type { FoodItem, List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { countActiveItems } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Recipes'>;
 type Rt = RouteProp<RootStackParamList, 'Recipes'>;
@@ -214,7 +215,7 @@ export default function RecipesScreen() {
   const totalIngredients = useMemo(
     () =>
       lists.reduce((sum, list) => {
-        return sum + list.items.filter((it) => it.status !== 'consumed' && it.status !== 'thrown').length;
+        return sum + countActiveItems(list);
       }, 0),
     [lists],
   );

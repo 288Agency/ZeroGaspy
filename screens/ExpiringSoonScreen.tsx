@@ -23,6 +23,7 @@ import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { isActiveItem } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ExpiringSoon'>;
 type ExpiringItem = FoodItem & { listTitle: string; listId: string; daysLeft: number };
@@ -52,7 +53,7 @@ export default function ExpiringSoonScreen() {
       let live = 0;
       data.forEach((list) => {
         list.items.forEach((item) => {
-          if (item.status === 'consumed' || item.status === 'thrown') return;
+          if (!isActiveItem(item)) return;
           live += 1;
           const days = getDaysUntilExpiration(item.expirationDate);
           if (days !== null && days >= 0 && days <= 7) {

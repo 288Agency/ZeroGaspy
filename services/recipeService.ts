@@ -9,6 +9,7 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
 import { supabase, CloudRecipe, CloudUserRecipe, dbCategoryToApp, appCategoryToDb } from '../config/supabase';
 import { trackRecipeVariantAssigned } from './analytics';
+import { getActiveItems } from '../utils/foodItems';
 
 const USER_RECIPES_KEY = 'user_recipes';
 const CLOUD_RECIPES_CACHE_KEY = 'cloud_recipes_cache';
@@ -2113,7 +2114,7 @@ function ingredientMatches(foodName: string, recipeIngredient: string): boolean 
  */
 export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
   // Filtrer les aliments actifs uniquement
-  const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
+  const activeItems = getActiveItems(foodItems);
 
   const matches: RecipeMatch[] = [];
 
@@ -2570,7 +2571,7 @@ export async function getAllRecipesWithUser(userId?: string): Promise<Recipe[]> 
  * Finds matching recipes including user recipes, using cloud catalog.
  */
 export async function findMatchingRecipesWithUser(foodItems: FoodItem[], userId?: string): Promise<RecipeMatch[]> {
-  const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
+  const activeItems = getActiveItems(foodItems);
   const allRecipes = await getAllRecipesWithUser(userId);
   const matches: RecipeMatch[] = [];
 

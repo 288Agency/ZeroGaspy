@@ -11,6 +11,7 @@ import { loadLists } from '../utils/localStorage';
 import { calculateUserStats, calculateDailyStats, calculateMonthlyStats } from './statsService';
 import { List, FoodItem } from '../types';
 import logger from '../utils/logger';
+import { countActiveItems } from '../utils/foodItems';
 
 export interface ExportData {
   exportDate: string;
@@ -44,7 +45,7 @@ function countItems(lists: List[]): { total: number; active: number } {
 
   lists.forEach(list => {
     total += list.items.length;
-    active += list.items.filter(item => item.status !== 'consumed' && item.status !== 'thrown').length;
+    active += countActiveItems(list);
   });
 
   return { total, active };

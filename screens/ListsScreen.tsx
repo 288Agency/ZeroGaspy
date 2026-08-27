@@ -32,12 +32,15 @@ import { FREE_LIMITS } from '@/constants/subscription';
 import type { List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { countActiveItems } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Lists'>;
 
 type ListItem =
   | { type: 'personal'; data: List }
   | { type: 'shared'; data: SharedListWithMe };
+
+
 
 export default function ListsScreen() {
   const { t } = useTranslation();
@@ -193,7 +196,7 @@ export default function ListsScreen() {
               </View>
               <View style={styles.cardMeta}>
                 <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
-                  {t('lists.itemsCount', { count: list.items.length })}
+                  {t('lists.itemsCount', { count: countActiveItems(list) })}
                 </Text>
                 {memberCounts[list.id] > 1 && (
                   <View style={[styles.memberBadge, { backgroundColor: Sage[100] }]}>

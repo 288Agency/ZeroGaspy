@@ -42,6 +42,7 @@ import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { isActiveItem } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CookTonight'>;
 
@@ -72,7 +73,7 @@ export default function CookTonightScreen() {
   const urgentCount = useMemo(() => {
     let n = 0;
     for (const it of items) {
-      if (it.status === 'consumed' || it.status === 'thrown') continue;
+      if (!isActiveItem(it)) continue;
       const d = getDaysUntilExpiration(it.expirationDate);
       if (d != null && d <= 1) n++;
     }

@@ -40,6 +40,7 @@ import { findMatchingRecipes, getRecipeById, type Recipe } from '@/services/reci
 import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { isActiveItem } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'RecipeDetail'>;
 type Rt = RouteProp<RootStackParamList, 'RecipeDetail'>;
@@ -96,7 +97,7 @@ export default function RecipeDetailScreen() {
     } else {
       // Fallback : matcher inline (recipe sous le seuil global)
       const foodNames = items
-        .filter((it) => it.status !== 'consumed' && it.status !== 'thrown')
+        .filter(isActiveItem)
         .map((it) => it.name);
       for (const ing of recipe.ingredients) map[ing] = inlineMatch(ing, foodNames);
     }

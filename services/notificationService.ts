@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadLists } from '../utils/localStorage';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
+import { isActiveItem } from '../utils/foodItems';
 
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 const LAST_NOTIFICATION_CHECK_KEY = 'last_notification_check';
@@ -144,7 +145,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
   // Collecter tous les aliments qui expirent bientôt
   lists.forEach((list) => {
     list.items.forEach((item) => {
-      if (item.status === 'consumed' || item.status === 'thrown') return;
+      if (!isActiveItem(item)) return;
 
       const days = getDaysUntilExpiration(item.expirationDate);
       if (days !== null && days >= 0 && days <= settings.daysBeforeExpiration) {
@@ -294,7 +295,7 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
     const expiringItems: string[] = [];
     for (const list of lists) {
       for (const item of list.items) {
-        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        if (!isActiveItem(item)) continue;
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 3) {
           expiringItems.push(item.name);
@@ -370,7 +371,7 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
 
     for (const list of lists) {
       for (const item of list.items) {
-        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        if (!isActiveItem(item)) continue;
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 2) {
           expiring.push({ name: item.name, itemId: item.id, listId: list.id });
