@@ -3,7 +3,7 @@
 // ============================================================================
 // Hub profil & réglages. Iso-features avec tokens DS v2 et topbar handoff.
 // Sections : Hero impact · Compte · Succès · Parrainage · Abonnement ·
-// Notifications · Export · Langue · Support · Réseaux sociaux.
+// Notifications · Export · Support · Réseaux sociaux.
 // ============================================================================
 
 import React, { useCallback, useState } from 'react';
@@ -38,7 +38,6 @@ import FeedbackModal from '@/components/FeedbackModal';
 import AccountSettingsModal from '@/components/AccountSettingsModal';
 import LegalModal from '@/components/LegalModal';
 import AchievementsModal from '@/components/AchievementsModal';
-import LanguageSelector, { LanguageButton } from '@/components/LanguageSelector';
 import ProfileImpactHero from '@/components/ProfileImpactHero';
 import { getLevelTitle } from '@/services/gamificationService';
 import { getPendingChangesCount, syncWithCloud } from '@/services/supabase/syncService';
@@ -86,7 +85,6 @@ export default function AccountScreen() {
   const [legalModalVisible, setLegalModalVisible] = useState(false);
   const [achievementsVisible, setAchievementsVisible] = useState(false);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [authSheetVisible, setAuthSheetVisible] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: true,
@@ -699,11 +697,6 @@ export default function AccountScreen() {
           </View>
         </Section>
 
-        {/* ── Langue ──────────────────────────────────────────────────────── */}
-        <Section title={t('account.sectionLanguage')}>
-          <LanguageButton onPress={() => setLanguageModalVisible(true)} />
-        </Section>
-
         {/* ── Support ─────────────────────────────────────────────────────── */}
         <Section title={t('account.sectionSupport')}>
           <Card noPadding>
@@ -768,10 +761,6 @@ export default function AccountScreen() {
         visible={paywallVisible}
         onClose={() => setPaywallVisible(false)}
         trigger="addList"
-      />
-      <LanguageSelector
-        visible={languageModalVisible}
-        onClose={() => setLanguageModalVisible(false)}
       />
       <DeferredAuthSheet
         visible={authSheetVisible}

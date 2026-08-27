@@ -7,7 +7,6 @@ if (typeof (Intl as unknown as { PluralRules?: unknown }).PluralRules === 'undef
   require('@formatjs/intl-pluralrules/locale-data/en');
 }
 
-import * as Localization from 'expo-localization';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,12 +26,12 @@ export const supportedLanguages = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
 ];
 
-// Detecter la langue du systeme
-const getDeviceLanguage = (): string => {
-  const locale = Localization.getLocales()[0]?.languageCode || 'fr';
-  // Retourner 'fr' ou 'en', par defaut 'fr' si la langue n'est pas supportee
-  return ['fr', 'en'].includes(locale) ? locale : 'fr';
-};
+// L'app est francaise de bout en bout : les 104 recettes, les statistiques de
+// gaspillage citees dans l'onboarding et la tarification sont en francais/euros.
+// Traduire l'UI seule donnerait une coquille anglaise sur du contenu francais,
+// donc on assume le francais et on n'expose plus de selecteur de langue.
+// Passer reellement a l'anglais = traduire le contenu, pas seulement l'UI.
+const APP_LANGUAGE = 'fr';
 
 // Sauvegarder la langue choisie
 export const saveLanguage = async (language: string): Promise<void> => {
@@ -52,7 +51,7 @@ export const changeLanguage = async (language: string): Promise<void> => {
 // Initialiser i18n de maniere synchrone avec la langue du systeme
 i18n.use(initReactI18next).init({
   resources,
-  lng: getDeviceLanguage(),
+  lng: APP_LANGUAGE,
   fallbackLng: 'fr',
   interpolation: {
     escapeValue: false,
@@ -63,19 +62,16 @@ i18n.use(initReactI18next).init({
   compatibilityJSON: 'v4',
 });
 
-// Charger la langue sauvegardee de maniere asynchrone et mettre a jour si differente
-const loadSavedLanguage = async () => {
+// Purge d'un ancien choix de langue : le selecteur a ete retire, donc un
+// utilisateur qui avait bascule en anglais resterait bloque sans moyen d'en sortir.
+const clearSavedLanguage = async () => {
   try {
-    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
-    if (savedLanguage && ['fr', 'en'].includes(savedLanguage) && savedLanguage !== i18n.language) {
-      await i18n.changeLanguage(savedLanguage);
-    }
+    await AsyncStorage.removeItem(LANGUAGE_KEY);
   } catch (error) {
-    console.error('Error loading saved language:', error);
+    console.error('Error clearing saved language:', error);
   }
 };
 
-// Charger la langue sauvegardee au demarrage
-loadSavedLanguage();
+clearSavedLanguage();
 
 export default i18n;
