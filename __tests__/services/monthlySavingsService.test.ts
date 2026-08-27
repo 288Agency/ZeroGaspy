@@ -64,7 +64,25 @@ describe('monthlySavingsService', () => {
       (item as any).category = 'légumes';
       (localStorage.loadLists as jest.Mock).mockResolvedValue(mockList([item]));
       const result = await getMonthlySavings();
-      expect(result).toBeGreaterThan(0);
+      expect(result).toBe(1.5);
+    });
+
+    it('estime les catégories AddFood anglaises (dairy)', async () => {
+      const item = makeConsumedItem(0, 0);
+      delete (item as any).price;
+      (item as any).category = 'dairy';
+      (item as any).quantity = 2;
+      (localStorage.loadLists as jest.Mock).mockResolvedValue(mockList([item]));
+      const result = await getMonthlySavings();
+      expect(result).toBe(4); // 2.00 × 2
+    });
+
+    it('ne multiplie pas un prix saisi par la quantité', async () => {
+      const item = makeConsumedItem(5.0, 0);
+      (item as any).quantity = 3;
+      (localStorage.loadLists as jest.Mock).mockResolvedValue(mockList([item]));
+      const result = await getMonthlySavings();
+      expect(result).toBe(5);
     });
   });
 

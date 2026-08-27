@@ -11,7 +11,7 @@ export interface FoodItem {
   isOpened?: boolean;
   openedDate?: string;
   daysAfterOpening?: number;
-  price?: number; // Prix estimé en euros (pour calcul économies)
+  price?: number; // Total ligne en € (saisie / ticket). Si absent → estimation catégorie.
   consumedAt?: string; // Date de consommation/jet (ISO)
 }
 

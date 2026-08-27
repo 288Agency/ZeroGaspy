@@ -53,6 +53,7 @@ import {
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import { calculateUserStats } from '@/services/statsService';
 import { getMonthlySavings } from '@/services/monthlySavingsService';
+import { resolveItemLineValue } from '@/services/priceEstimateService';
 import type { List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
@@ -80,7 +81,8 @@ type LiveFood = {
   daysLeft: number;
   category?: string;
   imageUri?: string;
-  /** Prix payé, quand il vient d'un ticket scanné. Sert à valoriser le frigo. */
+  quantity?: number;
+  /** Total ligne (€) si saisi / ticket ; sinon estimation catégorie. */
   price?: number;
 };
 
@@ -141,6 +143,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
         daysLeft,
         category: item.category,
         imageUri: item.imageUri,
+        quantity: qty,
         price: item.price,
       });
     }
@@ -264,7 +267,7 @@ export default function HomeScreen() {
   // (« ~50 €/mois ») au moment ou l'utilisateur est le plus sceptique. La valeur
   // de ce qu'il y a DANS le frigo est vraie immediatement, et ce qu'on risque de
   // perdre pese plus lourd que ce qu'on a deja gagne.
-  const fridgeValue = foods.reduce((total, f) => total + (f.price ?? 0), 0);
+  const fridgeValue = foods.reduce((total, f) => total + resolveItemLineValue(f), 0);
   const showFridgeValue = monthlySaved <= 0 && fridgeValue > 0;
 
   // ── Handlers (inchangés) ───────────────────────────────────────────────────

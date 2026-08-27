@@ -6,6 +6,7 @@ import { loadLists } from '../utils/localStorage';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
 import { isActiveItem } from '../utils/foodItems';
+import { resolveItemLineValue } from './priceEstimateService';
 
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 const LAST_NOTIFICATION_CHECK_KEY = 'last_notification_check';
@@ -95,6 +96,9 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
     await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
     // Reprogrammer les notifications avec les nouveaux paramètres
     await scheduleExpirationNotifications();
+    if (settings.enabled) {
+      await refreshLocalSecondaryNotifications();
+    }
   } catch (error: any) {
     logger.error('Erreur lors de la sauvegarde des paramètres:', error.message);
   }
@@ -361,6 +365,25 @@ export function addNotificationResponseListener(
 }
 
 const DINNER_NOTIFICATION_ID = 'dinner_reminder_daily';
+const WEEKLY_RECAP_NOTIF_ID = 'weekly_recap_sunday';
+
+/**
+ * Dîner + récap hebdo : replanifiés à chaque mutation d'inventaire.
+ * Sans ça, les guests (pas de push serveur) gardaient un contenu figé
+ * jusqu'au prochain cold start de l'app.
+ */
+export async function refreshLocalSecondaryNotifications(lang: string = 'fr'): Promise<void> {
+  try {
+    const settings = await loadNotificationSettings();
+    if (!settings.enabled) return;
+    await Promise.all([
+      scheduleDinnerReminderNotification(lang),
+      scheduleWeeklyRecapNotification(lang),
+    ]);
+  } catch (error) {
+    logger.error('refreshLocalSecondaryNotifications error:', error);
+  }
+}
 
 export async function scheduleDinnerReminderNotification(lang: string = 'fr'): Promise<void> {
   try {
@@ -432,8 +455,6 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
   }
 }
 
-const WEEKLY_RECAP_NOTIF_ID = 'weekly_recap_sunday';
-
 export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Promise<void> {
   try {
     // Annuler l'ancienne pour éviter les doublons si on reschedule
@@ -458,8 +479,7 @@ export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Prom
         if (!date || date < weekStart) continue;
         if (item.status === 'consumed') {
           consumedCount++;
-          const price = item.price && item.price > 0 ? item.price : 3.00;
-          savedAmount += price * (item.quantity || 1);
+          savedAmount += resolveItemLineValue(item);
         } else if (item.status === 'thrown') {
           thrownCount++;
         }

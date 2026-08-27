@@ -19,6 +19,9 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { PaywallSheet } from '@/components/ds';
+import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 import RecipePickerModal from '@/components/RecipePickerModal';
 import Emoji from '@/components/Emoji';
 import { Recipe, getAllRecipesWithUser } from '@/services/recipeService';
@@ -58,6 +61,9 @@ export default function MealPlannerScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
+  const paywallProps = usePaywallSheetProps();
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const [plans, setPlans] = useState<MealPlanEntry[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -76,7 +82,24 @@ export default function MealPlannerScreen() {
     }
   }, [user?.id]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      if (!isPremium) {
+        setShowPaywall(true);
+        return;
+      }
+      load();
+    }, [isPremium, load]),
+  );
+
+  const handleClosePaywall = useCallback(() => {
+    setShowPaywall(false);
+    if (!isPremium) {
+      navigation.goBack();
+    } else {
+      void load();
+    }
+  }, [isPremium, navigation, load]);
 
   const recipesById = useMemo(() => {
     const map = new Map<string, Recipe>();
@@ -294,6 +317,12 @@ export default function MealPlannerScreen() {
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={onSelectRecipe}
+      />
+      <PaywallSheet
+        {...paywallProps}
+        visible={showPaywall}
+        onClose={handleClosePaywall}
+        trigger="mealPlanner"
       />
     </View>
   );

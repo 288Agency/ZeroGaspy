@@ -49,6 +49,8 @@ import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
 import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAddedOnce } from '@/services/analytics';
+import { isValidPrice } from '@/utils/security';
+import { estimateUnitPrice } from '@/services/priceEstimateService';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constantes — catégories + unités (handoff vocab)
@@ -88,6 +90,9 @@ export default function AddFoodScreen() {
   const [quantity, setQuantity] = useState(String(editItem?.quantity ?? ''));
   const [unit, setUnit]         = useState(editItem?.unit ?? 'pcs');
   const [category, setCategory] = useState(editItem?.category ?? 'other');
+  const [price, setPrice] = useState(
+    editItem?.price != null && editItem.price > 0 ? String(editItem.price).replace('.', ',') : '',
+  );
   const [imageUri, setImageUri] = useState<string | undefined>(editItem?.imageUri);
   const [listTitle, setListTitle] = useState<string>('');
 
@@ -111,6 +116,16 @@ export default function AddFoodScreen() {
   const handleSubmit = useCallback(async () => {
     if (!valid) return;
     const qtyParsed = parseInt(quantity, 10);
+    const priceRaw = price.trim().replace(',', '.');
+    let parsedPrice: number | undefined;
+    if (priceRaw.length > 0) {
+      const n = parseFloat(priceRaw);
+      if (!isValidPrice(n) || n <= 0) {
+        Alert.alert('Prix invalide', 'Indique un montant en euros (ex. 2,50) ou laisse vide.');
+        return;
+      }
+      parsedPrice = Math.round(n * 100) / 100;
+    }
     const itemBody: Partial<FoodItem> = {
       name: name.trim(),
       expirationDate: date.trim() || formatDateToDDMMYYYY(addDays(new Date(), 7)),
@@ -118,10 +133,15 @@ export default function AddFoodScreen() {
       unit: unit || undefined,
       category: category || undefined,
       imageUri: imageUri || undefined,
+      price: parsedPrice,
     };
     try {
       if (isEditing && editItem) {
-        await updateItem(listId, editItem.id, itemBody);
+        await updateItem(listId, editItem.id, {
+          ...itemBody,
+          // Effacer le prix si le champ est vidé
+          price: parsedPrice ?? null,
+        } as Partial<FoodItem>);
       } else {
         const newItem: FoodItem = {
           id: Date.now().toString(),
@@ -136,7 +156,7 @@ export default function AddFoodScreen() {
           analyticsTrackFoodAdded({
             category: itemBody.category,
             hasExpiryDate: !!date.trim(),
-            hasPrice: false,
+            hasPrice: parsedPrice != null,
             source: 'manual',
           });
           void trackFirstFoodAddedOnce();
@@ -147,7 +167,7 @@ export default function AddFoodScreen() {
       logger.error('[AddFoodV2] save failed:', err);
       Alert.alert('Erreur', "Impossible d'enregistrer l'aliment. Réessaie.");
     }
-  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, imageUri, navigation, trackFoodAdded]);
+  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, price, imageUri, navigation, trackFoodAdded]);
 
   const handleBarcodeFound = useCallback(
     (product: { name: string; quantity?: string; category?: string; imageUrl?: string; brand?: string }) => {
@@ -322,6 +342,35 @@ export default function AddFoodScreen() {
             <UnitChip key={u} label={u} active={unit === u} onPress={() => setUnit(u)} />
           ))}
         </ScrollView>
+
+        {/* ── 4b. Prix (optionnel) ─────────────────────────────────────── */}
+        <FieldLabel>Prix (€) · optionnel</FieldLabel>
+        <FieldInputBox icon="eurosign" accent={price.length > 0}>
+          <TextInput
+            value={price}
+            onChangeText={setPrice}
+            placeholder={`≈ ${estimateUnitPrice(category).toFixed(2).replace('.', ',')} € estimés`}
+            placeholderTextColor={colors.fg.muted}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            style={{
+              flex: 1,
+              fontSize: 16,
+              color: colors.fg.primary,
+              padding: 0,
+            }}
+          />
+        </FieldInputBox>
+        <Text
+          style={{
+            fontSize: 12,
+            color: colors.fg.muted,
+            marginTop: -10,
+            marginBottom: 18,
+          }}
+        >
+          Laisse vide pour une estimation selon la catégorie.
+        </Text>
 
         {/* ── 5. Catégorie (grille visuelle) ──────────────────────────── */}
         <FieldLabel>Catégorie</FieldLabel>

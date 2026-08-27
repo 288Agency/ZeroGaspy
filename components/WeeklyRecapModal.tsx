@@ -19,6 +19,7 @@ import { getGamificationData } from '../services/gamificationService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import ShareRecapCard from './ShareRecapCard';
 import { shareRecapImage } from '../services/shareRecapService';
+import { resolveItemLineValue } from '../services/priceEstimateService';
 
 interface WeeklyRecapModalProps {
   visible: boolean;
@@ -33,8 +34,6 @@ interface WeekStats {
   xpGained: number;
   co2AvoidedKg: number;
 }
-
-const DEFAULT_ITEM_PRICE = 3;
 
 export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalProps) {
   const { t } = useTranslation();
@@ -79,8 +78,7 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
 
         if (item.status === 'consumed') {
           itemsSaved++;
-          const price = item.price && item.price > 0 ? item.price : DEFAULT_ITEM_PRICE;
-          eurosSaved += price * (item.quantity || 1);
+          eurosSaved += resolveItemLineValue(item);
         } else if (item.status === 'thrown') {
           itemsThrown++;
         }

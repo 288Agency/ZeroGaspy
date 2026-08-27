@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { List, FoodItem } from '../types';
-import { scheduleExpirationNotifications } from '../services/notificationService';
+import { scheduleExpirationNotifications, refreshLocalSecondaryNotifications } from '../services/notificationService';
 import { sanitizeString, validateListTitle } from './security';
 import { formatDateToDDMMYYYY, parseDDMMYYYY } from './dateUtils';
 import { addToSyncQueue, syncWithCloud } from '../services/supabase/syncService';
@@ -126,6 +126,10 @@ export async function loadLists(): Promise<List[]> {
 export async function saveLists(lists: List[]): Promise<void> {
   await AsyncStorage.setItem(LISTS_KEY, JSON.stringify(lists));
   scheduleExpirationNotifications().catch((e) => logger.error('Erreur notifications:', e.message));
+  // Guests n'ont pas de push serveur : dîner + weekly doivent suivre l'inventaire
+  refreshLocalSecondaryNotifications().catch((e) =>
+    logger.error('Erreur notifs secondaires:', e.message),
+  );
   // Mettre à jour les données du widget
   updateWidgetData().catch((e) => logger.error('Erreur widget data:', e.message));
 }
