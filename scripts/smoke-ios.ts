@@ -178,8 +178,22 @@ function main(): void {
   sh('xcrun', ['simctl', 'launch', udid, BUNDLE_ID]);
   sleep(20000);
 
-  if (tree(udid).length === 0) {
-    console.error('✖ L\'app ne repond pas (Metro lance ? bundle installe ?)');
+  // Un arbre d'accessibilite reduit au seul noeud Application signifie qu'une
+  // BOITE DE DIALOGUE NATIVE recouvre l'app (invite de notation App Store,
+  // permission systeme...) : ses noeuds n'y apparaissent pas. Sans ce
+  // diagnostic, chaque etape echoue en annoncant « rien a l'ecran », ce qui
+  // laisse croire a une app cassee.
+  const initial = tree(udid);
+  if (initial.length === 0) {
+    console.error("✖ L'app ne repond pas (Metro lance ? bundle installe ?)");
+    process.exit(1);
+  }
+  if (initial.length === 1) {
+    console.error(
+      "✖ L'app est lancee mais son contenu est inaccessible : une boite de\n" +
+        '  dialogue native la recouvre probablement (invite de notation App Store,\n' +
+        '  permission systeme). Fermez-la sur le simulateur puis relancez.',
+    );
     process.exit(1);
   }
 
