@@ -5,7 +5,11 @@ jest.mock('../../services/supabase/cloudSyncQueue', () => ({
   getCurrentSyncUserId: jest.fn(() => null),
 }));
 
-import { getISOWeeksInYear, getPreviousWeekKey } from '../../services/challengeService';
+import {
+  getISOWeeksInYear,
+  getPreviousWeekKey,
+  getActiveChallenges,
+} from '../../services/challengeService';
 
 describe('getISOWeeksInYear', () => {
   it('retourne 53 pour 2020 (bissextile, jan 1 = mercredi)', () => {
@@ -48,5 +52,36 @@ describe('getPreviousWeekKey', () => {
 
   it('padding sur 2 chiffres pour les semaines < 10', () => {
     expect(getPreviousWeekKey('2026-W05')).toBe('2026-W04');
+  });
+});
+
+describe('équilibre usage / résultat', () => {
+  // 21 des 30 défis récompensent l'usage de l'app et 9 seulement le résultat.
+  // Sans garde-fou, une semaine entière pouvait ne demander que d'ajouter des
+  // aliments et de consulter des recettes — donc gagner tout son XP sans sauver
+  // quoi que ce soit, voire en jetant son frigo.
+  const estResultat = (c: { category: string; id: string }) =>
+    c.category === 'saving' || c.id.startsWith('no_throw');
+
+  it('propose au moins un défi de résultat chaque semaine, sur 60 semaines', () => {
+    const semainesSansResultat: string[] = [];
+    for (let w = 1; w <= 60; w++) {
+      const weekKey = `2026-W${String(w).padStart(2, '0')}`;
+      const defis = getActiveChallenges(weekKey);
+      if (!defis.some(estResultat)) semainesSansResultat.push(weekKey);
+    }
+    expect(semainesSansResultat).toEqual([]);
+  });
+
+  it('garde trois défis de difficultés distinctes', () => {
+    const defis = getActiveChallenges('2026-W35');
+    expect(defis).toHaveLength(3);
+    expect(new Set(defis.map((d) => d.difficulty)).size).toBe(3);
+  });
+
+  it('reste déterministe pour une même semaine', () => {
+    const a = getActiveChallenges('2026-W35').map((d) => d.id);
+    const b = getActiveChallenges('2026-W35').map((d) => d.id);
+    expect(a).toEqual(b);
   });
 });
