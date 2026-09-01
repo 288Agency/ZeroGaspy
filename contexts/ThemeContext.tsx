@@ -10,7 +10,8 @@ import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 
 import {
   getColors,
-  typography,
+  typography as systemTypography,
+  getHandoffTypography,
   space,
   layout,
   elevation,
@@ -20,12 +21,13 @@ import {
   type ColorScheme,
   type SemanticColors,
 } from '@/tokens';
+import { useHandoffFontsReady } from '@/contexts/HandoffFontsContext';
 
 interface ThemeContextValue {
   scheme: ColorScheme;
   setSchemeOverride: (s: ColorScheme | null) => void;
   colors: SemanticColors;
-  typography: typeof typography;
+  typography: typeof systemTypography;
   space: typeof space;
   layout: typeof layout;
   elevation: typeof elevation;
@@ -41,12 +43,13 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
+  const handoffFontsReady = useHandoffFontsReady();
   const value = useMemo<ThemeContextValue>(
     () => ({
       scheme: 'light',
       setSchemeOverride: () => {},
       colors: getColors('light'),
-      typography,
+      typography: handoffFontsReady ? getHandoffTypography() : systemTypography,
       space,
       layout,
       elevation,
@@ -54,7 +57,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       radius,
       componentRadius,
     }),
-    [],
+    [handoffFontsReady],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

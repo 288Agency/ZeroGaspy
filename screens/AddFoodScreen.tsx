@@ -9,10 +9,9 @@
 //   1. TopBar       — Annuler · titre · Ajouter (disabled si name vide)
 //   2. Quick row    — Scan (barcode) · Photo · Date OCR (au lieu de Voix)
 //   3. Field        — Nom (autoFocus, input avec icône)
-//   4. Field        — Date péremption (DD/MM/YYYY)
-//   5. Row          — Quantité + Unité (chips horizontales)
-//   6. Grid         — Catégories visuelles (6 tuiles, bordure 2px accent)
-//   7. CTA          — "Ajouter à [liste]" (full-width, disabled si invalid)
+//   4. Field        — Date péremption (calendrier)
+//   5. Affiner       — qty / unité / prix / catégorie (replié par défaut)
+//   6. CTA          — "Ajouter à [liste]"
 //
 // Supporte le mode édition via route.params.editItem (prefill + appel
 // updateItem au lieu d'addItemToList).
@@ -51,6 +50,7 @@ import logger from '@/utils/logger';
 import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAddedOnce } from '@/services/analytics';
 import { isValidPrice } from '@/utils/security';
 import { estimateUnitPrice } from '@/services/priceEstimateService';
+import { feedbackFoodAdded } from '@/services/actionFeedback';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constantes — catégories + unités (handoff vocab)
@@ -93,6 +93,14 @@ export default function AddFoodScreen() {
   const [price, setPrice] = useState(
     editItem?.price != null && editItem.price > 0 ? String(editItem.price).replace('.', ',') : '',
   );
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    if (!editItem) return false;
+    return (
+      (editItem.quantity != null && editItem.quantity > 1)
+      || (editItem.price != null && editItem.price > 0)
+      || (!!editItem.category && editItem.category !== 'other')
+    );
+  });
   const [imageUri, setImageUri] = useState<string | undefined>(editItem?.imageUri);
   const [listTitle, setListTitle] = useState<string>('');
 
@@ -152,6 +160,7 @@ export default function AddFoodScreen() {
         };
         await addItemToList(listId, newItem);
         trackFoodAdded(listId);
+        feedbackFoodAdded(name.trim());
         try {
           analyticsTrackFoodAdded({
             category: itemBody.category,
@@ -304,6 +313,27 @@ export default function AddFoodScreen() {
           minimumDate={new Date()}
         />
 
+        {!showAdvanced && !isEditing && (
+          <Pressable
+            onPress={() => setShowAdvanced(true)}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              marginBottom: 8,
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            <SymbolView name="slider.horizontal.3" size={16} tintColor={colors.accent.default} />
+            <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: colors.accent.default }}>
+              Affiner · quantité, catégorie, prix
+            </Text>
+          </Pressable>
+        )}
+
+        {showAdvanced && (
+          <>
         {/* ── 4. Quantité + Unité ─────────────────────────────────────── */}
         <FieldLabel>Quantité</FieldLabel>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
@@ -409,6 +439,8 @@ export default function AddFoodScreen() {
             );
           })}
         </View>
+          </>
+        )}
 
         {/* ── 6. CTA "Ajouter à [liste]" ──────────────────────────────── */}
         <TouchableOpacity

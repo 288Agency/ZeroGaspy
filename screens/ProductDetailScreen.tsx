@@ -36,6 +36,7 @@ import {
   trackFoodConsumed as analyticsTrackFoodConsumed,
   trackFoodThrown as analyticsTrackFoodThrown,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 
 type ProductDetailNav = NativeStackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type ProductDetailRoute = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -84,6 +85,7 @@ export default function ProductDetailScreen() {
     try {
       await markItemConsumed(listId, itemId);
       const beforeExpiration = days == null || days >= 0;
+      feedbackFoodConsumed(item.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: item.category,
@@ -98,6 +100,7 @@ export default function ProductDetailScreen() {
   const handleTrash = async () => {
     try {
       await markItemThrown(listId, itemId);
+      feedbackFoodThrown(item.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: item.category,
@@ -126,9 +129,11 @@ export default function ProductDetailScreen() {
       if (qty >= (item.quantity ?? 1)) {
         if (partialAction === 'consumed') {
           const beforeExpiration = days == null || days >= 0;
+          feedbackFoodConsumed(item.name, beforeExpiration);
           trackFoodConsumed(beforeExpiration);
           analyticsTrackFoodConsumed({ category: item.category, daysBeforeExpiry: days ?? undefined });
         } else {
+          feedbackFoodThrown(item.name);
           trackFoodThrown();
           analyticsTrackFoodThrown({
             category: item.category,

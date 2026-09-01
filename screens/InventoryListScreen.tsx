@@ -57,6 +57,7 @@ import {
   trackFoodThrown as analyticsTrackFoodThrown,
   trackFirstFoodAddedOnce,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useGamification } from '@/contexts/GamificationContext';
@@ -207,6 +208,7 @@ export default function InventoryListScreen() {
     try {
       await markItemConsumed(listId, itemId);
       const beforeExpiration = food == null || food.daysLeft >= 0;
+      feedbackFoodConsumed(food?.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: food?.category,
@@ -222,6 +224,7 @@ export default function InventoryListScreen() {
     const food = allFoods.find((f) => f.id === itemId);
     try {
       await markItemThrown(listId, itemId);
+      feedbackFoodThrown(food?.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: food?.category,

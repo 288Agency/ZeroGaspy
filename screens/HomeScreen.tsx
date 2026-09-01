@@ -10,10 +10,10 @@
 //   4. À surveiller — WatchGroups dépliables (À consommer / Bientôt / Cette
 //                    semaine) avec vignettes catégorie + compteur ; corps =
 //                    ProductCard DS avec actions inline ✓/🗑
-//   5. cook-card   — nudge « Idée du soir » → CookTonight
+//   5. cook-card   — retirée (CTA hero suffit → CookTonight)
 //
-// Features hors-maquette CONSERVÉES sous la cook-card (aucune perte) :
-//   WeeklyChallengeCard · MealPlanner CTA · ReferralCard · WeeklyRecapModal.
+// Secondaire regroupé en bas (« Explorer ») : défis, meal planner.
+// Retiré du scroll principal : WeeklyChallengeCard, ReferralCard (→ Compte).
 //
 // AUCUNE logique/donnée touchée : mêmes `loadLists()` + `calculateUserStats()`
 // + `getMonthlySavings()` au focus, mêmes `markItemConsumed`/`markItemThrown`,
@@ -42,7 +42,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
 import { ProductCard } from '@/components/ds';
-import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import {
   loadLists,
@@ -62,10 +61,9 @@ import {
   trackFoodThrown as analyticsTrackFoodThrown,
   trackSavingsCardViewed,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 
 // Composants legacy conservés (hors-maquette, palette héritée)
-import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
-import ReferralCard from '@/components/ReferralCard';
 import WeeklyRecapModal from '@/components/WeeklyRecapModal';
 import { isActiveItem } from '@/utils/foodItems';
 
@@ -189,8 +187,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoutePropT>();
-  const { user } = useAuth();
-  const { challengesState, gamificationData, trackFoodConsumed, trackFoodThrown } = useGamification();
+  const { challengesState, trackFoodConsumed, trackFoodThrown } = useGamification();
 
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -205,8 +202,6 @@ export default function HomeScreen() {
       navigation.setParams({ showWeeklyRecap: undefined } as any);
     }
   }, [route.params?.showWeeklyRecap, navigation]);
-
-  const hasBadges = (gamificationData?.badges?.length ?? 0) >= 1;
 
   const refresh = useCallback(async () => {
     try {
@@ -332,6 +327,7 @@ export default function HomeScreen() {
     try {
       await markItemConsumed(f.listId, itemId);
       const beforeExpiration = f.daysLeft >= 0;
+      feedbackFoodConsumed(f.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: f.category,
@@ -349,6 +345,7 @@ export default function HomeScreen() {
     if (!f) return;
     try {
       await markItemThrown(f.listId, itemId);
+      feedbackFoodThrown(f.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: f.category,
@@ -427,8 +424,8 @@ export default function HomeScreen() {
                   </>
                 ) : hasUrgent ? (
                   <>
-                    {urgents.length} aliment{urgents.length > 1 ? 's' : ''} à{'\n'}consommer{' '}
-                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>vite.</Text>
+                    {urgents.length} idée{urgents.length > 1 ? 's' : ''} pour{'\n'}ce{' '}
+                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>soir.</Text>
                   </>
                 ) : (
                   <>
@@ -579,7 +576,7 @@ export default function HomeScreen() {
           <>
             <WatchGroup
               tone="urgent"
-              title="À consommer"
+              title="À utiliser"
               subtitle="Aujourd'hui ou demain"
               items={feedUrgent}
               defaultOpen
@@ -608,63 +605,30 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── cook-card ───────────────────────────────────────────────── */}
-        {hasUrgent && (
-          <Pressable
-            onPress={handleCookTonight}
-            accessibilityRole="button"
-            accessibilityLabel="Idée du soir"
-            style={({ pressed }) => [
-              styles.cookCard,
-              {
-                backgroundColor: colors.accent.soft,
-                borderColor: colors.accent.border,
-                borderRadius: componentRadius.card,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <View style={[styles.cookThumb, { backgroundColor: colors.accent.default }]}>
-              <SymbolView name="book.closed.fill" size={22} tintColor="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.sectionLabel, { color: Forest[600], fontSize: 11 }]}>Idée du soir</Text>
-              <Text style={{ fontSize: 16, fontWeight: '700', letterSpacing: -0.3, marginTop: 3, color: colors.fg.primary }}>
-                Une recette pour tes urgents
-              </Text>
-              <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                Sauve {urgents.length} aliment{urgents.length > 1 ? 's' : ''} avant péremption
-              </Text>
-            </View>
-            <SymbolView name="chevron.right" size={18} tintColor={colors.fg.muted} />
-          </Pressable>
-        )}
-
-        {/* ── Features hors-maquette conservées ───────────────────────── */}
-        {challengesState && (
-          <View style={{ marginTop: layout.sectionGap }}>
-            <WeeklyChallengeCard challengesState={challengesState} />
-          </View>
-        )}
-
-        <Pressable
-          onPress={() => navigation.navigate('MealPlanner')}
-          accessibilityRole="button"
-          accessibilityLabel="Planifier les repas de la semaine"
-          style={({ pressed }) => [styles.plannerGhost, { opacity: pressed ? 0.55 : 1 }]}
-        >
-          <SymbolView name="calendar" size={18} tintColor={colors.fg.secondary} />
-          <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
-            Planifier les repas
+        {/* ── Explorer (secondaire, hors du chemin voir → décider → agir) ─ */}
+        <View style={[styles.moreSection, { marginTop: layout.sectionGap }]}>
+          <Text style={[typography.sectionLabel, { color: colors.fg.tertiary, marginBottom: 10 }]}>
+            Explorer
           </Text>
-          <SymbolView name="chevron.right" size={13} tintColor={colors.fg.muted} />
-        </Pressable>
-
-        {user && hasBadges && (
-          <View style={{ marginTop: 12 }}>
-            <ReferralCard userId={user.id} hasBadges={true} />
-          </View>
-        )}
+          {challengesState && (
+            <MoreLink
+              icon="trophy.fill"
+              label="Défis de la semaine"
+              hint={`${challengesState.challenges.filter((c) => c.completed).length}/${challengesState.challenges.length}`}
+              onPress={() => navigation.navigate('Challenges')}
+            />
+          )}
+          <MoreLink
+            icon="calendar"
+            label="Planifier les repas"
+            onPress={() => navigation.navigate('MealPlanner')}
+          />
+          <MoreLink
+            icon="chart.bar.fill"
+            label="Mon impact"
+            onPress={handleOpenStats}
+          />
+        </View>
       </ScrollView>
 
       <WeeklyRecapModal visible={recapVisible} onClose={() => setRecapVisible(false)} />
@@ -675,6 +639,45 @@ export default function HomeScreen() {
 // ────────────────────────────────────────────────────────────────────────────
 // Atoms locaux
 // ────────────────────────────────────────────────────────────────────────────
+
+function MoreLink({
+  icon,
+  label,
+  hint,
+  onPress,
+}: {
+  icon: import('expo-symbols').SFSymbol;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.moreLink,
+        {
+          borderColor: colors.border.default,
+          backgroundColor: colors.bg.surface,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <SymbolView name={icon} size={17} tintColor={colors.fg.secondary} />
+      <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.fg.tertiary, marginRight: 6 }}>
+          {hint}
+        </Text>
+      ) : null}
+      <SymbolView name="chevron.right" size={12} tintColor={colors.fg.muted} />
+    </Pressable>
+  );
+}
 
 function SegPill({
   label,
@@ -953,16 +956,15 @@ const styles = StyleSheet.create({
   },
   wgroupBody: { paddingHorizontal: 8, paddingBottom: 8, gap: 8 },
 
-  // cook-card
-  cookCard: {
+  moreSection: { gap: 6, paddingBottom: 8 },
+  moreLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    marginTop: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     borderWidth: 1,
   },
-  cookThumb: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 
   // empty
   empty: { borderWidth: 1, alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
@@ -975,13 +977,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 999,
-  },
-
-  plannerGhost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginTop: 6,
   },
 });

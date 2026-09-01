@@ -41,6 +41,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { registerActionToast, unregisterActionToast } from '@/services/actionFeedback';
 
 export type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
 
@@ -120,6 +121,11 @@ export function ToastProvider({ children, bottomOffset = 0 }: ToastProviderProps
   useEffect(() => () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
   }, []);
+
+  useEffect(() => {
+    registerActionToast(show);
+    return () => unregisterActionToast();
+  }, [show]);
 
   // ── Tone styling ─────────────────────────────────────────────────────────
   const tone = toast?.tone ?? 'neutral';

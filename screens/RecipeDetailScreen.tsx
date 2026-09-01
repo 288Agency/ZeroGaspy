@@ -46,6 +46,7 @@ import {
   type Recipe,
 } from '@/services/recipeService';
 import { trackFoodConsumed as analyticsTrackFoodConsumed } from '@/services/analytics';
+import { feedbackRecipeCooked } from '@/services/actionFeedback';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import type { FoodItem, List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
@@ -181,6 +182,7 @@ export default function RecipeDetailScreen() {
           daysBeforeExpiry: m.daysLeft ?? undefined,
         });
       }
+      feedbackRecipeCooked(matched.length);
       navigation.goBack();
     } catch (err) {
       logger.error('[RecipeDetail] cook consume failed:', err);

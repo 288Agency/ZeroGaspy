@@ -25,6 +25,7 @@ import { GamificationProvider } from './contexts/GamificationContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider as DSThemeProvider } from './contexts/ThemeContext';
+import { HandoffFontsProvider } from './contexts/HandoffFontsContext';
 import { ToastProvider } from './components/ds';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './config/supabase';
@@ -424,6 +425,7 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ErrorBoundary>
+          <HandoffFontsProvider>
           <DSThemeProvider>
             <AuthProvider>
               <SubscriptionProvider>
@@ -435,6 +437,7 @@ function App() {
               </SubscriptionProvider>
             </AuthProvider>
           </DSThemeProvider>
+          </HandoffFontsProvider>
         </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
