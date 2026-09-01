@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { SymbolView, SFSymbol } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +7,8 @@ import { RootStackParamList } from '../types/navigation';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
 import PressableScale from './PressableScale';
+import { BrandIcon } from '@/components/ds';
+import { CHALLENGE_ICONS, CHALLENGE_ICON_DEFAULT, type BrandIconName } from '@/tokens/brandIcons';
 import {
   WeeklyChallengesState,
   ChallengeDefinition,
@@ -19,29 +20,8 @@ interface WeeklyChallengeCardProps {
   challengesState: WeeklyChallengesState | null;
 }
 
-// Emoji des défs → SF Symbol (cohérent avec le reste de l'app, rend partout).
-const CHALLENGE_SYMBOLS: Record<string, SFSymbol> = {
-  zero_waste_week: 'arrow.3.trianglepath',
-  save_20:         'shield.fill',
-  save_5:          'leaf.fill',
-  add_15:          'shippingbox.fill',
-  add_5:           'target',
-  recipes_10:      'fork.knife',
-  recipes_3:       'book.fill',
-  daily_5:         'calendar',
-  daily_7:         'figure.run',
-  consume_10:      'fork.knife.circle.fill',
-  consume_25:      'bolt.fill',
-  add_varied_3:    'square.grid.2x2.fill',
-  streak_5:        'flame.fill',
-  no_throw_3:      'leaf.fill',
-  all_actions:     'trophy.fill',
-  add_varied_5:    'archivebox.fill',
-  recipes_15:      'fork.knife',
-  no_throw_7:      'diamond.fill',
-  consume_5:       'fork.knife',
-};
-const CHALLENGE_SYMBOL_DEFAULT: SFSymbol = 'target';
+// Icônes des défis → Phosphor (cohérent avec Brand Bible §06).
+const CHALLENGE_SYMBOL_DEFAULT = CHALLENGE_ICON_DEFAULT;
 
 export default function WeeklyChallengeCard({ challengesState }: WeeklyChallengeCardProps) {
   const { t } = useTranslation();
@@ -59,9 +39,9 @@ export default function WeeklyChallengeCard({ challengesState }: WeeklyChallenge
     : null;
 
   const allCompleted = completedCount === 3;
-  const iconSymbol: SFSymbol = allCompleted
-    ? 'trophy.fill'
-    : CHALLENGE_SYMBOLS[firstIncompleteDef?.id ?? ''] ?? CHALLENGE_SYMBOL_DEFAULT;
+  const iconName: BrandIconName = allCompleted
+    ? 'trophy'
+    : CHALLENGE_ICONS[firstIncompleteDef?.id as keyof typeof CHALLENGE_ICONS] ?? CHALLENGE_SYMBOL_DEFAULT;
 
   return (
     <PressableScale
@@ -73,7 +53,7 @@ export default function WeeklyChallengeCard({ challengesState }: WeeklyChallenge
     >
       <View style={styles.leftSection}>
         <View style={styles.iconContainer}>
-          <SymbolView name={iconSymbol} size={22} tintColor={COLORS.primary[600]} />
+          <BrandIcon name={iconName} size={22} color={COLORS.primary[600]} weight="fill" />
         </View>
       </View>
 

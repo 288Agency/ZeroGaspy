@@ -2,11 +2,11 @@
 // ZeroGaspy Design System · Button
 // ============================================================================
 // 3 variants × 3 tailles × tous les états (default / pressed / disabled / loading).
-// Icônes SF Symbols via expo-symbols (iOS 14+ natif, fallback Android).
+// Icônes Phosphor via BrandIcon (Brand Bible §06).
 //
 // Usage :
 //   <Button variant="primary" size="lg" onPress={...}>Ajouter au frigo</Button>
-//   <Button variant="secondary" icon="barcode.viewfinder">Scanner</Button>
+//   <Button variant="secondary" icon="barcode">Scanner</Button>
 //   <Button variant="ghost" size="sm">Passer</Button>
 //   <Button variant="primary" tone="destructive">Jeter</Button>
 //   <Button loading>Envoi…</Button>
@@ -23,11 +23,12 @@ import {
   TextStyle,
   GestureResponderEvent,
 } from 'react-native';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import type { SemanticColors } from '@/tokens';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -39,8 +40,7 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   tone?: ButtonTone;
-  /** SF Symbol name (ex: "plus", "barcode.viewfinder", "trash") */
-  icon?: SymbolViewProps['name'];
+  icon?: BrandIconName;
   iconPosition?: 'left' | 'right';
   disabled?: boolean;
   loading?: boolean;
@@ -157,7 +157,9 @@ export default function Button({
             ) : (
               <>
                 {icon && iconPosition === 'left' && (
-                  <SymbolView name={icon} size={sz.icon} tintColor={v.fg} style={styles.iconLeft} />
+                  <View style={styles.iconLeft}>
+                    <BrandIcon name={icon} size={sz.icon} color={v.fg} weight="bold" />
+                  </View>
                 )}
                 {children != null && (
                   <Text style={textStyle} numberOfLines={1}>
@@ -165,7 +167,9 @@ export default function Button({
                   </Text>
                 )}
                 {icon && iconPosition === 'right' && (
-                  <SymbolView name={icon} size={sz.icon} tintColor={v.fg} style={styles.iconRight} />
+                  <View style={styles.iconRight}>
+                    <BrandIcon name={icon} size={sz.icon} color={v.fg} weight="bold" />
+                  </View>
                 )}
               </>
             )}

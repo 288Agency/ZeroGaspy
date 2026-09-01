@@ -27,7 +27,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon } from '@/components/ds';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -334,7 +334,7 @@ export default function InventoryListScreen() {
           hitSlop={8}
           style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
         >
-          <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
         </Pressable>
 
         <View style={styles.topbarTitleWrap}>
@@ -360,7 +360,7 @@ export default function InventoryListScreen() {
             hitSlop={8}
             style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
           >
-            <SymbolView name="doc.text.viewfinder" size={22} tintColor={colors.fg.primary} />
+            <BrandIcon name="receipt" size={22} color={colors.fg.primary} />
           </Pressable>
           <Pressable
             onPress={handleAdd}
@@ -369,7 +369,7 @@ export default function InventoryListScreen() {
             hitSlop={8}
             style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
           >
-            <SymbolView name="plus" size={24} tintColor={colors.fg.primary} />
+            <BrandIcon name="add" size={24} color={colors.fg.primary} />
           </Pressable>
         </View>
       </View>
@@ -423,7 +423,7 @@ export default function InventoryListScreen() {
             },
           ]}
         >
-          <SymbolView name="magnifyingglass" size={18} tintColor={colors.fg.tertiary} />
+          <BrandIcon name="search" size={18} color={colors.fg.tertiary} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -440,7 +440,7 @@ export default function InventoryListScreen() {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <SymbolView name="xmark.circle.fill" size={18} tintColor={colors.fg.muted} />
+              <BrandIcon name="close" size={18} color={colors.fg.muted} weight="fill" />
             </Pressable>
           )}
         </View>
@@ -498,7 +498,7 @@ export default function InventoryListScreen() {
                   marginBottom: 14,
                 }}
               >
-                <SymbolView name="leaf.fill" size={26} tintColor={Forest[600]} />
+                <BrandIcon name="leaf" size={26} color={Forest[600]} weight="fill" />
               </View>
             )}
             <Text

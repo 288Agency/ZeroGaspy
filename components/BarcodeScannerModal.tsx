@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import {
@@ -113,7 +113,7 @@ export default function BarcodeScannerModal({
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
-          <Ionicons name="camera-outline" size={64} color={COLORS.primary[500]} />
+          <BrandIcon name="camera" size={64} color={COLORS.primary[500]} />
           <Text style={styles.permissionTitle}>
             {t('barcodeScanner.cameraRequired')}
           </Text>
@@ -191,7 +191,7 @@ export default function BarcodeScannerModal({
               </View>
             ) : error ? (
               <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={32} color={COLORS.semantic.danger} />
+                <BrandIcon name="warningCircle" size={32} color={COLORS.semantic.danger} weight="fill" />
                 <Text style={styles.errorText}>
                   {error}
                 </Text>
@@ -212,7 +212,7 @@ export default function BarcodeScannerModal({
           onPress={onClose}
           style={styles.closeButton}
         >
-          <Ionicons name="close" size={28} color={COLORS.neutral.white} />
+          <BrandIcon name="close" size={28} color={COLORS.neutral.white} weight="fill" />
         </TouchableOpacity>
 
         {/* Titre */}

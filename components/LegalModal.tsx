@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Linking from 'expo-linking';
 import PressableScale from './PressableScale';
 import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
@@ -60,13 +60,13 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
           hapticType="light"
         >
           <View style={styles.menuIconContainer}>
-            <Ionicons name="document-text-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="file" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.menuCardTitle}>Conditions Generales d'Utilisation</Text>
             <Text style={styles.menuCardSubtitle}>Regles d'utilisation de l'application</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
@@ -75,13 +75,13 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
           hapticType="light"
         >
           <View style={styles.menuIconContainer}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="shieldCheck" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.menuCardTitle}>Politique de Confidentialite</Text>
             <Text style={styles.menuCardSubtitle}>Protection de vos donnees personnelles</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
       </View>
 
@@ -92,13 +92,13 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
           hapticType="light"
         >
           <View style={styles.menuIconContainer}>
-            <Ionicons name="globe-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="globe" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.menuCardTitle}>Consulter sur le site</Text>
             <Text style={styles.menuCardSubtitle}>Version complete sur zerogaspy.fr</Text>
           </View>
-          <Ionicons name="open-outline" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="externalLink" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
       </View>
 
@@ -119,7 +119,7 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
         onPress={() => setCurrentSection('menu')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
 
@@ -220,7 +220,7 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
         onPress={() => setCurrentSection('menu')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
 
@@ -351,7 +351,7 @@ export default function LegalModal({ visible, onClose }: LegalModalProps) {
           <View style={styles.headerSpacer} />
           <View style={styles.headerHandle} />
           <TouchableOpacity onPress={handleClose} style={styles.headerCloseButton}>
-            <Ionicons name="close" size={24} color={COLORS.primary[500]} />
+            <BrandIcon name="close" size={24} color={COLORS.primary[500]} weight="fill" />
           </TouchableOpacity>
         </View>
 

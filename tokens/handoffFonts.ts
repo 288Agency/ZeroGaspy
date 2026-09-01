@@ -1,8 +1,9 @@
-/** Noms expo-font (@expo-google-fonts) — handoff / Brand Bible. */
+/** Noms expo-font — Brand Bible (Switzer + Clash Grotesk, variables TTF). */
 export const HANDOFF_FONT_FAMILY = {
-  sansRegular: 'DMSans_400Regular',
-  sansMedium: 'DMSans_500Medium',
-  sansSemibold: 'DMSans_600SemiBold',
-  sansBold: 'DMSans_700Bold',
-  serifItalic: 'InstrumentSerif_400Regular_Italic',
+  /** Corps, UI, titres secondaires */
+  sans: 'Switzer',
+  /** Accents éditoriaux italiques (« vide. », « soir. ») */
+  sansItalic: 'Switzer-Italic',
+  /** Display — hero, grands titres */
+  display: 'ClashGrotesk',
 } as const;

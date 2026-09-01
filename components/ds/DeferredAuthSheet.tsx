@@ -27,32 +27,33 @@
 
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 
 export type AuthReason = 'share' | 'sync' | 'backup' | 'family';
 
-const REASON_COPY: Record<AuthReason, { icon: any; title: string; sub: string }> = {
+const REASON_COPY: Record<AuthReason, { icon: BrandIconName; title: string; sub: string }> = {
   share: {
-    icon: 'person.2.fill',
+    icon: 'users',
     title: 'Partage avec ta famille',
     sub: 'Crée un compte pour inviter les membres de ton foyer à ton frigo.',
   },
   sync: {
-    icon: 'arrow.triangle.2.circlepath',
+    icon: 'sync',
     title: 'Retrouve ton frigo partout',
     sub: 'Synchronise tes aliments sur tous tes appareils.',
   },
   backup: {
-    icon: 'icloud.fill',
+    icon: 'cloud',
     title: 'Sauvegarde tes données',
     sub: 'Ne perds rien si tu changes de téléphone ou réinstalles l\'app.',
   },
   family: {
-    icon: 'house.fill',
+    icon: 'home',
     title: 'Active le mode foyer',
     sub: 'Partagez le frigo, ajoutez à plusieurs, sans doublons.',
   },
@@ -97,7 +98,7 @@ export default function DeferredAuthSheet({
           },
         ]}
       >
-        <SymbolView name={copy.icon} size={28} tintColor={colors.accent.softFg} />
+        <BrandIcon name={copy.icon} size={28} color={colors.accent.softFg} weight="fill" />
       </View>
 
       <Text style={[typography.title2, { color: colors.fg.primary, marginBottom: space[2] }]}>
@@ -110,7 +111,7 @@ export default function DeferredAuthSheet({
       {/* Auth buttons — Apple + email only (pas de Google tant que non implémenté) */}
       <View style={{ gap: space[2], marginBottom: space[3] }}>
         {Platform.OS === 'ios' && onAppleSignIn && (
-          <Button variant="primary" size="lg" icon="apple.logo" onPress={onAppleSignIn}>
+          <Button variant="primary" size="lg" icon="apple" onPress={onAppleSignIn}>
             Continuer avec Apple
           </Button>
         )}

@@ -21,9 +21,10 @@
 
 import React from 'react';
 import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 import Button from './Button';
 
 export type AlertTone = 'default' | 'danger' | 'success' | 'warning' | 'reward';
@@ -33,7 +34,7 @@ export interface AlertModalProps {
   onClose: () => void;
   title: string;
   message?: string;
-  icon?: SymbolViewProps['name'];
+  icon?: BrandIconName;
   tone?: AlertTone;
   primaryLabel?: string;
   onPrimary?: () => void;
@@ -118,7 +119,7 @@ export default function AlertModal({
                 },
               ]}
             >
-              <SymbolView name={icon} size={22} tintColor={iconColor} />
+              <BrandIcon name={icon} size={22} color={iconColor} weight="fill" />
             </View>
           )}
 

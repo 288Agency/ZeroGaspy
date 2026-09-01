@@ -20,12 +20,12 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
+import { BrandIcon } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { joinByShareCode } from '@/services/listSharingService';
 import type { RootStackParamList } from '@/types/navigation';
@@ -110,7 +110,7 @@ export default function JoinListScreen() {
           hitSlop={8}
           style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.5 : 1 }]}
         >
-          <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
         </Pressable>
       </View>
 
@@ -120,7 +120,7 @@ export default function JoinListScreen() {
       >
         <View style={{ paddingHorizontal: layout.screenPaddingH, paddingTop: 8 }}>
           <View style={[styles.hero, { backgroundColor: Sage[100] }]}>
-            <SymbolView name="person.2.fill" size={30} tintColor={Forest[600]} />
+            <BrandIcon name="users" size={30} color={Forest[600]} weight="fill" />
           </View>
 
           <Text style={[typography.title1, { color: colors.fg.primary, marginTop: 20 }]}>
@@ -139,7 +139,7 @@ export default function JoinListScreen() {
                 { backgroundColor: colors.feedback.info.bg, borderRadius: componentRadius.card },
               ]}
             >
-              <SymbolView name="info.circle.fill" size={18} tintColor={colors.feedback.info.fg} />
+              <BrandIcon name="info" size={18} color={colors.feedback.info.fg} weight="fill" />
               <Text style={{ flex: 1, marginLeft: 10, color: colors.feedback.info.fg, fontSize: 13, lineHeight: 18 }}>
                 {t('join.needAccount', {
                   defaultValue: 'Il faut un compte pour rejoindre une liste partagée.',
@@ -191,7 +191,7 @@ export default function JoinListScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <SymbolView name="person.badge.plus" size={18} tintColor="#fff" />
+                <BrandIcon name="userPlus" size={18} color="#fff" weight="fill" />
                 <Text style={styles.ctaText}>
                   {t('join.cta', { defaultValue: 'Rejoindre' })}
                 </Text>

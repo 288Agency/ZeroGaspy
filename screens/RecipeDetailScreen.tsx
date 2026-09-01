@@ -29,14 +29,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView } from 'expo-symbols';
+import { Badge, BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { Sage, Forest, Cream } from '@/tokens';
-import { Badge } from '@/components/ds';
 import Emoji from '@/components/Emoji';
 import { loadLists, markItemConsumed } from '@/utils/localStorage';
 import {
@@ -320,9 +320,9 @@ export default function RecipeDetailScreen() {
         >
           <MetaItem icon="clock" label={`${recipe.preparationTime} min`} />
           <MetaSeparator />
-          <MetaItem icon="flame.fill" label={recipe.difficulty} />
+          <MetaItem icon="flame" label={recipe.difficulty} />
           <MetaSeparator />
-          <MetaItem icon="person.fill" label="2 pers." />
+          <MetaItem icon="user" label="2 pers." />
         </View>
 
         {/* ── 3. Description (if exists) ──────────────────────────────── */}
@@ -382,10 +382,11 @@ export default function RecipeDetailScreen() {
                     },
                   ]}
                 >
-                  <SymbolView
-                    name={has ? 'checkmark' : 'plus'}
+                  <BrandIcon
+                    name={has ? 'check' : 'add'}
                     size={14}
-                    tintColor={has ? Forest[700] : colors.feedback.danger.fg}
+                    color={has ? Forest[700] : colors.feedback.danger.fg}
+                    weight="bold"
                   />
                 </View>
                 <Text
@@ -483,7 +484,7 @@ export default function RecipeDetailScreen() {
               gap: 12,
             }}
           >
-            <SymbolView name="lightbulb.fill" size={18} tintColor={colors.feedback.warning.fg} />
+            <BrandIcon name="lightbulb" size={18} color={colors.feedback.warning.fg} weight="fill" />
             <Text
               style={{
                 flex: 1,
@@ -518,7 +519,7 @@ export default function RecipeDetailScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <SymbolView name="flame.fill" size={18} tintColor="#FFFFFF" />
+              <BrandIcon name="flame" size={18} color="#FFFFFF" weight="fill" />
               <Text
                 style={{
                   color: '#FFFFFF',
@@ -554,7 +555,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
         hitSlop={8}
         style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
       >
-        <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+        <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
       </Pressable>
       <View style={{ flex: 1 }} />
       <Pressable
@@ -563,7 +564,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
         hitSlop={8}
         style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
       >
-        <SymbolView name="bookmark" size={22} tintColor={colors.fg.primary} />
+        <BrandIcon name="bookmark" size={22} color={colors.fg.primary} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -571,7 +572,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
         hitSlop={8}
         style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
       >
-        <SymbolView name="square.and.arrow.up" size={22} tintColor={colors.fg.primary} />
+        <BrandIcon name="share" size={22} color={colors.fg.primary} />
       </Pressable>
     </View>
   );
@@ -581,13 +582,13 @@ function MetaItem({
   icon,
   label,
 }: {
-  icon: 'clock' | 'flame.fill' | 'person.fill';
+  icon: BrandIconName;
   label: string;
 }) {
   const { colors } = useTheme();
   return (
     <View style={styles.metaItem}>
-      <SymbolView name={icon} size={15} tintColor={colors.fg.secondary} />
+      <BrandIcon name={icon} size={15} color={colors.fg.secondary} weight={icon === 'flame' ? 'fill' : 'regular'} />
       <Text
         style={{
           fontSize: 13,

@@ -28,13 +28,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView } from 'expo-symbols';
+import { Badge, BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest, Cream } from '@/tokens';
-import { Badge } from '@/components/ds';
 import Emoji from '@/components/Emoji';
 import { loadLists, ensureDefaultList } from '@/utils/localStorage';
 import { findMatchingRecipes, type RecipeMatch } from '@/services/recipeService';
@@ -145,7 +145,7 @@ export default function CookTonightScreen() {
               marginBottom: 18,
             }}
           >
-            <SymbolView name="fork.knife" size={32} tintColor={Forest[600]} />
+            <BrandIcon name="cook" size={32} color={Forest[600]} weight="fill" />
           </View>
           <Text
             style={{
@@ -183,7 +183,7 @@ export default function CookTonightScreen() {
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <SymbolView name="plus" size={14} tintColor="#fff" />
+            <BrandIcon name="add" size={14} color="#fff" weight="bold" />
             <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Ajouter des aliments</Text>
           </Pressable>
         </View>
@@ -207,7 +207,7 @@ export default function CookTonightScreen() {
         {/* ── Editorial header ────────────────────────────────────────── */}
         <View style={{ paddingBottom: 16 }}>
           <View style={styles.eyebrow}>
-            <SymbolView name="bolt.fill" size={12} tintColor={colors.accent.default} />
+            <BrandIcon name="lightning" size={12} color={colors.accent.default} weight="fill" />
             <Text
               style={{
                 fontFamily: typography.eyebrow.fontFamily,
@@ -320,7 +320,7 @@ export default function CookTonightScreen() {
           >
             <MetaItem icon="clock" label={`${hero.recipe.preparationTime} min`} />
             <MetaItem icon="flame" label={hero.recipe.difficulty} />
-            <MetaItem icon="person" label="2 pers." />
+            <MetaItem icon="user" label="2 pers." />
           </View>
         </Pressable>
 
@@ -424,7 +424,7 @@ export default function CookTonightScreen() {
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
                       <MiniMeta>
-                        <SymbolView name="clock" size={12} tintColor={colors.fg.secondary} />
+                        <BrandIcon name="clock" size={12} color={colors.fg.secondary} />
                         <Text style={{ fontSize: 12, color: colors.fg.secondary, marginLeft: 3 }}>
                           {m.recipe.preparationTime} min
                         </Text>
@@ -439,12 +439,7 @@ export default function CookTonightScreen() {
                       )}
                     </View>
                   </View>
-                  <SymbolView
-                    name="chevron.right"
-                    size={14}
-                    tintColor={colors.fg.muted}
-                    style={{ marginLeft: 4 }}
-                  />
+                  <BrandIcon name="chevronRight" size={14} color={colors.fg.tertiary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -471,7 +466,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
         hitSlop={8}
         style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
       >
-        <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+        <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
       </Pressable>
       <View style={{ flex: 1 }} />
       <Pressable
@@ -480,18 +475,17 @@ function TopBar({ onBack }: { onBack: () => void }) {
         hitSlop={8}
         style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
       >
-        <SymbolView name="bookmark" size={22} tintColor={colors.fg.primary} />
+        <BrandIcon name="bookmark" size={22} color={colors.fg.primary} />
       </Pressable>
     </View>
   );
 }
 
-function MetaItem({ icon, label }: { icon: 'clock' | 'flame' | 'person'; label: string }) {
+function MetaItem({ icon, label }: { icon: BrandIconName; label: string }) {
   const { colors } = useTheme();
-  const symbolName = icon === 'person' ? 'person.fill' : icon === 'flame' ? 'flame.fill' : 'clock';
   return (
     <View style={styles.metaItem}>
-      <SymbolView name={symbolName} size={14} tintColor={colors.fg.secondary} />
+      <BrandIcon name={icon} size={14} color={colors.fg.secondary} weight={icon === 'flame' ? 'fill' : 'regular'} />
       <Text style={{ fontSize: 13, color: colors.fg.secondary, marginLeft: 5, letterSpacing: -0.1 }}>
         {label}
       </Text>

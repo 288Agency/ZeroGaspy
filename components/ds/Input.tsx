@@ -22,16 +22,17 @@ import {
   Pressable,
   ViewStyle,
 } from 'react-native';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 
 export interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
   hint?: string;
   error?: string;
-  leftIcon?: SymbolViewProps['name'];
-  rightIcon?: SymbolViewProps['name'];
+  leftIcon?: BrandIconName;
+  rightIcon?: BrandIconName;
   onRightIconPress?: () => void;
   disabled?: boolean;
   containerStyle?: ViewStyle;
@@ -102,12 +103,13 @@ export default function Input({
         ]}
       >
         {leftIcon && (
-          <SymbolView
-            name={leftIcon}
-            size={18}
-            tintColor={focused ? colors.fg.primary : colors.fg.tertiary}
-            style={{ marginRight: space[3] }}
-          />
+          <View style={{ marginRight: space[3] }}>
+            <BrandIcon
+              name={leftIcon}
+              size={18}
+              color={focused ? colors.fg.primary : colors.fg.tertiary}
+            />
+          </View>
         )}
 
         <TextInput
@@ -131,11 +133,7 @@ export default function Input({
             disabled={!onRightIconPress}
             style={{ marginLeft: space[3] }}
           >
-            <SymbolView
-              name={rightIcon}
-              size={18}
-              tintColor={colors.fg.tertiary}
-            />
+            <BrandIcon name={rightIcon} size={18} color={colors.fg.tertiary} />
           </Pressable>
         )}
       </View>
@@ -144,12 +142,9 @@ export default function Input({
         <View style={{ marginTop: space[2], paddingHorizontal: space[1], flexDirection: 'row', alignItems: 'center' }}>
           {error ? (
             <>
-              <SymbolView
-                name="exclamationmark.circle.fill"
-                size={12}
-                tintColor={colors.feedback.danger.fg}
-                style={{ marginRight: 4 }}
-              />
+              <View style={{ marginRight: 4 }}>
+                <BrandIcon name="warningCircle" size={12} color={colors.feedback.danger.fg} weight="fill" />
+              </View>
               <Text style={[typography.footnote, { color: colors.feedback.danger.fg }]}>
                 {error}
               </Text>

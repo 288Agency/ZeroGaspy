@@ -15,9 +15,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView } from 'expo-symbols';
 
 import { Forest, Sage, Cream } from '@/tokens';
+import { BrandIcon } from '@/components/ds';
 import { calculateUserStats } from '@/services/statsService';
 import type { UserStats } from '@/types';
 import logger from '@/utils/logger';
@@ -73,7 +73,7 @@ export default function ProfileImpactHero() {
       {/* Série */}
       <View style={styles.streakCard}>
         <View style={styles.flameIcon}>
-          <SymbolView name="flame.fill" size={22} tintColor="#C68A1E" />
+          <BrandIcon name="flame" size={22} color="#C68A1E" weight="fill" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.streakTitle}>

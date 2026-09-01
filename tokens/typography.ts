@@ -1,21 +1,13 @@
 // ============================================================================
-// ZeroGaspy Design System · Typography (handoff port)
+// ZeroGaspy Design System · Typography
 // ============================================================================
-// Le handoff appelle 3 familles Google Fonts :
-//   · DM Sans            → corps, UI, titres
-//   · Instrument Serif   → accents éditoriaux italiques (« Bonjour *Sarah.* »)
-//   · Geist Mono         → labels de section, données, tags (UPPERCASE)
+// Brand Bible — 3 familles (assets/fonts, variables TTF) :
+//   · Clash Grotesk Variable → display, hero, grands titres
+//   · Switzer Variable       → corps, UI, titres secondaires
+//   · Switzer Variable Italic → accents éditoriaux (« vide. », « soir. »)
+//   · Menlo (système)        → labels section / eyebrow uppercase
 //
-// Stratégie de port :
-//   1. On garde le système iOS (SF Pro) comme fallback par défaut : sur iOS,
-//      `fontFamily: undefined` laisse San Francisco choisir Display/Text
-//      automatiquement selon la taille. C'est ce qu'on a déjà.
-//   2. DM Sans + Instrument Serif via @expo-google-fonts (HandoffFontsProvider).
-//      Geist Mono → Menlo en attendant un bundle dédié.
-//   3. Échelle ajustée pour matcher le handoff :
-//      Hero count 64px, large title 34px, etc.
-//
-// 10 niveaux. Pas plus.
+// Fallback système tant que HandoffFontsProvider n'a pas fini le chargement.
 // ============================================================================
 
 import { Platform, TextStyle } from 'react-native';
@@ -26,7 +18,7 @@ import { HANDOFF_FONT_FAMILY } from './handoffFonts';
 // ────────────────────────────────────────────────────────────────────────────
 
 const SF_TEXT = Platform.select({
-  ios:     undefined,           // system → SF Pro Text/Display automatique
+  ios:     undefined,
   android: 'sans-serif',
   default: 'System',
 });
@@ -37,24 +29,12 @@ const SF_MONO = Platform.select({
   default: 'monospace',
 });
 
-/**
- * Noms des fonts du handoff. Pour les utiliser, charger via expo-font au boot :
- *   import { useFonts } from 'expo-font';
- *   useFonts({
- *     'DM Sans':           require('./assets/fonts/DMSans-Regular.ttf'),
- *     'Instrument Serif':  require('./assets/fonts/InstrumentSerif-Italic.ttf'),
- *     'Geist Mono':        require('./assets/fonts/GeistMono-Regular.ttf'),
- *   });
- * Tant que les fichiers ne sont pas embarqués, RN tombera sur le fallback système.
- */
 export const FONT_HANDOFF = {
-  sans:  'DM Sans',
-  serif: 'Instrument Serif',
-  mono:  'Geist Mono',
+  sans:  'Switzer',
+  display: 'Clash Grotesk',
+  sansItalic: 'Switzer',
 } as const;
 
-// Fallback italique : si Instrument Serif n'est pas chargé, RN ignore le nom
-// et utilise la font system italique (Georgia sur iOS donne un bon rendu)
 const SERIF_ITALIC_FALLBACK = Platform.select({
   ios:     'Georgia',
   android: 'serif',
@@ -62,118 +42,112 @@ const SERIF_ITALIC_FALLBACK = Platform.select({
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// Type scale — 10 niveaux (handoff alignment)
+// Type scale — 10 niveaux
 // ────────────────────────────────────────────────────────────────────────────
 
 type SansWeight = '400' | '500' | '600' | '700';
 
-function sansFamily(weight: SansWeight, handoff: boolean): string | undefined {
-  if (!handoff) return SF_TEXT;
-  switch (weight) {
-    case '500': return HANDOFF_FONT_FAMILY.sansMedium;
-    case '600': return HANDOFF_FONT_FAMILY.sansSemibold;
-    case '700': return HANDOFF_FONT_FAMILY.sansBold;
-    default: return HANDOFF_FONT_FAMILY.sansRegular;
-  }
+function sansFamily(handoff: boolean): string | undefined {
+  return handoff ? HANDOFF_FONT_FAMILY.sans : SF_TEXT;
 }
 
-function sansWeight(weight: SansWeight, handoff: boolean): TextStyle['fontWeight'] {
-  return handoff ? undefined : weight;
+function displayFamily(handoff: boolean): string | undefined {
+  return handoff ? HANDOFF_FONT_FAMILY.display : SF_TEXT;
 }
 
 function buildTypography(handoff: boolean) {
   return {
-  /** Hero count — chiffre géant today-hero (handoff: 64px) */
+  /** Hero count — chiffre géant today-hero */
   hero: {
-    fontFamily: sansFamily('700', handoff),
+    fontFamily: displayFamily(handoff),
     fontSize: 64,
     lineHeight: 60,
-    fontWeight: sansWeight('700', handoff),
+    fontWeight: '700',
     letterSpacing: -3,
   } as TextStyle,
 
   /** Display — onboarding hero, paywall */
   display: {
-    fontFamily: sansFamily('700', handoff),
+    fontFamily: displayFamily(handoff),
     fontSize: 40,
     lineHeight: 44,
-    fontWeight: sansWeight('700', handoff),
+    fontWeight: '700',
     letterSpacing: -1.5,
   } as TextStyle,
 
-  /** Large title — greeting "Bonjour Sarah." (handoff: 34px) */
+  /** Large title — greeting "Bonjour Sarah." */
   title1: {
-    fontFamily: sansFamily('700', handoff),
+    fontFamily: displayFamily(handoff),
     fontSize: 34,
     lineHeight: 36,
-    fontWeight: sansWeight('700', handoff),
+    fontWeight: '700',
     letterSpacing: -1.2,
   } as TextStyle,
 
   /** Title 2 — section, modal title */
   title2: {
-    fontFamily: sansFamily('600', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 22,
     lineHeight: 26,
-    fontWeight: sansWeight('600', handoff),
+    fontWeight: '600',
     letterSpacing: -0.4,
   } as TextStyle,
 
-  /** Title 3 — sub-section, screen title (handoff: 17/600/-0.3) */
+  /** Title 3 — sub-section, screen title */
   title3: {
-    fontFamily: sansFamily('600', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 17,
     lineHeight: 22,
-    fontWeight: sansWeight('600', handoff),
+    fontWeight: '600',
     letterSpacing: -0.3,
   } as TextStyle,
 
-  /** Card title — ProductCard name (handoff: 15/600/-0.2) */
+  /** Card title — ProductCard name */
   cardTitle: {
-    fontFamily: sansFamily('600', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: sansWeight('600', handoff),
+    fontWeight: '600',
     letterSpacing: -0.2,
   } as TextStyle,
 
-  /** Body — texte courant (handoff: 15/400) */
+  /** Body — texte courant */
   body: {
-    fontFamily: sansFamily('400', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: sansWeight('400', handoff),
+    fontWeight: '400',
     letterSpacing: 0,
   } as TextStyle,
 
-  /** Body emphasis — body mis en avant inline (handoff: 16/500) */
+  /** Body emphasis */
   bodyEmphasis: {
-    fontFamily: sansFamily('500', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: sansWeight('500', handoff),
+    fontWeight: '500',
     letterSpacing: -0.1,
   } as TextStyle,
 
-  /** Footnote — meta, helper text (handoff: 13/400) */
+  /** Footnote — meta, helper text */
   footnote: {
-    fontFamily: sansFamily('400', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: sansWeight('400', handoff),
+    fontWeight: '400',
     letterSpacing: 0,
   } as TextStyle,
 
-  /** Caption — badge (handoff: 11/600 + letter-spacing 0.2) */
+  /** Caption — badge */
   caption: {
-    fontFamily: sansFamily('600', handoff),
+    fontFamily: sansFamily(handoff),
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: sansWeight('600', handoff),
+    fontWeight: '600',
     letterSpacing: 0.2,
   } as TextStyle,
 
-  /** Section label — UPPERCASE mono (handoff: 12/600 + ls 0.6) */
+  /** Section label — UPPERCASE mono */
   sectionLabel: {
     fontFamily: SF_MONO,
     fontSize: 12,
@@ -192,7 +166,7 @@ function buildTypography(handoff: boolean) {
     letterSpacing: 0,
   } as TextStyle,
 
-  /** Eyebrow — petit label au-dessus d'un hero (handoff: 11/500 + ls 0.8 UPPERCASE) */
+  /** Eyebrow — petit label au-dessus d'un hero */
   eyebrow: {
     fontFamily: SF_MONO,
     fontSize: 11,
@@ -204,17 +178,17 @@ function buildTypography(handoff: boolean) {
 
   /** Accent éditorial italique — « Sarah. », « cuisine ça. » */
   serifItalic: {
-    fontFamily: handoff ? HANDOFF_FONT_FAMILY.serifItalic : SERIF_ITALIC_FALLBACK,
+    fontFamily: handoff ? HANDOFF_FONT_FAMILY.sansItalic : SERIF_ITALIC_FALLBACK,
     fontStyle: handoff ? undefined : 'italic',
     fontWeight: '400',
   } as TextStyle,
 } as const;
 }
 
-/** Fallback système (avant chargement des Google Fonts). */
+/** Fallback système (avant chargement des fonts brand). */
 export const typography = buildTypography(false);
 
-/** DM Sans + Instrument Serif — activé par ThemeProvider quand fonts prêtes. */
+/** Switzer + Clash Grotesk — activé par ThemeProvider quand fonts prêtes. */
 export function getHandoffTypography() {
   return buildTypography(true);
 }

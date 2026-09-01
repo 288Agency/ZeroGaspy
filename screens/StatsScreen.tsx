@@ -10,12 +10,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest } from '@/tokens';
-import { PaywallSheet } from '@/components/ds';
+import { PaywallSheet, BrandIcon } from '@/components/ds';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 import StatsDashboard from '@/components/StatsDashboard';
 
@@ -57,7 +56,7 @@ export default function StatsScreen() {
             },
           ]}
         >
-          <SymbolView name="square.and.arrow.up" size={20} tintColor={Forest[600]} />
+          <BrandIcon name="share" size={20} color={Forest[600]} />
         </Pressable>
       </View>
 

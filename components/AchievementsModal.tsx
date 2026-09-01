@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import {
   UserGamification,
   Badge,
@@ -234,7 +234,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
         }}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('achievements.back')}</Text>
       </TouchableOpacity>
 
@@ -328,7 +328,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
                   {t('achievements.badgesCount', { unlocked: getUnlockedBadgesCount(category), total: getTotalBadgesCount(category) })}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+              <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
             </PressableScale>
           ))}
         </View>
@@ -342,7 +342,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
         onPress={() => setViewMode('overview')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('achievements.back')}</Text>
       </TouchableOpacity>
 
@@ -459,7 +459,7 @@ export default function AchievementsModal({ visible, onClose }: AchievementsModa
           <View style={styles.headerSpacer} />
           <Text style={styles.headerTitle}>{t('achievements.title')}</Text>
           <TouchableOpacity onPress={handleClose} style={styles.headerCloseButton}>
-            <Ionicons name="close" size={24} color={COLORS.primary[500]} />
+            <BrandIcon name="close" size={24} color={COLORS.primary[500]} weight="fill" />
           </TouchableOpacity>
         </View>
 

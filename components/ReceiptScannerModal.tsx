@@ -13,7 +13,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { scanReceiptSecure, ReceiptScanResult } from '../services/ocrService'; // OCR sécurisé via Edge Function
@@ -209,7 +209,7 @@ export default function ReceiptScannerModal({
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
-          <Ionicons name="camera-outline" size={64} color={COLORS.primary[500]} />
+          <BrandIcon name="camera" size={64} color={COLORS.primary[500]} />
           <Text style={styles.permissionTitle}>{t('receiptScanner.cameraRequired')}</Text>
           <Text style={styles.permissionText}>
             {t('receiptScanner.cameraDescription')}
@@ -220,7 +220,7 @@ export default function ReceiptScannerModal({
           {/* Importer une photo ne demande pas la caméra : refuser l'accès ne
               doit pas fermer cette porte-là aussi. */}
           <TouchableOpacity onPress={pickFromGallery} style={styles.permissionAlt} hitSlop={8}>
-            <Ionicons name="images-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="images" size={20} color={COLORS.primary[500]} />
             <Text style={styles.permissionAltText}>{t('receiptScanner.galleryLabel')}</Text>
           </TouchableOpacity>
           {/* Sans cette sortie, refuser la caméra enferme l'utilisateur sur cet
@@ -271,7 +271,7 @@ export default function ReceiptScannerModal({
               accessibilityLabel={t('receiptScanner.galleryLabel')}
               accessibilityRole="button"
             >
-              <Ionicons name="images-outline" size={26} color="white" />
+              <BrandIcon name="images" size={26} color="white" />
               <Text style={styles.sideButtonText}>{t('receiptScanner.gallery')}</Text>
             </TouchableOpacity>
 
@@ -282,7 +282,7 @@ export default function ReceiptScannerModal({
               accessibilityRole="button"
             >
               <View style={styles.captureButtonInner}>
-                <Ionicons name="scan-outline" size={32} color={COLORS.primary[500]} />
+                <BrandIcon name="scan" size={32} color={COLORS.primary[500]} />
               </View>
             </TouchableOpacity>
 
@@ -292,7 +292,7 @@ export default function ReceiptScannerModal({
               accessibilityLabel={t('receiptScanner.filesLabel')}
               accessibilityRole="button"
             >
-              <Ionicons name="document-outline" size={26} color="white" />
+              <BrandIcon name="file" size={26} color="white" />
               <Text style={styles.sideButtonText}>{t('receiptScanner.files')}</Text>
             </TouchableOpacity>
           </View>
@@ -305,7 +305,7 @@ export default function ReceiptScannerModal({
           accessibilityLabel={t('receiptScanner.closeScanner')}
           accessibilityRole="button"
         >
-          <Ionicons name="close" size={28} color="white" />
+          <BrandIcon name="close" size={28} color="white" weight="fill" />
         </TouchableOpacity>
       </View>
     );
@@ -335,7 +335,7 @@ export default function ReceiptScannerModal({
           accessibilityLabel={t('receiptScanner.retakePhoto')}
           accessibilityRole="button"
         >
-          <Ionicons name="refresh-outline" size={24} color={COLORS.primary[500]} />
+          <BrandIcon name="sync" size={24} color={COLORS.primary[500]} />
           <Text style={styles.retakeButtonText}>{t('receiptScanner.retake')}</Text>
         </TouchableOpacity>
 
@@ -345,7 +345,7 @@ export default function ReceiptScannerModal({
           accessibilityLabel={t('receiptScanner.analyzeReceipt')}
           accessibilityRole="button"
         >
-          <Ionicons name="checkmark-circle" size={24} color="white" />
+          <BrandIcon name="checkCircle" size={24} color="white" weight="fill" />
           <Text style={styles.analyzeButtonText}>{t('receiptScanner.analyze')}</Text>
         </TouchableOpacity>
       </View>
@@ -356,7 +356,7 @@ export default function ReceiptScannerModal({
         accessibilityLabel={t('receiptScanner.closePreview')}
         accessibilityRole="button"
       >
-        <Ionicons name="close" size={28} color="white" />
+        <BrandIcon name="close" size={28} color="white" weight="fill" />
       </TouchableOpacity>
     </View>
   );

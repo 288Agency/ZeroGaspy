@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Haptics from 'expo-haptics';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
@@ -101,7 +101,7 @@ export default function LoginScreen() {
         {/* Logo et titre */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Ionicons name="leaf" size={48} color={COLORS.secondary.cream} />
+            <BrandIcon name="leaf" size={48} color={COLORS.secondary.cream} weight="fill" />
           </View>
           <Text style={styles.title}>ZeroGaspy</Text>
           <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
@@ -112,7 +112,9 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.email')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="envelope" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.emailPlaceholder')}
@@ -130,7 +132,9 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="lock" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.passwordPlaceholder')}
@@ -144,8 +148,8 @@ export default function LoginScreen() {
                 onPress={() => setShowPassword(!showPassword)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                <BrandIcon
+                  name={showPassword ? 'eyeSlash' : 'eye'}
                   size={20}
                   color={COLORS.text.muted}
                 />

@@ -25,9 +25,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 import {
@@ -109,10 +110,10 @@ export default function PaywallSheet({
     onClose();
   };
 
-  const benefits: Array<{ icon: any; label: string }> = [
-    { icon: 'barcode.viewfinder', label: 'Scans illimités · code-barres et dates' },
-    { icon: 'person.2.fill',      label: 'Partage avec toute la famille' },
-    { icon: 'wand.and.stars',     label: 'Recettes IA depuis ton frigo' },
+  const benefits: Array<{ icon: BrandIconName; label: string }> = [
+    { icon: 'barcode', label: 'Scans illimités · code-barres et dates' },
+    { icon: 'users',   label: 'Partage avec toute la famille' },
+    { icon: 'sparkle', label: 'Recettes IA depuis ton frigo' },
   ];
 
   const handleSubscribe = async () => {
@@ -141,7 +142,7 @@ export default function PaywallSheet({
             },
           ]}
         >
-          <SymbolView name="leaf.fill" size={16} tintColor={colors.accent.softFg} />
+          <BrandIcon name="leaf" size={16} color={colors.accent.softFg} weight="fill" />
           <Text
             style={[
               typography.footnote,
@@ -171,7 +172,7 @@ export default function PaywallSheet({
                 { backgroundColor: colors.accent.soft, borderRadius: radius.sm },
               ]}
             >
-              <SymbolView name={b.icon} size={16} tintColor={colors.accent.softFg} />
+              <BrandIcon name={b.icon} size={16} color={colors.accent.softFg} weight="fill" />
             </View>
             <Text style={[typography.body, { color: colors.fg.primary, flex: 1 }]}>
               {b.label}

@@ -22,13 +22,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import * as StoreReview from 'expo-store-review';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
-import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_SAFE_PADDING } from '@/components/ds';
+import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_SAFE_PADDING, BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -228,7 +228,7 @@ export default function AccountScreen() {
           hitSlop={8}
           style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.5 : 1 }]}
         >
-          <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
@@ -283,10 +283,11 @@ export default function AccountScreen() {
               {/* Sync status */}
               <View style={[styles.syncBox, { backgroundColor: colors.bg.sunken }]}>
                 <View style={styles.syncLeft}>
-                  <SymbolView
-                    name={pendingChanges > 0 ? 'icloud.and.arrow.up' : 'checkmark.icloud.fill'}
+                  <BrandIcon
+                    name={pendingChanges > 0 ? 'cloudUpload' : 'cloudCheck'}
                     size={18}
-                    tintColor={Forest[600]}
+                    color={Forest[600]}
+                    weight="fill"
                   />
                   <Text style={[styles.syncText, { color: colors.fg.primary }]}>
                     {pendingChanges > 0
@@ -313,12 +314,12 @@ export default function AccountScreen() {
               </View>
 
               <RowButton
-                icon="gearshape"
+                icon="gear"
                 label={t('account.accountSettings')}
                 onPress={() => setAccountSettingsVisible(true)}
               />
               <RowButton
-                icon="rectangle.portrait.and.arrow.right"
+                icon="signOut"
                 label={t('account.logoutAction')}
                 onPress={handleLogout}
                 destructive
@@ -328,7 +329,7 @@ export default function AccountScreen() {
             <Card>
               <View style={styles.userRow}>
                 <View style={[styles.avatar, { backgroundColor: Sage[300] }]}>
-                  <SymbolView name="iphone" size={26} tintColor={Forest[600]} />
+                  <BrandIcon name="mobile" size={26} color={Forest[600]} weight="fill" />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[styles.userName, { color: colors.fg.primary }]}>
@@ -340,7 +341,7 @@ export default function AccountScreen() {
                 </View>
               </View>
               <View style={[styles.warningBanner, { backgroundColor: colors.feedback.warning.bg }]}>
-                <SymbolView name="exclamationmark.triangle.fill" size={16} tintColor={colors.feedback.warning.solid} />
+                <BrandIcon name="warning" size={16} color={colors.feedback.warning.solid} weight="fill" />
                 <Text style={[styles.warningText, { color: colors.feedback.warning.fg }]}>
                   {t('account.createAccountWarning')}
                 </Text>
@@ -352,7 +353,7 @@ export default function AccountScreen() {
                   { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <SymbolView name="person.crop.circle.badge.plus" size={18} tintColor="#fff" />
+                <BrandIcon name="userPlus" size={18} color="#fff" weight="fill" />
                 <Text style={styles.primaryBtnText}>{t('account.createAccount')}</Text>
               </Pressable>
             </Card>
@@ -391,7 +392,7 @@ export default function AccountScreen() {
                   </Text>
                 </View>
               </View>
-              <SymbolView name="chevron.right" size={18} tintColor="rgba(255,255,255,0.85)" />
+              <BrandIcon name="chevronRight" size={18} color="rgba(255,255,255,0.85)" />
             </View>
             <View style={styles.xpBarBg}>
               <View
@@ -460,7 +461,7 @@ export default function AccountScreen() {
                   { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1, marginTop: 14 },
                 ]}
               >
-                <SymbolView name="square.and.arrow.up" size={18} tintColor="#fff" />
+                <BrandIcon name="share" size={18} color="#fff" />
                 <Text style={styles.primaryBtnText}>{t('referral.inviteFriend')}</Text>
               </Pressable>
             </Card>
@@ -474,7 +475,7 @@ export default function AccountScreen() {
               <>
                 <View style={styles.userRow}>
                   <View style={[styles.avatar, { backgroundColor: colors.premium.solid }]}>
-                    <SymbolView name="star.fill" size={26} tintColor="#fff" />
+                    <BrandIcon name="star" size={26} color="#fff" weight="fill" />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={[styles.userName, { color: colors.fg.primary }]}>
@@ -504,7 +505,7 @@ export default function AccountScreen() {
               <>
                 <View style={styles.userRow}>
                   <View style={[styles.avatar, { backgroundColor: Sage[300] }]}>
-                    <SymbolView name="person.fill" size={26} tintColor={Forest[600]} />
+                    <BrandIcon name="user" size={26} color={Forest[600]} weight="fill" />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={[styles.userName, { color: colors.fg.primary }]}>
@@ -522,7 +523,7 @@ export default function AccountScreen() {
                     { backgroundColor: colors.premium.solid, opacity: pressed ? 0.85 : 1 },
                   ]}
                 >
-                  <SymbolView name="star.fill" size={18} tintColor="#fff" />
+                  <BrandIcon name="star" size={18} color="#fff" weight="fill" />
                   <Text style={styles.primaryBtnText}>{t('account.premium.upgrade')}</Text>
                 </Pressable>
                 <Pressable
@@ -547,7 +548,7 @@ export default function AccountScreen() {
         <Section title={t('account.sectionNotifications')}>
           <Card>
             <SettingRow
-              icon="bell.fill"
+              icon="bell"
               title={t('notifications.enable')}
               subtitle={t('notifications.enableDesc')}
               rightElement={
@@ -564,7 +565,7 @@ export default function AccountScreen() {
               <>
                 <Divider />
                 <SettingRow
-                  icon="clock.fill"
+                  icon="clock"
                   title={t('notifications.dailyReminder')}
                   subtitle={t('notifications.dailyReminderDesc')}
                   rightElement={
@@ -583,7 +584,7 @@ export default function AccountScreen() {
                 <View style={styles.daysBlock}>
                   <View style={styles.rowHeader}>
                     <View style={[styles.rowIcon, { backgroundColor: Sage[100] }]}>
-                      <SymbolView name="calendar" size={16} tintColor={Forest[600]} />
+                      <BrandIcon name="calendar" size={16} color={Forest[600]} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 10 }}>
                       <Text style={[styles.rowTitle, { color: colors.fg.primary }]}>
@@ -661,7 +662,7 @@ export default function AccountScreen() {
                 },
               ]}
             >
-              <SymbolView name="curlybraces" size={26} tintColor="#fff" />
+              <BrandIcon name="code" size={26} color="#fff" />
               <Text style={[styles.exportBtnTitle, { color: '#fff' }]}>{t('export.json')}</Text>
               <Text style={[styles.exportBtnSub, { color: 'rgba(255,255,255,0.85)' }]}>
                 {t('export.jsonDesc')}
@@ -680,7 +681,7 @@ export default function AccountScreen() {
                 },
               ]}
             >
-              <SymbolView name="tablecells" size={26} tintColor={Forest[600]} />
+              <BrandIcon name="table" size={26} color={Forest[600]} />
               <Text style={[styles.exportBtnTitle, { color: Forest[600] }]}>
                 {t('export.csv')}
               </Text>
@@ -690,7 +691,7 @@ export default function AccountScreen() {
             </Pressable>
           </View>
           <View style={[styles.infoBanner, { backgroundColor: colors.feedback.info.bg }]}>
-            <SymbolView name="info.circle.fill" size={16} tintColor={colors.feedback.info.solid} />
+            <BrandIcon name="info" size={16} color={colors.feedback.info.solid} weight="fill" />
             <Text style={[styles.infoBannerText, { color: colors.feedback.info.fg }]}>
               {t('export.privacyInfo')}
             </Text>
@@ -701,13 +702,13 @@ export default function AccountScreen() {
         <Section title={t('account.sectionSupport')}>
           <Card noPadding>
             <RowButton
-              icon="envelope.fill"
+              icon="envelope"
               label={t('support.feedback')}
               onPress={() => setFeedbackModalVisible(true)}
             />
             <Divider />
             <RowButton
-              icon="star.fill"
+              icon="star"
               label={t('support.rateApp')}
               accent={colors.premium.solid}
               onPress={async () => {
@@ -716,7 +717,7 @@ export default function AccountScreen() {
             />
             <Divider />
             <RowButton
-              icon="doc.text.fill"
+              icon="file"
               label={t('support.legal')}
               onPress={() => setLegalModalVisible(true)}
             />
@@ -728,13 +729,13 @@ export default function AccountScreen() {
           <View style={styles.socialRow}>
             <SocialBtn
               label="Instagram"
-              icon="camera.fill"
+              icon="camera"
               color="#E1306C"
               onPress={() => Linking.openURL('https://www.instagram.com/zerogaspyapp/')}
             />
             <SocialBtn
               label="X (Twitter)"
-              icon="bird.fill"
+              icon="twitter"
               color={Forest[600]}
               onPress={() => Linking.openURL('https://x.com/zerogaspy')}
             />
@@ -832,7 +833,7 @@ function SettingRow({
   subtitle,
   rightElement,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   title: string;
   subtitle?: string;
   rightElement?: React.ReactNode;
@@ -841,7 +842,7 @@ function SettingRow({
   return (
     <View style={styles.settingRow}>
       <View style={[styles.rowIcon, { backgroundColor: Sage[100] }]}>
-        <SymbolView name={icon} size={16} tintColor={Forest[600]} />
+        <BrandIcon name={icon} size={16} color={Forest[600]} />
       </View>
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={[styles.rowTitle, { color: colors.fg.primary }]}>{title}</Text>
@@ -861,7 +862,7 @@ function RowButton({
   destructive,
   accent,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   label: string;
   onPress: () => void;
   destructive?: boolean;
@@ -880,7 +881,7 @@ function RowButton({
       style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={[styles.rowIcon, { backgroundColor: bgIcon }]}>
-        <SymbolView name={icon} size={16} tintColor={tintColor} />
+        <BrandIcon name={icon} size={16} color={tintColor} weight={destructive ? 'fill' : 'regular'} />
       </View>
       <Text
         style={[
@@ -890,7 +891,7 @@ function RowButton({
       >
         {label}
       </Text>
-      <SymbolView name="chevron.right" size={14} tintColor={colors.fg.tertiary} />
+      <BrandIcon name="chevronRight" size={14} color={colors.fg.tertiary} />
     </Pressable>
   );
 }
@@ -925,7 +926,7 @@ function SocialBtn({
   onPress,
 }: {
   label: string;
-  icon: SFSymbol;
+  icon: BrandIconName;
   color: string;
   onPress: () => void;
 }) {
@@ -943,7 +944,7 @@ function SocialBtn({
         },
       ]}
     >
-      <SymbolView name={icon} size={26} tintColor={color} />
+      <BrandIcon name={icon} size={26} color={color} weight="fill" />
       <Text style={[styles.socialText, { color: colors.fg.primary }]}>{label}</Text>
     </Pressable>
   );

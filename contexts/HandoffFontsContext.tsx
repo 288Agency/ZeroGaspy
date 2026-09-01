@@ -1,12 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useFonts } from 'expo-font';
-import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_600SemiBold,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans';
-import { InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
 
 const HandoffFontsReadyContext = createContext(false);
 
@@ -19,17 +12,14 @@ interface HandoffFontsProviderProps {
 }
 
 /**
- * Charge DM Sans + Instrument Serif (handoff / Brand Bible aligné).
- * Geist Mono reste en Menlo jusqu'à bundling dédié.
+ * Charge Switzer (variable) + Clash Grotesk (variable) depuis assets/fonts.
  * Ne bloque pas le boot : fallback système puis swap quand chargé.
  */
 export function HandoffFontsProvider({ children }: HandoffFontsProviderProps) {
   const [loaded] = useFonts({
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_600SemiBold,
-    DMSans_700Bold,
-    InstrumentSerif_400Regular_Italic,
+    Switzer: require('../assets/fonts/Switzer-Variable.ttf'),
+    'Switzer-Italic': require('../assets/fonts/Switzer-VariableItalic.ttf'),
+    ClashGrotesk: require('../assets/fonts/ClashGrotesk-Variable.ttf'),
   });
 
   return (

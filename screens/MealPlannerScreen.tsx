@@ -12,7 +12,6 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 
@@ -20,7 +19,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { PaywallSheet } from '@/components/ds';
+import { PaywallSheet, BrandIcon } from '@/components/ds';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
 import RecipePickerModal from '@/components/RecipePickerModal';
 import Emoji from '@/components/Emoji';
@@ -189,7 +188,7 @@ export default function MealPlannerScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
@@ -209,7 +208,7 @@ export default function MealPlannerScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="cart" size={20} tintColor={Forest[600]} />
+          <BrandIcon name="cart" size={20} color={Forest[600]} />
         </Pressable>
       </View>
 
@@ -225,11 +224,11 @@ export default function MealPlannerScreen() {
             },
           ]}
         >
-          <SymbolView name="cart" size={16} tintColor={Forest[600]} />
+          <BrandIcon name="cart" size={16} color={Forest[600]} />
           <Text style={[styles.ctaBannerText, { color: Forest[600] }]}>
             {t('mealPlan.seeShoppingList')}
           </Text>
-          <SymbolView name="chevron.right" size={14} tintColor={Forest[600]} />
+          <BrandIcon name="chevronRight" size={14} color={Forest[600]} />
         </Pressable>
       )}
 
@@ -282,10 +281,11 @@ export default function MealPlannerScreen() {
                         >
                           {recipe.name}
                         </Text>
-                        <SymbolView
-                          name="xmark.circle.fill"
+                        <BrandIcon
+                          name="close"
                           size={16}
-                          tintColor={colors.fg.tertiary}
+                          color={colors.fg.tertiary}
+                          weight="fill"
                         />
                       </Pressable>
                     ) : (
@@ -299,7 +299,7 @@ export default function MealPlannerScreen() {
                           },
                         ]}
                       >
-                        <SymbolView name="plus" size={14} tintColor={Forest[600]} />
+                        <BrandIcon name="add" size={14} color={Forest[600]} weight="bold" />
                         <Text style={[styles.emptySlotText, { color: Forest[600] }]}>
                           {t('mealPlan.addRecipe')}
                         </Text>

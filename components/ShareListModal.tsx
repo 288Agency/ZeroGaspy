@@ -13,7 +13,7 @@ import {
   Platform,
   Share,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { useTranslation } from 'react-i18next';
 import {
   inviteByEmail,
@@ -188,8 +188,8 @@ export default function ShareListModal({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.actionIcon}
             >
-              <Ionicons
-                name={item.permission === 'edit' ? 'eye-outline' : 'pencil-outline'}
+              <BrandIcon
+                name={item.permission === 'edit' ? 'eye' : 'edit'}
                 size={20}
                 color={COLORS.text.secondary}
               />
@@ -199,7 +199,7 @@ export default function ShareListModal({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.actionIcon}
             >
-              <Ionicons name="close-circle-outline" size={20} color={COLORS.semantic.dangerLight} />
+              <BrandIcon name="close" size={20} color={COLORS.semantic.dangerLight} weight="fill" />
             </TouchableOpacity>
           </View>
         )}
@@ -219,7 +219,7 @@ export default function ShareListModal({
             <View style={styles.header}>
               <Text style={styles.title}>{t('sharing.shareList')}</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+                <BrandIcon name="close" size={24} color={COLORS.text.secondary} weight="fill" />
               </TouchableOpacity>
             </View>
 
@@ -248,8 +248,8 @@ export default function ShareListModal({
                   ]}
                   onPress={() => setPermission('edit')}
                 >
-                  <Ionicons
-                    name="pencil-outline"
+                  <BrandIcon
+                    name="edit"
                     size={16}
                     color={permission === 'edit' ? listColor : COLORS.text.secondary}
                   />
@@ -268,8 +268,8 @@ export default function ShareListModal({
                   ]}
                   onPress={() => setPermission('view')}
                 >
-                  <Ionicons
-                    name="eye-outline"
+                  <BrandIcon
+                    name="eye"
                     size={16}
                     color={permission === 'view' ? listColor : COLORS.text.secondary}
                   />
@@ -296,7 +296,7 @@ export default function ShareListModal({
                   <ActivityIndicator color={COLORS.neutral.white} />
                 ) : (
                   <>
-                    <Ionicons name="person-add-outline" size={20} color={COLORS.neutral.white} />
+                    <BrandIcon name="userPlus" size={20} color={COLORS.neutral.white} weight="fill" />
                     <Text style={styles.inviteButtonText}>{t('sharing.invite')}</Text>
                   </>
                 )}
@@ -321,7 +321,7 @@ export default function ShareListModal({
                     onPress={handleShareLink}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="share-outline" size={20} color={COLORS.neutral.white} />
+                    <BrandIcon name="share" size={20} color={COLORS.neutral.white} />
                     <Text style={styles.inviteButtonText}>
                       {t('sharing.shareLink', { defaultValue: 'Partager le lien' })}
                     </Text>
@@ -338,7 +338,7 @@ export default function ShareListModal({
                     <ActivityIndicator color={listColor} />
                   ) : (
                     <>
-                      <Ionicons name="key-outline" size={20} color={listColor} />
+                      <BrandIcon name="key" size={20} color={listColor} />
                       <Text style={[styles.generateButtonText, { color: listColor }]}>
                         {t('sharing.createCode', { defaultValue: 'Créer un code de partage' })}
                       </Text>

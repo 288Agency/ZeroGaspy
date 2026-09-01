@@ -37,7 +37,7 @@ import {
   Animated,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon } from './BrandIcon';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/contexts/ThemeContext';
@@ -124,7 +124,7 @@ export default function SwipeableProductCard({
         ]}
       >
         <Animated.View style={[styles.actionInner, { transform: [{ scale }] }]}>
-          <SymbolView name="checkmark.circle.fill" type="hierarchical" size={24} tintColor={colors.fg.onAccent} />
+          <BrandIcon name="checkCircle" size={24} color={colors.fg.onAccent} weight="fill" />
           <Text
             style={[
               typography.caption,
@@ -165,7 +165,7 @@ export default function SwipeableProductCard({
         ]}
       >
         <Animated.View style={[styles.actionInner, { transform: [{ scale }] }]}>
-          <SymbolView name="trash.fill" type="hierarchical" size={24} tintColor="#FFFFFF" />
+          <BrandIcon name="trash" size={24} color="#FFFFFF" weight="fill" />
           <Text
             style={[
               typography.caption,

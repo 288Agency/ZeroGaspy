@@ -11,12 +11,11 @@ import { View, Text, FlatList, Alert, StyleSheet, Pressable, RefreshControl } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest } from '@/tokens';
-import { Badge } from '@/components/ds';
+import { Badge, BrandIcon } from '@/components/ds';
 import { SkeletonExpiringList } from '@/components/Skeleton';
 import { loadLists, ensureDefaultList } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
@@ -131,28 +130,28 @@ export default function ExpiringSoonScreen() {
           </View>
           {item.expirationDate && (
             <View style={styles.metaRow}>
-              <SymbolView name="calendar" size={12} tintColor={colors.fg.tertiary} />
+              <BrandIcon name="calendar" size={12} color={colors.fg.tertiary} />
               <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
                 {t('home.expiresOn')} {item.expirationDate}
               </Text>
             </View>
           )}
           <View style={styles.metaRow}>
-            <SymbolView name="tray.fill" size={12} tintColor={colors.fg.tertiary} />
+            <BrandIcon name="list" size={12} color={colors.fg.tertiary} />
             <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
               {t('home.list')} {item.listTitle}
             </Text>
           </View>
           {item.quantity !== undefined && (
             <View style={styles.metaRow}>
-              <SymbolView name="number" size={12} tintColor={colors.fg.tertiary} />
+              <BrandIcon name="hash" size={12} color={colors.fg.tertiary} />
               <Text style={[styles.metaText, { color: colors.fg.tertiary }]}>
                 {t('home.quantity')} {item.quantity}
               </Text>
             </View>
           )}
           <View style={styles.cardChevron}>
-            <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
+            <BrandIcon name="chevronRight" size={14} color={colors.fg.muted} />
           </View>
         </Pressable>
       );
@@ -176,7 +175,7 @@ export default function ExpiringSoonScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
@@ -210,10 +209,11 @@ export default function ExpiringSoonScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: Sage[100] }]}>
-                <SymbolView
-                  name={isFridgeEmpty ? 'plus.circle.fill' : 'checkmark.circle.fill'}
+                <BrandIcon
+                  name={isFridgeEmpty ? 'add' : 'checkCircle'}
                   size={32}
-                  tintColor={Forest[600]}
+                  color={Forest[600]}
+                  weight="fill"
                 />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>

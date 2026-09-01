@@ -29,15 +29,13 @@ const Tab = createNativeBottomTabNavigator();
 const TOQUE_FILLED = require('../assets/icons/toque.png');
 const TOQUE_OUTLINE = require('../assets/icons/toque-outline.png');
 
-// Tab Navigator natif (UITabBar iOS 26 → Liquid Glass automatique).
-// 4 onglets fidèles au handoff : Accueil / Espaces / Recettes / Stats.
-// Le profil s'ouvre via l'avatar du Home (route stack `Account`), pas d'onglet.
+// Tab Navigator natif (UITabBar iOS → Liquid Glass / transparence automatique).
+// Les icônes Phosphor restent sur les écrans ; la tab bar utilise SF Symbols + toque
+// car le renderer natif ne supporte que sfSymbol / image template.
 function MainTabs() {
   const { t } = useTranslation();
   return (
-    <Tab.Navigator
-      tabBarActiveTintColor={Forest[600]}
-    >
+    <Tab.Navigator tabBarActiveTintColor={Forest[600]}>
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
@@ -59,7 +57,6 @@ function MainTabs() {
         component={RecipesScreen}
         options={{
           tabBarLabel: t('tabs.recipes'),
-          // Pas de toque dans SF Symbols → asset template maison (teinté par la tab bar).
           tabBarIcon: ({ focused }) => (focused ? TOQUE_FILLED : TOQUE_OUTLINE),
         }}
       />

@@ -8,14 +8,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Cream } from '@/tokens';
-import { Button, Input, PaywallSheet } from '@/components/ds';
+import { Button, Input, PaywallSheet, BrandIcon } from '@/components/ds';
 import IconPicker from '@/components/IconPicker';
 import ColorPicker from '@/components/ColorPicker';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
@@ -100,7 +99,7 @@ export default function CreateListScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>

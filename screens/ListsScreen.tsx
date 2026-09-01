@@ -12,12 +12,11 @@ import { View, Text, FlatList, Alert, StyleSheet, Pressable } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
-import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_HEIGHT, TAB_BAR_SAFE_PADDING } from '@/components/ds';
+import { Badge, PaywallSheet, DeferredAuthSheet, TAB_BAR_HEIGHT, TAB_BAR_SAFE_PADDING, BrandIcon } from '@/components/ds';
 import ShareListModal from '@/components/ShareListModal';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -200,7 +199,7 @@ export default function ListsScreen() {
                 </Text>
                 {memberCounts[list.id] > 1 && (
                   <View style={[styles.memberBadge, { backgroundColor: Sage[100] }]}>
-                    <SymbolView name="person.2.fill" size={10} tintColor={accent} />
+                    <BrandIcon name="users" size={10} color={accent} weight="fill" />
                     <Text style={[styles.memberBadgeText, { color: accent }]}>
                       {memberCounts[list.id]}
                     </Text>
@@ -219,7 +218,7 @@ export default function ListsScreen() {
                   { backgroundColor: colors.bg.sunken, opacity: pressed ? 0.6 : 1 },
                 ]}
               >
-                <SymbolView name="square.and.arrow.up" size={16} tintColor={accent} />
+                <BrandIcon name="share" size={16} color={accent} />
               </Pressable>
               <Pressable
                 onPress={() => handleDelete(list.id, list.title)}
@@ -231,7 +230,7 @@ export default function ListsScreen() {
                   { backgroundColor: colors.bg.sunken, opacity: pressed ? 0.6 : 1 },
                 ]}
               >
-                <SymbolView name="trash" size={16} tintColor={colors.feedback.danger.solid} />
+                <BrandIcon name="trash" size={16} color={colors.feedback.danger.solid} />
               </Pressable>
             </View>
           </Pressable>
@@ -259,8 +258,7 @@ export default function ListsScreen() {
               <Text style={[styles.cardTitle, { color: colors.fg.primary }]} numberOfLines={1}>
                 {sl.listTitle}
               </Text>
-              <Badge tone="info" variant="soft" dot={false}>
-                <SymbolView name="person.2.fill" size={9} tintColor={undefined} style={{ marginRight: 3 }} />
+              <Badge tone="info" variant="soft" dot={false} icon="users">
                 {t('sharing.shared', { defaultValue: 'Partagé' })}
               </Badge>
             </View>
@@ -297,7 +295,7 @@ export default function ListsScreen() {
               { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
             ]}
           >
-            <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+            <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
           </Pressable>
         )}
         <View style={{ flex: 1, marginLeft: navigation.canGoBack() ? 12 : 0 }}>
@@ -322,7 +320,7 @@ export default function ListsScreen() {
             },
           ]}
         >
-          <SymbolView name="person.badge.plus" size={15} tintColor={colors.accent.default} />
+          <BrandIcon name="userPlus" size={15} color={colors.accent.default} />
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.2 }}>
             {t('join.cta', { defaultValue: 'Rejoindre' })}
           </Text>
@@ -343,11 +341,7 @@ export default function ListsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={[styles.emptyIcon, { backgroundColor: Sage[100] }]}>
-              <SymbolView
-                name="tray.full.fill"
-                size={32}
-                tintColor={Forest[600]}
-              />
+              <BrandIcon name="grid" size={32} color={Forest[600]} weight="fill" />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>
               {t('lists.emptyLists')}
@@ -376,7 +370,7 @@ export default function ListsScreen() {
           },
         ]}
       >
-        <SymbolView name="plus" size={26} tintColor="#fff" />
+        <BrandIcon name="add" size={26} color="#fff" weight="bold" />
       </Pressable>
 
       <PaywallSheet
