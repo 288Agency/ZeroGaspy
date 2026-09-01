@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import type { ToastConfig } from '@/components/ds/Toast';
+import type { BrandIconName } from '@/tokens/brandIcons';
 
 type ShowToast = (config: ToastConfig) => void;
 
@@ -34,7 +35,7 @@ export function feedbackFoodConsumed(name?: string, beforeExpiration = true): vo
       ? (name ? `${name} sauvé du gaspi` : 'Bien joué, sauvé du gaspi')
       : (name ? `${name} consommé` : 'Marqué comme consommé'),
     tone: 'success',
-    icon: 'checkmark.circle.fill',
+    icon: 'checkCircle',
     duration: 2500,
   });
 }
@@ -44,7 +45,7 @@ export function feedbackFoodThrown(name?: string): void {
   toast({
     message: name ? `${name} retiré du frigo` : 'Aliment jeté',
     tone: 'warning',
-    icon: 'trash.fill',
+    icon: 'trash',
     duration: 2500,
   });
 }
@@ -57,7 +58,7 @@ export function feedbackRecipeCooked(count: number): void {
         ? `${count} ingrédients utilisés — bon appétit !`
         : 'Ingrédient utilisé — bon appétit !',
     tone: 'success',
-    icon: 'flame.fill',
+    icon: 'flame',
     duration: 3000,
   });
 }

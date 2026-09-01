@@ -31,7 +31,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon, type BrandIconName } from '@/components/ds';
 import FoodEmoji from '@/components/FoodEmoji';
 import Gaspie from '@/components/Gaspie';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -391,7 +391,7 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.avatar}
           >
-            <SymbolView name="person.fill" size={17} tintColor="#fff" />
+            <BrandIcon name="user" size={17} color="#fff" weight="fill" />
           </LinearGradient>
         </Pressable>
       </View>
@@ -440,10 +440,11 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.8 : 1 }]}
               >
-                <SymbolView
-                  name={canCookTonight ? 'book.closed.fill' : 'doc.text.viewfinder'}
+                <BrandIcon
+                  name={canCookTonight ? 'cook' : 'receipt'}
                   size={14}
-                  tintColor="#fff"
+                  color="#fff"
+                  weight="fill"
                 />
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
                   {canCookTonight ? 'Cuisiner ce soir' : 'Scanner mon ticket'}
@@ -554,14 +555,14 @@ export default function HomeScreen() {
                     { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
                   ]}
                 >
-                  <SymbolView name="plus" size={14} tintColor="#fff" />
+                  <BrandIcon name="add" size={14} color="#fff" weight="bold" />
                   <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Commencer</Text>
                 </Pressable>
               </>
             ) : (
               <>
                 <View style={[styles.emptyIcon, { backgroundColor: Sage[200] }]}>
-                  <SymbolView name="checkmark" size={26} tintColor={Forest[600]} />
+                  <BrandIcon name="check" size={26} color={Forest[600]} weight="bold" />
                 </View>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
                   Tout est frais
@@ -612,7 +613,7 @@ export default function HomeScreen() {
           </Text>
           {challengesState && (
             <MoreLink
-              icon="trophy.fill"
+              icon="trophy"
               label="Défis de la semaine"
               hint={`${challengesState.challenges.filter((c) => c.completed).length}/${challengesState.challenges.length}`}
               onPress={() => navigation.navigate('Challenges')}
@@ -624,7 +625,7 @@ export default function HomeScreen() {
             onPress={() => navigation.navigate('MealPlanner')}
           />
           <MoreLink
-            icon="chart.bar.fill"
+            icon="chart"
             label="Mon impact"
             onPress={handleOpenStats}
           />
@@ -646,7 +647,7 @@ function MoreLink({
   hint,
   onPress,
 }: {
-  icon: import('expo-symbols').SFSymbol;
+  icon: BrandIconName;
   label: string;
   hint?: string;
   onPress: () => void;
@@ -665,7 +666,7 @@ function MoreLink({
         },
       ]}
     >
-      <SymbolView name={icon} size={17} tintColor={colors.fg.secondary} />
+      <BrandIcon name={icon} size={17} color={colors.fg.secondary} />
       <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
         {label}
       </Text>
@@ -674,7 +675,7 @@ function MoreLink({
           {hint}
         </Text>
       ) : null}
-      <SymbolView name="chevron.right" size={12} tintColor={colors.fg.muted} />
+      <BrandIcon name="chevronRight" size={12} color={colors.fg.muted} />
     </Pressable>
   );
 }
@@ -803,7 +804,7 @@ function WatchGroup({
           ]}
         >
           {open ? (
-            <SymbolView name="chevron.down" size={16} tintColor={colors.fg.tertiary} />
+            <BrandIcon name="chevronDown" size={16} color={colors.fg.tertiary} />
           ) : (
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{items.length}</Text>
           )}

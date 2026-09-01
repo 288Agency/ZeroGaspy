@@ -29,6 +29,8 @@ export {
   type TypographyToken,
 } from './typography';
 
+export { BRAND_ICONS, type BrandIconName } from './brandIcons';
+
 export {
   space,
   layout,

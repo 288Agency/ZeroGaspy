@@ -30,7 +30,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SFSymbol } from 'expo-symbols';
+import { BrandIcon, type BrandIconName } from '@/components/ds';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -264,9 +264,9 @@ export default function AddFoodScreen() {
       >
         {/* ── 1. Quick row : Scan / Photo / Date OCR ──────────────────── */}
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
-          <QuickAction icon="barcode.viewfinder" label="Scan"  onPress={() => setBarcodeOpen(true)} />
-          <QuickAction icon="camera.fill"        label="Photo" onPress={handlePhoto} />
-          <QuickAction icon="calendar.badge.clock" label="Date" onPress={() => setDateScanOpen(true)} />
+          <QuickAction icon="barcode" label="Scan"  onPress={() => setBarcodeOpen(true)} />
+          <QuickAction icon="camera" label="Photo" onPress={handlePhoto} />
+          <QuickAction icon="clock" label="Date" onPress={() => setDateScanOpen(true)} />
         </View>
 
         {/* Image preview if set */}
@@ -287,7 +287,7 @@ export default function AddFoodScreen() {
 
         {/* ── 2. Nom ──────────────────────────────────────────────────── */}
         <FieldLabel>Nom de l'aliment</FieldLabel>
-        <FieldInputBox icon="cube.fill" accent={name.length > 0}>
+        <FieldInputBox icon="food" accent={name.length > 0}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -325,7 +325,7 @@ export default function AddFoodScreen() {
               opacity: pressed ? 0.65 : 1,
             })}
           >
-            <SymbolView name="slider.horizontal.3" size={16} tintColor={colors.accent.default} />
+            <BrandIcon name="sliders" size={16} color={colors.accent.default} />
             <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: colors.accent.default }}>
               Affiner · quantité, catégorie, prix
             </Text>
@@ -338,7 +338,7 @@ export default function AddFoodScreen() {
         <FieldLabel>Quantité</FieldLabel>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
           <View style={{ flex: 1 }}>
-            <FieldInputBox icon="scalemass.fill">
+            <FieldInputBox icon="scales">
               <TextInput
                 value={quantity}
                 onChangeText={setQuantity}
@@ -375,7 +375,7 @@ export default function AddFoodScreen() {
 
         {/* ── 4b. Prix (optionnel) ─────────────────────────────────────── */}
         <FieldLabel>Prix (€) · optionnel</FieldLabel>
-        <FieldInputBox icon="eurosign" accent={price.length > 0}>
+        <FieldInputBox icon="euro" accent={price.length > 0}>
           <TextInput
             value={price}
             onChangeText={setPrice}
@@ -499,7 +499,7 @@ function QuickAction({
   label,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   label: string;
   onPress: () => void;
 }) {
@@ -521,7 +521,7 @@ function QuickAction({
         ...elevation[1],
       }}
     >
-      <SymbolView name={icon} size={22} tintColor={colors.fg.primary} />
+      <BrandIcon name={icon} size={22} color={colors.fg.primary} />
       <Text
         style={{
           fontSize: 12,
@@ -564,7 +564,7 @@ function FieldInputBox({
   accent,
   children,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   accent?: boolean;
   children: React.ReactNode;
 }) {
@@ -581,10 +581,10 @@ function FieldInputBox({
         },
       ]}
     >
-      <SymbolView
+      <BrandIcon
         name={icon}
         size={18}
-        tintColor={accent ? colors.accent.default : colors.fg.tertiary}
+        color={accent ? colors.accent.default : colors.fg.tertiary}
       />
       {children}
     </View>

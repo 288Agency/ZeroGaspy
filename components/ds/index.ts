@@ -17,3 +17,4 @@ export { default as DeferredAuthSheet, type DeferredAuthSheetProps, type AuthRea
 export { default as OnboardingFlow, type OnboardingFlowProps } from './OnboardingFlow';
 export { default as TabBar, TAB_BAR_HEIGHT, TAB_BAR_SAFE_PADDING } from './TabBar';
 export { ToastProvider, useToast, type ToastConfig, type ToastTone } from './Toast';
+export { BrandIcon, type BrandIconProps, type BrandIconName } from './BrandIcon';

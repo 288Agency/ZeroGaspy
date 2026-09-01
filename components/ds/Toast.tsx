@@ -38,18 +38,18 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { registerActionToast, unregisterActionToast } from '@/services/actionFeedback';
+import { BrandIcon, type BrandIconName } from './BrandIcon';
 
 export type ToastTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 export interface ToastConfig {
   message: string;
   tone?: ToastTone;
-  /** SF Symbol — défaut dérivé du tone */
-  icon?: SymbolViewProps['name'];
+  /** Icône Phosphor (banque marque) — défaut dérivé du tone */
+  icon?: BrandIconName;
   /** Durée avant auto-dismiss, défaut 4000ms */
   duration?: number;
   /** Action inline (généralement "Annuler" pour undo) */
@@ -136,11 +136,11 @@ export function ToastProvider({ children, bottomOffset = 0 }: ToastProviderProps
     danger:  { iconBg: colors.feedback.danger.bg,  iconFg: colors.feedback.danger.fg },
   }[tone];
 
-  const defaultIcon: SymbolViewProps['name'] =
-    tone === 'success' ? 'checkmark.circle.fill' :
-    tone === 'danger'  ? 'trash.fill' :
-    tone === 'warning' ? 'exclamationmark.triangle.fill' :
-                         'info.circle.fill';
+  const defaultIcon: BrandIconName =
+    tone === 'success' ? 'checkCircle' :
+    tone === 'danger'  ? 'trash' :
+    tone === 'warning' ? 'warning' :
+                         'info';
 
   return (
     <Ctx.Provider value={{ show, hide }}>
@@ -175,11 +175,11 @@ export function ToastProvider({ children, bottomOffset = 0 }: ToastProviderProps
             ]}
           >
             <View style={[styles.iconCircle, { backgroundColor: toneStyle.iconBg, borderRadius: radius.sm }]}>
-              <SymbolView
+              <BrandIcon
                 name={toast.icon ?? defaultIcon}
-                type="hierarchical"
                 size={16}
-                tintColor={toneStyle.iconFg}
+                color={toneStyle.iconFg}
+                weight="fill"
               />
             </View>
             <Text
