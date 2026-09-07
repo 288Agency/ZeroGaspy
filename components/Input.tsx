@@ -6,16 +6,19 @@ import {
   Text,
   StyleSheet,
   Animated,
+  TouchableOpacity,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { resolveBrandIcon } from '@/tokens/brandIcons';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   hint?: string;
-  leftIcon?: keyof typeof Ionicons.glyphMap;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
+  leftIcon?: BrandIconName | string;
+  rightIcon?: BrandIconName | string;
   onRightIconPress?: () => void;
   variant?: 'default' | 'filled' | 'outlined';
   size?: 'sm' | 'md' | 'lg';
@@ -138,8 +141,8 @@ export default function Input({
         {/* Left icon */}
         {leftIcon && (
           <View style={styles.iconLeft}>
-            <Ionicons
-              name={leftIcon}
+            <BrandIcon
+              name={resolveBrandIcon(leftIcon)}
               size={currentSize.iconSize}
               color={isFocused ? COLORS.primary[500] : COLORS.text.secondary}
             />
@@ -168,15 +171,16 @@ export default function Input({
         {rightIcon && (
           <View style={styles.iconRight}>
             {onRightIconPress ? (
-              <Ionicons
-                name={rightIcon}
-                size={currentSize.iconSize}
-                color={COLORS.text.secondary}
-                onPress={onRightIconPress}
-              />
+              <TouchableOpacity onPress={onRightIconPress} hitSlop={8}>
+                <BrandIcon
+                  name={resolveBrandIcon(rightIcon)}
+                  size={currentSize.iconSize}
+                  color={COLORS.text.secondary}
+                />
+              </TouchableOpacity>
             ) : (
-              <Ionicons
-                name={rightIcon}
+              <BrandIcon
+                name={resolveBrandIcon(rightIcon)}
                 size={currentSize.iconSize}
                 color={COLORS.text.secondary}
               />
@@ -190,12 +194,14 @@ export default function Input({
         <View style={styles.helperContainer}>
           {error ? (
             <View style={styles.errorRow}>
-              <Ionicons
-                name="alert-circle"
-                size={14}
-                color={COLORS.semantic.danger}
-                style={{ marginRight: SPACING.xs }}
-              />
+              <View style={{ marginRight: SPACING.xs }}>
+                <BrandIcon
+                  name="warningCircle"
+                  size={14}
+                  color={COLORS.semantic.danger}
+                  weight="fill"
+                />
+              </View>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : hint ? (

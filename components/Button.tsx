@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { Text, ActivityIndicator, View, StyleSheet, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { resolveBrandIcon } from '@/tokens/brandIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import PressableScale from './PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY, RADIUS, hexToRgba } from '../utils/designSystem';
@@ -10,7 +12,7 @@ interface ButtonProps {
   onPress: () => void;
   children?: React.ReactNode;
   label?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: BrandIconName | string;
   iconPosition?: 'left' | 'right';
   variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost' | 'gradient';
   size?: 'sm' | 'md' | 'lg';
@@ -123,8 +125,8 @@ export default function Button({
         <>
           {icon && iconPosition === 'left' && (
             <View style={[styles.iconContainer, { marginRight: scaleSpacing(6) }]}>
-              <Ionicons
-                name={icon}
+              <BrandIcon
+                name={resolveBrandIcon(icon)}
                 size={currentSize.iconSize}
                 color={currentVariant.textColor}
               />
@@ -147,8 +149,8 @@ export default function Button({
           )}
           {icon && iconPosition === 'right' && (
             <View style={[styles.iconContainer, { marginLeft: scaleSpacing(6) }]}>
-              <Ionicons
-                name={icon}
+              <BrandIcon
+                name={resolveBrandIcon(icon)}
                 size={currentSize.iconSize}
                 color={currentVariant.textColor}
               />

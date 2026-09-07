@@ -11,7 +11,7 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path, Circle, Rect, Defs, LinearGradient, Stop, G } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
@@ -618,10 +618,11 @@ export default function RecipeOnboardingModal({ visible, onComplete }: RecipeOnb
                 {isLastSlide ? t('recipes.onboarding.letsGo') : t('recipes.onboarding.continue')}
               </Text>
               <View style={styles.actionButtonIcon}>
-                <Ionicons
-                  name={isLastSlide ? 'rocket' : 'arrow-forward'}
+                <BrandIcon
+                  name={isLastSlide ? 'rocket' : 'chevronRight'}
                   size={scaleSize(isSmallScreen ? 16 : 18)}
                   color={COLORS.neutral.white}
+                  weight="fill"
                 />
               </View>
             </TouchableOpacity>

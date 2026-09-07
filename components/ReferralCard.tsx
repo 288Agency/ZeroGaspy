@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PressableScale from './PressableScale';
 import { COLORS, SPACING, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
@@ -56,7 +56,7 @@ export default function ReferralCard({ userId, hasBadges }: ReferralCardProps) {
       <PressableScale onPress={handleShare} style={styles.card} hapticType="light">
         <View style={styles.leftSection}>
           <View style={styles.iconContainer}>
-            <Ionicons name="gift-outline" size={scaleSize(24)} color={COLORS.primary[500]} />
+            <BrandIcon name="gift" size={scaleSize(24)} color={COLORS.primary[500]} />
           </View>
         </View>
 
@@ -73,7 +73,7 @@ export default function ReferralCard({ userId, hasBadges }: ReferralCardProps) {
             hapticType="light"
             hitSlop={12}
           >
-            <Ionicons name="close" size={scaleSize(16)} color={COLORS.text.tertiary} />
+            <BrandIcon name="close" size={scaleSize(16)} color={COLORS.text.tertiary} weight="fill" />
           </PressableScale>
           <PressableScale onPress={handleShare} style={styles.ctaButton} hapticType="medium">
             <Text style={styles.ctaText}>{t('referral.homeCta')}</Text>
