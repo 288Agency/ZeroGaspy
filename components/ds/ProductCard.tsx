@@ -22,7 +22,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Image, ImageSourcePropType, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon } from './BrandIcon';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/contexts/ThemeContext';
@@ -202,7 +202,7 @@ export default function ProductCard({
           <View style={[styles.actions, { marginLeft: space[2] }]}>
             {onConsume && (
               <ActionButton
-                icon="checkmark"
+                icon="check"
                 variant="consume"
                 label="Consommé"
                 onPress={onConsume}
@@ -218,12 +218,13 @@ export default function ProductCard({
             )}
           </View>
         ) : (
-          <SymbolView
-            name="chevron.right"
-            size={14}
-            tintColor={colors.fg.muted}
-            style={{ marginLeft: space[2] }}
-          />
+          <View style={{ marginLeft: space[2] }}>
+            <BrandIcon
+              name="chevronRight"
+              size={14}
+              color={colors.fg.muted}
+            />
+          </View>
         )}
       </View>
     </Pressable>
@@ -240,7 +241,7 @@ function ActionButton({
   label,
   onPress,
 }: {
-  icon: 'checkmark' | 'trash';
+  icon: 'check' | 'trash';
   variant: 'consume' | 'trash';
   label: string;
   onPress: () => void;
@@ -275,11 +276,11 @@ function ActionButton({
         },
       ]}
     >
-      <SymbolView
-        name={icon === 'checkmark' ? 'checkmark' : 'trash'}
+      <BrandIcon
+        name={icon === 'check' ? 'check' : 'trash'}
         size={18}
-        tintColor={fg}
-        weight="semibold"
+        color={fg}
+        weight="bold"
       />
     </Pressable>
   );

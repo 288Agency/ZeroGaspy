@@ -16,14 +16,14 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView } from 'expo-symbols';
-
+import { Button, Badge, AlertModal, BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGamification } from '@/contexts/GamificationContext';
-import { Button, Badge, AlertModal } from '@/components/ds';
-import { loadLists, updateItem, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
+import { loadLists, markItemConsumed, markItemThrown, markItemAsOpened, updateItemStatusWithQuantity } from '@/utils/localStorage';
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import FoodEmoji from '@/components/FoodEmoji';
 import MarkAsOpenedModal from '@/components/MarkAsOpenedModal';
@@ -35,12 +35,14 @@ import {
   trackFoodConsumed as analyticsTrackFoodConsumed,
   trackFoodThrown as analyticsTrackFoodThrown,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 
 type ProductDetailNav = NativeStackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type ProductDetailRoute = RouteProp<RootStackParamList, 'ProductDetail'>;
 
 export default function ProductDetailScreen() {
   const { colors, typography, space, componentRadius, radius, layout, elevation } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const nav = useNavigation<ProductDetailNav>();
   const route = useRoute<ProductDetailRoute>();
@@ -80,8 +82,9 @@ export default function ProductDetailScreen() {
 
   const handleConsume = async () => {
     try {
-      await updateItem(listId, itemId, { status: 'consumed' });
+      await markItemConsumed(listId, itemId);
       const beforeExpiration = days == null || days >= 0;
+      feedbackFoodConsumed(item.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: item.category,
@@ -95,7 +98,8 @@ export default function ProductDetailScreen() {
   };
   const handleTrash = async () => {
     try {
-      await updateItem(listId, itemId, { status: 'thrown' });
+      await markItemThrown(listId, itemId);
+      feedbackFoodThrown(item.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: item.category,
@@ -124,9 +128,11 @@ export default function ProductDetailScreen() {
       if (qty >= (item.quantity ?? 1)) {
         if (partialAction === 'consumed') {
           const beforeExpiration = days == null || days >= 0;
+          feedbackFoodConsumed(item.name, beforeExpiration);
           trackFoodConsumed(beforeExpiration);
           analyticsTrackFoodConsumed({ category: item.category, daysBeforeExpiry: days ?? undefined });
         } else {
+          feedbackFoodThrown(item.name);
           trackFoodThrown();
           analyticsTrackFoodThrown({
             category: item.category,
@@ -146,7 +152,15 @@ export default function ProductDetailScreen() {
   };
   const canPartialAct = (item.quantity ?? 1) > 1;
 
-  const quantityLabel = item.quantity != null ? String(item.quantity) : '—';
+  const quantityLabel =
+    item.quantity != null
+      ? `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`
+      : '—';
+
+  // item.category est une clé technique ('dairy', 'frozen'…) — jamais l'afficher brute.
+  const categoryLabel = item.category
+    ? t(`categories.${item.category}`, { defaultValue: item.category })
+    : t('categories.other');
 
   // Compute "Ouvert il y a Nj" depuis openedDate (DD/MM/YYYY)
   let openedAgoLabel: string | null = null;
@@ -174,7 +188,7 @@ export default function ProductDetailScreen() {
           hitSlop={8}
           style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space[5] }}
         >
-          <SymbolView name="chevron.left" size={16} tintColor={colors.fg.secondary} />
+          <BrandIcon name="chevronLeft" size={16} color={colors.fg.secondary} />
           <Text style={[typography.body, { color: colors.fg.secondary, marginLeft: 4 }]}>Retour</Text>
         </Pressable>
 
@@ -227,16 +241,16 @@ export default function ProductDetailScreen() {
           {openedAgoLabel && (
             <MetaRow icon="seal" label="Ouvert depuis" value={openedAgoLabel} />
           )}
-          <MetaRow icon="scalemass" label="Quantité" value={quantityLabel} />
-          <MetaRow icon="folder" label="Catégorie" value={item.category ?? 'Autre'} last />
+          <MetaRow icon="scales" label="Quantité" value={quantityLabel} />
+          <MetaRow icon="folder" label="Catégorie" value={categoryLabel} last />
         </View>
 
         <View style={{ gap: space[2] }}>
-          <Button variant="primary" size="lg" icon="checkmark" onPress={handleConsume}>
+          <Button variant="primary" size="lg" icon="check" onPress={handleConsume}>
             Marquer comme consommé
           </Button>
           {canPartialAct && (
-            <Button variant="secondary" size="lg" icon="minus.circle" onPress={() => setPartialAction('consumed')}>
+            <Button variant="secondary" size="lg" icon="minusCircle" onPress={() => setPartialAction('consumed')}>
               Consommer une partie
             </Button>
           )}
@@ -245,7 +259,7 @@ export default function ProductDetailScreen() {
               Marquer comme entamé
             </Button>
           )}
-          <Button variant="secondary" size="lg" icon="pencil" onPress={() => nav.navigate('AddFood', { listId, editItem: item })}>
+          <Button variant="secondary" size="lg" icon="edit" onPress={() => nav.navigate('AddFood', { listId, editItem: item })}>
             Modifier
           </Button>
           <Button variant="ghost" size="lg" tone="destructive" icon="trash" onPress={() => setTrashOpen(true)}>
@@ -285,7 +299,7 @@ export default function ProductDetailScreen() {
   );
 }
 
-function MetaRow({ icon, label, value, last }: { icon: any; label: string; value: string; last?: boolean }) {
+function MetaRow({ icon, label, value, last }: { icon: BrandIconName; label: string; value: string; last?: boolean }) {
   const { colors, typography, space } = useTheme();
   return (
     <View style={[
@@ -297,7 +311,9 @@ function MetaRow({ icon, label, value, last }: { icon: any; label: string; value
         paddingHorizontal: space[5],
       },
     ]}>
-      <SymbolView name={icon} size={18} tintColor={colors.fg.tertiary} style={{ marginRight: space[3] }} />
+      <View style={{ marginRight: space[3] }}>
+        <BrandIcon name={icon} size={18} color={colors.fg.tertiary} />
+      </View>
       <Text style={[typography.body, { color: colors.fg.secondary, flex: 1 }]}>{label}</Text>
       <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{value}</Text>
     </View>

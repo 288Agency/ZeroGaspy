@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LIST_COLORS } from '../types';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
 
 interface ColorPickerProps {
@@ -62,7 +62,7 @@ export default function ColorPicker({
                   }}
                 >
                   {isSelected && (
-                    <Ionicons name="checkmark" size={24} color={COLORS.neutral.white} />
+                    <BrandIcon name="check" size={24} color={COLORS.neutral.white} weight="bold" />
                   )}
                 </View>
                 <Text

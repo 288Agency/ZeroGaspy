@@ -30,9 +30,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 import Button from './Button';
 import { trackOnboardingStep, trackOnboardingStepCompleted } from '@/services/analytics';
 
@@ -40,7 +41,7 @@ type StepKey = 'welcome' | 'how' | 'firstScan' | 'notifications' | 'done';
 
 interface Step {
   key: StepKey;
-  icon: SymbolViewProps['name'];
+  icon: BrandIconName;
   title: string;
   body: string;
   primaryLabel: string;
@@ -51,21 +52,21 @@ interface Step {
 const STEPS: Step[] = [
   {
     key: 'welcome',
-    icon: 'leaf.fill',
+    icon: 'leaf',
     title: 'Stop au gaspi.',
     body: 'Les Français jettent en moyenne 30 kg de nourriture par an et par personne. ZeroGaspy te fait économiser ≈ 50 €/mois.',
     primaryLabel: 'Commencer',
   },
   {
     key: 'how',
-    icon: 'barcode.viewfinder',
+    icon: 'barcode',
     title: 'Scanne, oublie, profite.',
     body: 'Scanne le code-barres ou la date de tes produits. On te prévient juste avant qu\'ils périment.',
     primaryLabel: 'Suivant',
   },
   {
     key: 'firstScan',
-    icon: 'doc.text.viewfinder',
+    icon: 'receipt',
     title: 'Remplis ton frigo en 10 s.',
     body: 'Scanne ton dernier ticket de courses : on ajoute tous les produits d\'un coup. C\'est offert, sans compte.',
     primaryLabel: 'Scanner mon ticket',
@@ -73,7 +74,7 @@ const STEPS: Step[] = [
   },
   {
     key: 'notifications',
-    icon: 'bell.fill',
+    icon: 'bell',
     title: 'Sois prévenu·e à temps.',
     body: 'On t\'envoie une alerte 2 jours avant péremption — c\'est ce qui change tout.',
     primaryLabel: 'Activer les rappels',
@@ -81,7 +82,7 @@ const STEPS: Step[] = [
   },
   {
     key: 'done',
-    icon: 'checkmark.circle.fill',
+    icon: 'checkCircle',
     title: 'Prêt·e à sauver ton frigo.',
     body: 'Pas de compte requis. Tout reste sur ton téléphone — tant que tu ne le veux pas.',
     primaryLabel: 'Entrer dans l\'app',
@@ -219,7 +220,7 @@ export default function OnboardingFlow({
             },
           ]}
         >
-          <SymbolView name={step.icon} size={40} tintColor={colors.accent.softFg} />
+          <BrandIcon name={step.icon} size={40} color={colors.accent.softFg} weight="fill" />
         </View>
 
         <Text

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import Emoji from './Emoji';
 import { useAuth } from '../contexts/AuthContext';
 import { Recipe, findMatchingRecipesWithUser, getAllRecipesWithUser } from '../services/recipeService';
@@ -93,7 +93,7 @@ export default function RecipePickerModal({ visible, onClose, onSelect }: Props)
           <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
           {urgentIds.has(item.id) && (
             <View style={styles.urgentBadge}>
-              <Ionicons name="flash" size={12} color={COLORS.text.warningDark} />
+              <BrandIcon name="lightning" size={12} color={COLORS.text.warningDark} weight="fill" />
               <Text style={styles.urgentText}>{t('mealPlan.urgent')}</Text>
             </View>
           )}
@@ -102,7 +102,7 @@ export default function RecipePickerModal({ visible, onClose, onSelect }: Props)
           {item.preparationTime} min · {item.ingredients.slice(0, 3).join(', ')}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={COLORS.text.tertiary} />
+      <BrandIcon name="chevronRight" size={18} color={COLORS.text.tertiary} />
     </TouchableOpacity>
   );
 
@@ -114,11 +114,11 @@ export default function RecipePickerModal({ visible, onClose, onSelect }: Props)
           <View style={styles.header}>
             <Text style={styles.title}>{t('mealPlan.pickRecipe')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              <BrandIcon name="close" size={24} color={COLORS.text.primary} weight="fill" />
             </TouchableOpacity>
           </View>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color={COLORS.text.tertiary} />
+            <BrandIcon name="search" size={18} color={COLORS.text.tertiary} />
             <TextInput
               style={styles.searchInput}
               value={query}

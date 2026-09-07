@@ -15,7 +15,7 @@
 // wire les actions consume/trash, navigue vers ProductDetail / AddFood.
 // ============================================================================
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon } from '@/components/ds';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -57,11 +57,13 @@ import {
   trackFoodThrown as analyticsTrackFoodThrown,
   trackFirstFoodAddedOnce,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { PaywallSheet, DeferredAuthSheet } from '@/components/ds';
 import { usePaywallSheetProps } from '@/hooks/usePaywallSheetProps';
+import { isActiveItem } from '@/utils/foodItems';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne
@@ -80,7 +82,7 @@ type LiveFood = {
 type FilterKey = 'all' | 'urgent' | 'soon' | 'fresh' | string;
 
 function hydrateFood(item: FoodItem): LiveFood | null {
-  if (item.status === 'consumed' || item.status === 'thrown') return null;
+  if (!isActiveItem(item)) return null;
   const days = getDaysUntilExpiration(item.expirationDate);
   // Date manquante / invalide : on affiche quand même (J+7 virtuel) pour ne pas
   // faire "disparaître" des articles déjà stockés — cause de churn historique.
@@ -109,7 +111,7 @@ export default function InventoryListScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const { listId, listTitle, listColor } = route.params;
+  const { listId, listTitle, listColor, openReceiptScanner } = route.params;
 
   const { user, signInWithApple } = useAuth();
   const { isPremium } = useSubscription();
@@ -206,6 +208,7 @@ export default function InventoryListScreen() {
     try {
       await markItemConsumed(listId, itemId);
       const beforeExpiration = food == null || food.daysLeft >= 0;
+      feedbackFoodConsumed(food?.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: food?.category,
@@ -221,6 +224,7 @@ export default function InventoryListScreen() {
     const food = allFoods.find((f) => f.id === itemId);
     try {
       await markItemThrown(listId, itemId);
+      feedbackFoodThrown(food?.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: food?.category,
@@ -260,6 +264,16 @@ export default function InventoryListScreen() {
       logger.error('[InventoryV2] receipt scan gate failed:', err);
     }
   }, [user, isPremium]);
+
+  // Le CTA « Scanner mon ticket » de l'accueil arrive ici. On repasse par
+  // handleOpenReceiptScan pour que le quota, le premium et le DeferredAuthSheet
+  // s'appliquent exactement comme depuis le bouton de la barre.
+  const autoScanDone = useRef(false);
+  useEffect(() => {
+    if (!openReceiptScanner || autoScanDone.current) return;
+    autoScanDone.current = true;
+    void handleOpenReceiptScan();
+  }, [openReceiptScanner, handleOpenReceiptScan]);
 
   const handleReceiptScanComplete = useCallback((result: ReceiptScanResult) => {
     setScannedItems(result.items);
@@ -320,7 +334,7 @@ export default function InventoryListScreen() {
           hitSlop={8}
           style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
         >
-          <SymbolView name="chevron.left" size={22} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={22} color={colors.fg.primary} />
         </Pressable>
 
         <View style={styles.topbarTitleWrap}>
@@ -346,7 +360,7 @@ export default function InventoryListScreen() {
             hitSlop={8}
             style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
           >
-            <SymbolView name="doc.text.viewfinder" size={22} tintColor={colors.fg.primary} />
+            <BrandIcon name="receipt" size={22} color={colors.fg.primary} />
           </Pressable>
           <Pressable
             onPress={handleAdd}
@@ -355,7 +369,7 @@ export default function InventoryListScreen() {
             hitSlop={8}
             style={({ pressed }) => [styles.topbarBtn, { opacity: pressed ? 0.5 : 1 }]}
           >
-            <SymbolView name="plus" size={24} tintColor={colors.fg.primary} />
+            <BrandIcon name="add" size={24} color={colors.fg.primary} />
           </Pressable>
         </View>
       </View>
@@ -409,7 +423,7 @@ export default function InventoryListScreen() {
             },
           ]}
         >
-          <SymbolView name="magnifyingglass" size={18} tintColor={colors.fg.tertiary} />
+          <BrandIcon name="search" size={18} color={colors.fg.tertiary} />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -426,7 +440,7 @@ export default function InventoryListScreen() {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <SymbolView name="xmark.circle.fill" size={18} tintColor={colors.fg.muted} />
+              <BrandIcon name="close" size={18} color={colors.fg.muted} weight="fill" />
             </Pressable>
           )}
         </View>
@@ -484,7 +498,7 @@ export default function InventoryListScreen() {
                   marginBottom: 14,
                 }}
               >
-                <SymbolView name="leaf.fill" size={26} tintColor={Forest[600]} />
+                <BrandIcon name="leaf" size={26} color={Forest[600]} weight="fill" />
               </View>
             )}
             <Text

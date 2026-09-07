@@ -11,15 +11,16 @@
 //   <Badge tone="danger" variant="solid" dot>Aujourd'hui</Badge>
 //   <Badge tone="warning">Dans 3 jours</Badge>
 //   <Badge>Frigo</Badge>                          // tone par défaut: neutral
-//   <Badge tone="reward" icon="star.fill">Premium</Badge>
+//   <Badge tone="reward" icon="star">Premium</Badge>
 // ============================================================================
 
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import type { SemanticColors } from '@/tokens';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 
 export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'reward';
 export type BadgeVariant = 'soft' | 'solid';
@@ -30,8 +31,8 @@ export interface BadgeProps {
   variant?: BadgeVariant;
   /** Affiche un petit point coloré devant le texte */
   dot?: boolean;
-  /** SF Symbol optionnel devant le texte */
-  icon?: SymbolViewProps['name'];
+  /** Icône Phosphor optionnelle devant le texte */
+  icon?: BrandIconName;
   /** Texte barré (use case : périmé) */
   strikethrough?: boolean;
   style?: ViewStyle;
@@ -82,7 +83,9 @@ export default function Badge({
         <View style={[styles.dot, { backgroundColor: c.fg }]} />
       )}
       {icon && (
-        <SymbolView name={icon} size={10} tintColor={c.fg} style={{ marginRight: 4 }} />
+        <View style={{ marginRight: 4 }}>
+          <BrandIcon name={icon} size={10} color={c.fg} weight="fill" />
+        </View>
       )}
       <Text
         style={[

@@ -24,9 +24,11 @@ export {
 
 export {
   typography,
-  FONT_HANDOFF,
+  getHandoffTypography,
   type TypographyToken,
 } from './typography';
+
+export { BRAND_ICONS, type BrandIconName, resolveBrandIcon } from './brandIcons';
 
 export {
   space,

@@ -554,11 +554,28 @@ export function getActiveChallenges(weekKey: string): ChallengeDefinition[] {
     return arr[Math.floor(rng() * arr.length)];
   };
 
-  return [
+  const picks = [
     pickAvoidingPrev(easyAll, prevPicks[0].id),
     pickAvoidingPrev(mediumAll, prevPicks[1].id),
     pickAvoidingPrev(hardAll, prevPicks[2].id),
   ];
+
+  // 21 des 30 defis recompensent l'USAGE de l'app (« Ajoutez 15 aliments »,
+  // « Consultez 10 recettes ») et 9 seulement le RESULTAT. Un tirage libre
+  // pouvait donc donner une semaine entiere ou l'on gagne tout son XP sans
+  // sauver un seul aliment — voire en jetant son frigo. On garantit qu'au moins
+  // un defi porte sur ce que le produit promet : consommer plutot que jeter.
+  if (!picks.some(isOutcomeChallenge)) {
+    const pool = mediumAll.filter(c => isOutcomeChallenge(c) && c.id !== prevPicks[1].id);
+    if (pool.length > 0) picks[1] = pool[Math.floor(rng() * pool.length)];
+  }
+
+  return picks;
+}
+
+/** Defis mesurant le resultat (consommer, ne pas jeter) plutot que l'activite. */
+function isOutcomeChallenge(c: ChallengeDefinition): boolean {
+  return c.category === 'saving' || c.id.startsWith('no_throw');
 }
 
 // ==================== STORAGE ====================

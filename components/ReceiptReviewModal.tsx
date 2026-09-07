@@ -8,7 +8,7 @@ import {
   StyleSheet,
   TextInput,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
@@ -162,7 +162,7 @@ export default function ReceiptReviewModal({
             >
               <View style={[styles.checkbox, item.selected && styles.checkboxChecked]}>
                 {item.selected && (
-                  <Ionicons name="checkmark" size={16} color="white" />
+                  <BrandIcon name="check" size={16} color="white" weight="bold" />
                 )}
               </View>
             </TouchableOpacity>
@@ -194,7 +194,7 @@ export default function ReceiptReviewModal({
                 )}
                 {item.expirationDate && (
                   <View style={styles.dateBadge}>
-                    <Ionicons name="calendar-outline" size={10} color={COLORS.primary[500]} />
+                    <BrandIcon name="calendar" size={10} color={COLORS.primary[500]} />
                     <Text style={styles.dateTagText}>{item.expirationDate}</Text>
                   </View>
                 )}
@@ -208,8 +208,8 @@ export default function ReceiptReviewModal({
                 style={styles.quantityButton}
                 disabled={item.quantity <= 1}
               >
-                <Ionicons
-                  name="remove"
+                <BrandIcon
+                  name="minus"
                   size={18}
                   color={item.quantity <= 1 ? COLORS.text.muted : COLORS.primary[500]}
                 />
@@ -222,10 +222,11 @@ export default function ReceiptReviewModal({
                 style={styles.quantityButton}
                 disabled={item.quantity >= 99}
               >
-                <Ionicons
+                <BrandIcon
                   name="add"
                   size={18}
                   color={item.quantity >= 99 ? COLORS.text.muted : COLORS.primary[500]}
+                  weight="bold"
                 />
               </TouchableOpacity>
             </View>
@@ -235,8 +236,8 @@ export default function ReceiptReviewModal({
               onPress={() => toggleExpanded(item.id)}
               style={[styles.expandButton, isExpanded && styles.expandButtonActive]}
             >
-              <Ionicons
-                name={isExpanded ? 'chevron-up' : 'calendar-outline'}
+              <BrandIcon
+                name={isExpanded ? 'chevronUp' : 'calendar'}
                 size={18}
                 color={isExpanded ? 'white' : COLORS.primary[500]}
               />
@@ -247,7 +248,7 @@ export default function ReceiptReviewModal({
               onPress={() => removeItem(item.id)}
               style={styles.deleteButton}
             >
-              <Ionicons name="trash-outline" size={18} color={COLORS.semantic.danger} />
+              <BrandIcon name="trash" size={18} color={COLORS.semantic.danger} />
             </TouchableOpacity>
           </View>
 
@@ -278,7 +279,7 @@ export default function ReceiptReviewModal({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+            <BrandIcon name="close" size={24} color={COLORS.text.secondary} weight="fill" />
           </TouchableOpacity>
 
           <View style={styles.headerContent}>
@@ -306,13 +307,13 @@ export default function ReceiptReviewModal({
         >
           {items.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={64} color={COLORS.text.muted} />
+              <BrandIcon name="receipt" size={64} color={COLORS.text.muted} />
               <Text style={styles.emptyText}>Aucun produit detecte</Text>
             </View>
           ) : (
             <>
               <View style={styles.infoBox}>
-                <Ionicons name="information-circle-outline" size={18} color={COLORS.primary[500]} />
+                <BrandIcon name="info" size={18} color={COLORS.primary[500]} weight="fill" />
                 <Text style={styles.infoText}>
                   Appuyez sur l'icone calendrier pour definir une date d'expiration par produit
                 </Text>
@@ -342,7 +343,7 @@ export default function ReceiptReviewModal({
                 </View>
                 {globalExpirationDate && (
                   <TouchableOpacity onPress={applyGlobalDate} style={styles.applyButton}>
-                    <Ionicons name="checkmark" size={20} color="white" />
+                    <BrandIcon name="check" size={20} color="white" weight="bold" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -364,10 +365,11 @@ export default function ReceiptReviewModal({
             style={[styles.confirmButton, selectedCount === 0 && styles.confirmButtonDisabled]}
             hapticType="medium"
           >
-            <Ionicons
-              name="add-circle"
+            <BrandIcon
+              name="plusCircle"
               size={22}
               color={selectedCount > 0 ? 'white' : COLORS.text.muted}
+              weight="fill"
             />
             <Text style={[styles.confirmButtonText, selectedCount === 0 && styles.confirmButtonTextDisabled]}>
               Ajouter a la liste

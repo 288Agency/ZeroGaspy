@@ -16,13 +16,12 @@ import {
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
-import { Badge } from '@/components/ds';
+import { Badge, BrandIcon } from '@/components/ds';
 import { SkeletonChallengesContent } from '@/components/Skeleton';
 import { useGamification } from '@/contexts/GamificationContext';
 import {
@@ -105,7 +104,7 @@ export default function ChallengesScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
@@ -374,7 +373,7 @@ function ChallengeCard({
 
       {progress.completed && (
         <View style={styles.completedRow}>
-          <SymbolView name="checkmark.circle.fill" size={14} tintColor={Forest[600]} />
+          <BrandIcon name="checkCircle" size={14} color={Forest[600]} weight="fill" />
           <Text style={[styles.completedText, { color: Forest[600] }]}>
             {t('challenges.challengeCompleted')}
           </Text>

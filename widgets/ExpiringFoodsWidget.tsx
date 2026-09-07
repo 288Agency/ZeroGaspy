@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  FlexWidget,
-  TextWidget,
-  ListWidget,
-} from 'react-native-android-widget';
+import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
 interface ExpiringFood {
   name: string;
@@ -93,6 +89,16 @@ function FoodItem({ food }: { food: ExpiringFood }) {
   );
 }
 
+/**
+ * Les lignes sont de simples FlexWidget, pas un ListWidget.
+ *
+ * ListWidget produit une vraie ListView RemoteViews superposée au bitmap du
+ * widget, servie par RNWidgetCollectionService et positionnée par un calcul de
+ * bornes hors écran. Sur device, le widget disparaissait entièrement dès qu'il
+ * y avait un aliment à afficher — l'état vide, lui, s'affichait sans problème.
+ * Cette machinerie n'a aucune raison d'être ici : on montre 4 lignes fixes,
+ * sans défilement.
+ */
 export function ExpiringFoodsWidget({ expiringFoods }: ExpiringFoodsWidgetProps) {
   const hasExpiring = expiringFoods.length > 0;
 
@@ -160,13 +166,7 @@ export function ExpiringFoodsWidget({ expiringFoods }: ExpiringFoodsWidgetProps)
 
       {/* Liste des aliments */}
       {hasExpiring ? (
-        <ListWidget
-          style={
-            {
-              flex: 1,
-            } as any
-          }
-        >
+        <FlexWidget style={{ flex: 1 }}>
           {expiringFoods.slice(0, 4).map((food, index) => (
             <FoodItem key={index} food={food} />
           ))}
@@ -187,7 +187,7 @@ export function ExpiringFoodsWidget({ expiringFoods }: ExpiringFoodsWidgetProps)
               />
             </FlexWidget>
           )}
-        </ListWidget>
+        </FlexWidget>
       ) : (
         <FlexWidget
           style={{

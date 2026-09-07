@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
+import { RECIPE_CATEGORY_ICONS, type BrandIconName } from '@/tokens/brandIcons';
 import { useTranslation } from 'react-i18next';
 import Toast from './Toast';
 import Emoji from './Emoji';
@@ -31,13 +32,13 @@ interface AddRecipeModalProps {
   onRecipeAdded: () => void;
 }
 
-const CATEGORY_KEYS: Array<{ key: Recipe['category']; labelKey: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { key: 'petit-déjeuner', labelKey: 'addRecipe.breakfast', icon: 'sunny' },
-  { key: 'plat', labelKey: 'addRecipe.mainDish', icon: 'restaurant' },
-  { key: 'entrée', labelKey: 'addRecipe.starter', icon: 'leaf' },
-  { key: 'dessert', labelKey: 'addRecipe.dessert', icon: 'ice-cream' },
-  { key: 'snack', labelKey: 'addRecipe.snack', icon: 'cafe' },
-  { key: 'boisson', labelKey: 'addRecipe.drink', icon: 'wine' },
+const CATEGORY_KEYS: Array<{ key: Recipe['category']; labelKey: string; icon: BrandIconName }> = [
+  { key: 'petit-déjeuner', labelKey: 'addRecipe.breakfast', icon: RECIPE_CATEGORY_ICONS['petit-déjeuner'] },
+  { key: 'plat', labelKey: 'addRecipe.mainDish', icon: RECIPE_CATEGORY_ICONS.plat },
+  { key: 'entrée', labelKey: 'addRecipe.starter', icon: RECIPE_CATEGORY_ICONS.entrée },
+  { key: 'dessert', labelKey: 'addRecipe.dessert', icon: RECIPE_CATEGORY_ICONS.dessert },
+  { key: 'snack', labelKey: 'addRecipe.snack', icon: RECIPE_CATEGORY_ICONS.snack },
+  { key: 'boisson', labelKey: 'addRecipe.drink', icon: RECIPE_CATEGORY_ICONS.boisson },
 ];
 
 const DIFFICULTY_KEYS: Array<{ key: Recipe['difficulty']; labelKey: string }> = [
@@ -280,10 +281,11 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 category === cat.key && styles.chipSelected,
               ]}
             >
-              <Ionicons
+              <BrandIcon
                 name={cat.icon}
                 size={scaleSize(16)}
                 color={category === cat.key ? COLORS.neutral.white : COLORS.primary[500]}
+                weight={category === cat.key ? 'fill' : 'regular'}
               />
               <Text
                 style={[
@@ -357,7 +359,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, errors.ingredients ? styles.sectionTitleError : undefined]}>{t('addRecipe.ingredients')}</Text>
           <TouchableOpacity onPress={addIngredient} style={styles.addButton}>
-            <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
+            <BrandIcon name="plusCircle" size={scaleSize(24)} color={COLORS.primary[500]} weight="fill" />
           </TouchableOpacity>
         </View>
         {ingredients.map((ingredient, index) => (
@@ -377,7 +379,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 onPress={() => removeIngredient(index)}
                 style={styles.removeButton}
               >
-                <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
+                <BrandIcon name="close" size={scaleSize(22)} color={COLORS.semantic.danger} weight="fill" />
               </TouchableOpacity>
             )}
           </View>
@@ -401,7 +403,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, errors.instructions ? styles.sectionTitleError : undefined]}>{t('addRecipe.steps')}</Text>
           <TouchableOpacity onPress={addInstruction} style={styles.addButton}>
-            <Ionicons name="add-circle" size={scaleSize(24)} color={COLORS.primary[500]} />
+            <BrandIcon name="plusCircle" size={scaleSize(24)} color={COLORS.primary[500]} weight="fill" />
           </TouchableOpacity>
         </View>
         {instructions.map((instruction, index) => (
@@ -422,7 +424,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
                 onPress={() => removeInstruction(index)}
                 style={styles.removeButton}
               >
-                <Ionicons name="close-circle" size={scaleSize(22)} color={COLORS.semantic.danger} />
+                <BrandIcon name="close" size={scaleSize(22)} color={COLORS.semantic.danger} weight="fill" />
               </TouchableOpacity>
             )}
           </View>
@@ -460,7 +462,7 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         <Button
           onPress={handleSave}
           label={t('addRecipe.saveRecipe2')}
-          icon="checkmark-circle"
+          icon="checkCircle"
           variant="gradient"
           loading={saving}
           disabled={saving}
@@ -477,10 +479,11 @@ export default function AddRecipeModal({ visible, onClose, onRecipeAdded }: AddR
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={currentStep === 1 ? handleClose : handleBack} style={styles.closeButton}>
-            <Ionicons
-              name={currentStep === 1 ? 'close' : 'chevron-back'}
+            <BrandIcon
+              name={currentStep === 1 ? 'close' : 'chevronLeft'}
               size={scaleSize(24)}
               color={COLORS.text.primary}
+              weight="fill"
             />
           </TouchableOpacity>
           <View style={styles.headerCenter}>

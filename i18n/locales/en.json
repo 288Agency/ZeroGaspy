@@ -364,6 +364,7 @@
     "aiGenerate": "AI Recipe with expiring items",
     "aiGenerating": "Generating...",
     "aiError": "Unable to generate an AI recipe. Please try again later.",
+    "deleteError": "Unable to delete the recipe. Please try again.",
     "aiNoIngredients": "No expiring items",
     "aiNoIngredientsHint": "Add items with an upcoming expiration date to generate an AI recipe.",
     "antiWasteBadge": "Anti-waste",
@@ -1143,6 +1144,7 @@
   },
   "sharing": {
     "shareList": "Share list",
+    "share": "Share",
     "orShareCode": "or share a code",
     "createCode": "Create a share code",
     "shareLink": "Share link",

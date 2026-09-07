@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
 import Calendar from './Calendar';
@@ -76,7 +76,7 @@ export default function DatePickerField({
           >
             {displayValue}
           </Text>
-          <Ionicons name="calendar-outline" size={18} color={COLORS.primary[500]} />
+          <BrandIcon name="calendar" size={18} color={COLORS.primary[500]} />
         </View>
       </PressableScale>
 

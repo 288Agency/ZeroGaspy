@@ -1,14 +1,13 @@
 // ============================================================================
 // ZeroGaspy Design System · TabBar (iOS 26 — Liquid Glass)
 // ============================================================================
-// Bottom tab bar avec matériau Liquid Glass + SF Symbols hiérarchiques.
+// Bottom tab bar avec matériau Liquid Glass + icônes Phosphor (Brand Bible §06).
 //
 // iOS 26 features utilisés :
 //   · `BlurView` avec `systemChromeMaterial` — le material que la nav/tab bar
 //     iOS native utilise depuis iOS 13, qui adopte automatiquement le rendu
 //     Liquid Glass sur iOS 26. Pas besoin d'un tint custom.
-//   · `SymbolView type="hierarchical"` sur les icônes actives — crée une
-//     variation tonale automatique du tint, plus vivant que monochrome plat.
+//   · Icônes Phosphor via `BrandIcon` (fill si onglet actif).
 //   · Highlight subtil 1px sur le top edge — simule la réfraction du verre
 //     (Apple le fait nativement sur l'UITabBar mais on doit le reproduire en RN).
 //
@@ -48,40 +47,41 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Image,
+  ImageSourcePropType,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
+import { BrandIcon } from '@/components/ds/BrandIcon';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { useTheme } from '@/contexts/ThemeContext';
+
+const TOQUE_FILLED = require('../../assets/icons/toque.png');
+const TOQUE_OUTLINE = require('../../assets/icons/toque-outline.png');
+
 // ────────────────────────────────────────────────────────────────────────────
-// Mapping route name → icônes (inactive / active)
+// Mapping route name → icônes Phosphor (Brand Bible §06)
 // ────────────────────────────────────────────────────────────────────────────
 
-type IconPair = { inactive: SymbolViewProps['name']; active: SymbolViewProps['name'] };
+type TabIconConfig =
+  | { type: 'brand'; icon: BrandIconName }
+  | { type: 'image'; focused: ImageSourcePropType; unfocused: ImageSourcePropType };
 
-// iOS 26+ target — tous les SF Symbols ci-dessous sont natifs, pas de fallback.
-const ICON_MAP: Record<string, IconPair> = {
-  // ── 5-tab layout (production) ─────────────────────────────────────────────
-  HomeTab:    { inactive: 'house',                 active: 'house.fill' },
-  ListsTab:   { inactive: 'list.bullet.rectangle', active: 'list.bullet.rectangle.fill' },
-  RecipesTab: { inactive: 'fork.knife',            active: 'fork.knife' },
-  StatsTab:   { inactive: 'chart.bar',             active: 'chart.bar.fill' },
-  AccountTab: { inactive: 'person',                active: 'person.fill' },
-  // ── 5-tab layout (handoff référence, non utilisé en prod) ─────────────────
-  Frigo:      { inactive: 'refrigerator',          active: 'refrigerator.fill' },
-  Listes:     { inactive: 'list.bullet.rectangle', active: 'list.bullet.rectangle.fill' },
-  Scanner:    { inactive: 'barcode.viewfinder',    active: 'barcode.viewfinder' },
-  Profil:     { inactive: 'person',                active: 'person.fill' },
+const ICON_MAP: Record<string, TabIconConfig> = {
+  HomeTab:    { type: 'brand', icon: 'home' },
+  ListsTab:   { type: 'brand', icon: 'grid' },
+  RecipesTab: { type: 'image', focused: TOQUE_FILLED, unfocused: TOQUE_OUTLINE },
+  StatsTab:   { type: 'brand', icon: 'chart' },
+  AccountTab: { type: 'brand', icon: 'user' },
+  // Legacy / handoff
+  Frigo:      { type: 'brand', icon: 'fridge' },
+  Listes:     { type: 'brand', icon: 'list' },
+  Scanner:    { type: 'brand', icon: 'barcode' },
+  Profil:     { type: 'brand', icon: 'user' },
 };
-
-function getIcon(routeName: string, focused: boolean): SymbolViewProps['name'] {
-  const pair = ICON_MAP[routeName];
-  if (!pair) return 'circle';
-  return focused ? pair.active : pair.inactive;
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // TabBar (custom React Navigation tabBar)
@@ -180,11 +180,11 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
                       },
                     ]}
                   >
-                    <SymbolView
-                      name={getIcon('Scanner', isFocused)}
-                      type="hierarchical"
+                    <BrandIcon
+                      name="barcode"
                       size={26}
-                      tintColor={colors.fg.onAccent}
+                      color={colors.fg.onAccent}
+                      weight="bold"
                     />
                   </View>
                 )}
@@ -192,8 +192,9 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
             );
           }
 
-          // ── Tab standard — SF Symbol hiérarchique si actif ──
+          // ── Tab standard — Phosphor (fill si actif) ──
           const color = isFocused ? colors.accent.default : colors.fg.muted;
+          const iconConfig = ICON_MAP[route.name] ?? { type: 'brand' as const, icon: 'home' as BrandIconName };
 
           return (
             <Pressable
@@ -205,12 +206,20 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
               accessibilityLabel={label as string}
               style={styles.tab}
             >
-              <SymbolView
-                name={getIcon(route.name, isFocused)}
-                type={isFocused ? 'hierarchical' : 'monochrome'}
-                size={24}
-                tintColor={color}
-              />
+              {iconConfig.type === 'image' ? (
+                <Image
+                  source={isFocused ? iconConfig.focused : iconConfig.unfocused}
+                  style={{ width: 24, height: 24, tintColor: color }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <BrandIcon
+                  name={iconConfig.icon}
+                  size={24}
+                  color={color}
+                  weight={isFocused ? 'fill' : 'regular'}
+                />
+              )}
               <Text
                 style={[
                   styles.label,

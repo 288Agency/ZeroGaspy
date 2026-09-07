@@ -22,7 +22,10 @@ export interface ExpiringFood {
   listName: string;
 }
 
-const LISTS_KEY = '@zerogaspy_lists';
+const LISTS_KEY = 'inventory_lists';
+
+/** Horizon du widget, en jours. Le feed de l'accueil utilise le même. */
+export const WIDGET_HORIZON_DAYS = 7;
 
 function getDaysUntilExpiration(dateString: string): number {
   if (!dateString) return Infinity;
@@ -54,7 +57,8 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
       if (!list.items) continue;
 
       for (const item of list.items) {
-        if (item.status !== 'active') continue;
+        // Aligné avec isActiveItem : pas seulement status === 'active'
+        if (item.status === 'consumed' || item.status === 'thrown') continue;
         if (!item.expirationDate) continue;
 
         const daysLeft = getDaysUntilExpiration(item.expirationDate);
@@ -75,8 +79,10 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
 
     return expiringFoods;
   } catch (error) {
+    // Ne pas renvoyer [] ici : un stockage illisible deviendrait un « tout va
+    // bien » silencieux sur l'écran d'accueil. Les appelants décident.
     logger.error('Erreur widget data:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -84,7 +90,7 @@ export async function getExpiringFoods(daysThreshold: number = 3): Promise<Expir
 export async function updateWidgetData(): Promise<void> {
   try {
     const [expiringFoods, monthlySavings] = await Promise.all([
-      getExpiringFoods(7),
+      getExpiringFoods(WIDGET_HORIZON_DAYS),
       getMonthlySavings(),
     ]);
     const widgetData = {
@@ -125,19 +131,18 @@ export async function updateWidgetData(): Promise<void> {
   }
 }
 
-// Récupérer les données cachées pour le widget
+/**
+ * Lit le cache écrit par updateWidgetData, et RIEN d'autre.
+ *
+ * Cette fonction calculait aussi les données quand le cache était vide, si bien
+ * qu'elle ne renvoyait jamais null — le repli de son appelant était donc du
+ * code mort et le widget affichait éternellement le cache. C'est un cache, il
+ * doit pouvoir répondre « je n'ai rien ».
+ */
 export async function getWidgetData(): Promise<{ expiringFoods: ExpiringFood[]; lastUpdated: string } | null> {
   try {
     const data = await AsyncStorage.getItem('@zerogaspy_widget_data');
-    if (data) {
-      return JSON.parse(data);
-    }
-    // Si pas de cache, récupérer directement
-    const expiringFoods = await getExpiringFoods(7);
-    return {
-      expiringFoods,
-      lastUpdated: new Date().toISOString(),
-    };
+    return data ? JSON.parse(data) : null;
   } catch (error) {
     logger.error('Erreur get widget data:', error);
     return null;

@@ -12,7 +12,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import PressableScale from './PressableScale';
@@ -195,13 +195,13 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           hapticType="light"
         >
           <View style={styles.optionIcon}>
-            <Ionicons name="person-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="user" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.optionTitle}>{t('accountSettings.changeName')}</Text>
             <Text style={styles.optionSubtitle}>{t('accountSettings.changeNameDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
@@ -210,13 +210,13 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           hapticType="light"
         >
           <View style={styles.optionIcon}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="envelope" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.optionTitle}>{t('accountSettings.changeEmail')}</Text>
             <Text style={styles.optionSubtitle}>{t('accountSettings.changeEmailDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <PressableScale
@@ -225,13 +225,13 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           hapticType="light"
         >
           <View style={styles.optionIcon}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary[500]} />
+            <BrandIcon name="lock" size={20} color={COLORS.primary[500]} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.optionTitle}>{t('accountSettings.changePassword')}</Text>
             <Text style={styles.optionSubtitle}>{t('accountSettings.changePasswordDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.text.tertiary} />
         </PressableScale>
 
         <View style={styles.spacer} />
@@ -242,13 +242,13 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           hapticType="medium"
         >
           <View style={styles.deleteIcon}>
-            <Ionicons name="trash-outline" size={20} color={COLORS.semantic.dangerLight} />
+            <BrandIcon name="trash" size={20} color={COLORS.semantic.dangerLight} />
           </View>
           <View style={styles.flex1}>
             <Text style={styles.deleteTitle}>{t('accountSettings.deleteAccount')}</Text>
             <Text style={styles.deleteSubtitle}>{t('accountSettings.deleteAccountDesc')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.semantic.dangerLight} />
+          <BrandIcon name="chevronRight" size={20} color={COLORS.semantic.dangerLight} />
         </PressableScale>
       </View>
     </View>
@@ -260,7 +260,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
         onPress={() => setCurrentSection('main')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
@@ -299,7 +299,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
         onPress={() => setCurrentSection('main')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
@@ -308,7 +308,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
       </Text>
 
       <View style={styles.warningBox}>
-        <Ionicons name="information-circle-outline" size={20} color={COLORS.semantic.warningDark} />
+        <BrandIcon name="info" size={20} color={COLORS.semantic.warningDark} weight="fill" />
         <Text style={styles.warningText}>
           {t('accountSettings.emailConfirmationWarning')}
         </Text>
@@ -350,7 +350,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
         onPress={() => setCurrentSection('main')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
@@ -372,8 +372,8 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           onPress={() => setShowPassword(!showPassword)}
           style={styles.eyeButton}
         >
-          <Ionicons
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+          <BrandIcon
+            name={showPassword ? 'eyeSlash' : 'eye'}
             size={20}
             color={COLORS.text.tertiary}
           />
@@ -423,7 +423,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
         onPress={() => setCurrentSection('main')}
         style={styles.backButton}
       >
-        <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         <Text style={styles.backText}>{t('accountSettings.back')}</Text>
       </TouchableOpacity>
 
@@ -433,7 +433,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
 
       <View style={styles.dangerBox}>
         <View style={styles.dangerHeader}>
-          <Ionicons name="warning-outline" size={24} color={COLORS.semantic.dangerLight} />
+          <BrandIcon name="warning" size={24} color={COLORS.semantic.dangerLight} weight="fill" />
           <Text style={styles.dangerHeaderText}>
             {t('accountSettings.deleteWarning')}
           </Text>
@@ -512,7 +512,7 @@ export default function AccountSettingsModal({ visible, onClose }: AccountSettin
           <View style={styles.headerSpacer} />
           <View style={styles.headerHandle} />
           <TouchableOpacity onPress={handleClose} style={styles.headerCloseButton}>
-            <Ionicons name="close" size={24} color={COLORS.primary[500]} />
+            <BrandIcon name="close" size={24} color={COLORS.primary[500]} weight="fill" />
           </TouchableOpacity>
         </View>
 

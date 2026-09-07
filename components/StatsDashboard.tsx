@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop, Path, G } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
 import ViewShot from 'react-native-view-shot';
 import { UserStats } from '../types';
 import { calculateUserStats } from '../services/statsService';
@@ -24,6 +23,8 @@ import ShareRecapCard from './ShareRecapCard';
 import { shareRecapImage } from '../services/shareRecapService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import logger from '../utils/logger';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { FlameIcon, LeafIcon, EarthIcon, ProgressRing } from './icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -59,8 +60,8 @@ function AnimatedCounter({ value, suffix = '', prefix = '', duration = 1500 }: {
   );
 }
 
-// Badge Component for Achievements
-function AchievementBadge({ icon, label, unlocked, color }: { icon: string; label: string; unlocked: boolean; color: string }) {
+// Badge Component for Achievements (Phosphor — pas d'emojis dans Text custom)
+function AchievementBadge({ icon, label, unlocked, color }: { icon: BrandIconName; label: string; unlocked: boolean; color: string }) {
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -89,7 +90,12 @@ function AchievementBadge({ icon, label, unlocked, color }: { icon: string; labe
           borderColor: unlocked ? color : COLORS.neutral.gray300,
         }
       ]}>
-        <Text style={[styles.badgeEmoji, !unlocked && styles.badgeEmojiLocked]}>{icon}</Text>
+        <BrandIcon
+          name={icon}
+          size={26}
+          color={unlocked ? color : COLORS.neutral.gray400}
+          weight={unlocked ? 'fill' : 'regular'}
+        />
       </View>
       <Text style={[styles.badgeLabel, !unlocked && styles.badgeLabelLocked]}>{label}</Text>
     </Animated.View>
@@ -172,7 +178,7 @@ function GoalProgressBar({ current, goal, label }: { current: number; goal: numb
       </View>
       {progress >= 100 && (
         <View style={styles.goalAchieved}>
-          <Ionicons name="checkmark-circle" size={16} color={COLORS.semantic.success} />
+          <BrandIcon name="checkCircle" size={16} color={COLORS.semantic.success} weight="fill" />
           <Text style={styles.goalAchievedText}>{t('stats.goalAchieved')}</Text>
         </View>
       )}
@@ -182,7 +188,7 @@ function GoalProgressBar({ current, goal, label }: { current: number; goal: numb
 
 // Stat Mini Card
 function StatMiniCard({ icon, value, label, color, delay = 0 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: BrandIconName;
   value: string | number;
   label: string;
   color: string;
@@ -212,7 +218,7 @@ function StatMiniCard({ icon, value, label, color, delay = 0 }: {
   return (
     <Animated.View style={[styles.miniCard, { opacity, transform: [{ scale }] }]}>
       <View style={[styles.miniCardIcon, { backgroundColor: hexToRgba(color, 0.12) }]}>
-        <Ionicons name={icon} size={20} color={color} />
+        <BrandIcon name={icon} size={20} color={color} />
       </View>
       <Text style={[styles.miniCardValue, { color }]}>{value}</Text>
       <Text style={styles.miniCardLabel}>{label}</Text>
@@ -347,7 +353,7 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
         {/* Center content */}
         <View style={styles.donutCenter}>
           <Text style={styles.donutTotal}>{total}</Text>
-          <Text style={styles.donutTotalLabel}>{t('common.foodItem_plural')}</Text>
+          <Text style={styles.donutTotalLabel}>{t('common.foodItem', { count: total })}</Text>
         </View>
       </View>
 
@@ -373,8 +379,14 @@ function ConsumptionDonutChart({ consumed, thrown }: { consumed: number; thrown:
       {/* Percentage indicator */}
       {total > 0 && (
         <View style={styles.donutPercentage}>
-          <Ionicons
-            name={consumedPercent >= 80 ? "trending-up" : consumedPercent >= 50 ? "remove" : "trending-down"}
+          <BrandIcon
+            name={
+              consumedPercent >= 80
+                ? 'trendUp'
+                : consumedPercent >= 50
+                ? 'minus'
+                : 'trendDown'
+            }
             size={14}
             color={consumedPercent >= 80 ? COLORS.semantic.success : consumedPercent >= 50 ? COLORS.accent.carrot : COLORS.accent.tomato}
           />
@@ -417,7 +429,7 @@ function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
       <PressableScale onPress={onPress} style={styles.premiumTeaser} activeScale={0.98}>
         <View style={styles.premiumTeaserGlow} />
         <View style={styles.premiumTeaserIcon}>
-          <Ionicons name="lock-closed" size={24} color={COLORS.primary[500]} />
+          <BrandIcon name="lock" size={24} color={COLORS.primary[500]} />
         </View>
         <View style={styles.premiumTeaserContent}>
           <Text style={styles.premiumTeaserTitle}>{t('stats.advancedStats')}</Text>
@@ -425,7 +437,7 @@ function PremiumTeaserCard({ onPress }: { onPress?: () => void }) {
             {t('stats.premiumTeaser')}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={24} color={COLORS.primary[500]} />
+        <BrandIcon name="chevronRight" size={24} color={COLORS.primary[500]} />
       </PressableScale>
     </Animated.View>
   );
@@ -540,11 +552,11 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
   const monthlyGoal = 50; // Goal: 50€ savings per month
 
   // Determine streak badges
-  const streakBadges = [
-    { icon: '🌱', label: t('stats.streakDays', { count: 3 }), threshold: 3, color: COLORS.accent.avocado },
-    { icon: '🔥', label: t('stats.streakDays', { count: 7 }), threshold: 7, color: COLORS.accent.carrot },
-    { icon: '⭐', label: t('stats.streakDays', { count: 14 }), threshold: 14, color: COLORS.accent.lemon },
-    { icon: '🏆', label: t('stats.streakDays', { count: 30 }), threshold: 30, color: COLORS.primary[500] },
+  const streakBadges: { icon: BrandIconName; label: string; threshold: number; color: string }[] = [
+    { icon: 'leaf', label: t('stats.streakDays', { count: 3 }), threshold: 3, color: COLORS.accent.avocado },
+    { icon: 'flame', label: t('stats.streakDays', { count: 7 }), threshold: 7, color: COLORS.accent.carrot },
+    { icon: 'star', label: t('stats.streakDays', { count: 14 }), threshold: 14, color: COLORS.accent.lemon },
+    { icon: 'trophy', label: t('stats.streakDays', { count: 30 }), threshold: 30, color: COLORS.primary[500] },
   ];
 
   return (
@@ -563,7 +575,7 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
         {/* Card En cours - séparée */}
         <View style={styles.activeItemsCard}>
           <View style={[styles.activeItemsIcon, { backgroundColor: hexToRgba(COLORS.accent.blueberry, 0.12) }]}>
-            <Ionicons name="cube-outline" size={24} color={COLORS.accent.blueberry} />
+            <BrandIcon name="cube" size={24} color={COLORS.accent.blueberry} />
           </View>
           <View style={styles.activeItemsContent}>
             <Text style={[styles.activeItemsValue, { color: COLORS.accent.blueberry }]}>{stats.itemsActive}</Text>
@@ -598,7 +610,7 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
       {!isPremium && (
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <PressableScale onPress={handleShare} style={styles.shareButton} activeScale={0.97}>
-            <Ionicons name="share-social" size={20} color={COLORS.neutral.white} />
+            <BrandIcon name="share" size={20} color={COLORS.neutral.white} />
             <View style={styles.shareButtonTextContainer}>
               <Text style={styles.shareButtonTitle}>{t('stats.shareRecap')}</Text>
               <Text style={styles.shareButtonSubtitle}>{t('stats.shareRecapSubtitle')}</Text>
@@ -634,7 +646,7 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
               <View style={styles.heroContent}>
                 <View style={styles.heroHeader}>
                   <View style={styles.heroIconContainer}>
-                    <Ionicons name="wallet" size={24} color={COLORS.neutral.white} />
+                    <BrandIcon name="wallet" size={24} color={COLORS.neutral.white} />
                   </View>
                   <Text style={styles.heroLabel}>{t('stats.totalSavings')}</Text>
                 </View>
@@ -643,12 +655,12 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
 
                 <View style={styles.heroSubStats}>
                   <View style={styles.heroSubStat}>
-                    <Ionicons name="trending-up" size={16} color={COLORS.semantic.success} />
+                    <BrandIcon name="trendUp" size={16} color={COLORS.semantic.success} />
                     <Text style={styles.heroSubStatText}>{t('stats.savedAmount', { amount: stats.totalSaved.toFixed(2) })}</Text>
                   </View>
                   <View style={styles.heroSubStatDivider} />
                   <View style={styles.heroSubStat}>
-                    <Ionicons name="trending-down" size={16} color={COLORS.accent.tomato} />
+                    <BrandIcon name="trendDown" size={16} color={COLORS.accent.tomato} />
                     <Text style={styles.heroSubStatText}>{t('stats.lostAmount', { amount: stats.totalWasted.toFixed(2) })}</Text>
                   </View>
                 </View>
@@ -698,7 +710,7 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
                 </View>
                 <Text style={styles.streakLabel}>{t('stats.noWasteDays')}</Text>
                 <View style={styles.streakRecord}>
-                  <Ionicons name="trophy" size={14} color={COLORS.accent.lemon} />
+                  <BrandIcon name="trophy" size={14} color={COLORS.accent.lemon} weight="fill" />
                   <Text style={styles.streakRecordText}>{t('stats.record', { count: stats.longestStreak })}</Text>
                 </View>
               </View>
@@ -754,7 +766,7 @@ export default function StatsDashboard({ onOpenPaywall, shareRef }: StatsDashboa
           {/* Share Recap Button - Premium: at the bottom */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <PressableScale onPress={handleShare} style={styles.shareButton} activeScale={0.97}>
-              <Ionicons name="share-social" size={20} color={COLORS.neutral.white} />
+              <BrandIcon name="share" size={20} color={COLORS.neutral.white} />
               <View style={styles.shareButtonTextContainer}>
                 <Text style={styles.shareButtonTitle}>{t('stats.shareRecap')}</Text>
                 <Text style={styles.shareButtonSubtitle}>{t('stats.shareRecapSubtitle')}</Text>
@@ -1061,12 +1073,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     marginBottom: 8,
-  },
-  badgeEmoji: {
-    fontSize: 24,
-  },
-  badgeEmojiLocked: {
-    opacity: 0.3,
   },
   badgeLabel: {
     ...TYPOGRAPHY.caption,

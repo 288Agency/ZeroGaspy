@@ -3,9 +3,7 @@
 // Attribution automatique d'icônes selon le nom
 // ============================================
 
-import { Ionicons } from '@expo/vector-icons';
-
-type IoniconsName = keyof typeof Ionicons.glyphMap;
+import { resolveBrandIcon, type BrandIconName } from '@/tokens/brandIcons';
 
 // ============================================
 // ICÔNES POUR LES ALIMENTS
@@ -13,7 +11,7 @@ type IoniconsName = keyof typeof Ionicons.glyphMap;
 
 interface FoodIconMapping {
   keywords: string[];
-  icon: IoniconsName;
+  icon: string;
   color?: string;
   category?: string;
 }
@@ -148,14 +146,14 @@ const FOOD_ICON_MAPPINGS: FoodIconMapping[] = [
   { keywords: ['épice', 'épices', 'cumin', 'curry', 'paprika'], icon: 'flame-outline', color: '#D97706', category: 'épicerie' },
 ];
 
-const DEFAULT_FOOD_ICON: IoniconsName = 'nutrition-outline';
+const DEFAULT_FOOD_ICON: BrandIconName = 'food';
 const DEFAULT_FOOD_COLOR = '#3C6E47';
 
 /**
  * Trouve l'icône appropriée pour un aliment
  */
 export function getFoodIcon(foodName: string): {
-  icon: IoniconsName;
+  icon: BrandIconName;
   color: string;
   category?: string;
 } {
@@ -172,7 +170,7 @@ export function getFoodIcon(foodName: string): {
 
   if (exactMatch) {
     return {
-      icon: exactMatch.icon,
+      icon: resolveBrandIcon(exactMatch.icon),
       color: exactMatch.color || DEFAULT_FOOD_COLOR,
       category: exactMatch.category,
     };
@@ -185,7 +183,7 @@ export function getFoodIcon(foodName: string): {
 
   if (partialMatch) {
     return {
-      icon: partialMatch.icon,
+      icon: resolveBrandIcon(partialMatch.icon),
       color: partialMatch.color || DEFAULT_FOOD_COLOR,
       category: partialMatch.category,
     };
@@ -201,7 +199,7 @@ export function getFoodIcon(foodName: string): {
 
 interface ListIconMapping {
   keywords: string[];
-  icon: IoniconsName;
+  icon: string;
   color?: string;
 }
 
@@ -256,14 +254,14 @@ const LIST_ICON_MAPPINGS: ListIconMapping[] = [
   { keywords: ['voyage'], icon: 'airplane-outline', color: '#0EA5E9' },
 ];
 
-const DEFAULT_LIST_ICON: IoniconsName = 'list-outline';
+const DEFAULT_LIST_ICON: BrandIconName = 'list';
 const DEFAULT_LIST_COLOR = '#3C6E47';
 
 /**
  * Trouve l'icône appropriée pour une liste
  */
 export function getListIcon(listName: string): {
-  icon: IoniconsName;
+  icon: BrandIconName;
   color: string;
 } {
   if (!listName) {
@@ -279,7 +277,7 @@ export function getListIcon(listName: string): {
 
   if (exactMatch) {
     return {
-      icon: exactMatch.icon,
+      icon: resolveBrandIcon(exactMatch.icon, 'list'),
       color: exactMatch.color || DEFAULT_LIST_COLOR,
     };
   }
@@ -291,7 +289,7 @@ export function getListIcon(listName: string): {
 
   if (partialMatch) {
     return {
-      icon: partialMatch.icon,
+      icon: resolveBrandIcon(partialMatch.icon, 'list'),
       color: partialMatch.color || DEFAULT_LIST_COLOR,
     };
   }
@@ -357,7 +355,7 @@ export function getAllCategories(): string[] {
  */
 export function getSuggestedFoodIcons(prefix: string, limit: number = 5): Array<{
   name: string;
-  icon: IoniconsName;
+  icon: BrandIconName;
   color: string;
   category?: string;
 }> {
@@ -368,7 +366,7 @@ export function getSuggestedFoodIcons(prefix: string, limit: number = 5): Array<
   const normalized = prefix.toLowerCase().trim();
   const suggestions: Array<{
     name: string;
-    icon: IoniconsName;
+    icon: BrandIconName;
     color: string;
     category?: string;
   }> = [];
@@ -378,7 +376,7 @@ export function getSuggestedFoodIcons(prefix: string, limit: number = 5): Array<
       if (keyword.startsWith(normalized) && suggestions.length < limit) {
         suggestions.push({
           name: keyword,
-          icon: mapping.icon,
+          icon: resolveBrandIcon(mapping.icon),
           color: mapping.color || DEFAULT_FOOD_COLOR,
           category: mapping.category,
         });

@@ -5,9 +5,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadLists } from '../utils/localStorage';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
+import { isActiveItem } from '../utils/foodItems';
+import { resolveItemLineValue } from './priceEstimateService';
 
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 const LAST_NOTIFICATION_CHECK_KEY = 'last_notification_check';
+
+/** Channels Android — doivent être créés ET passés dans chaque trigger. */
+export const ANDROID_CHANNEL = {
+  expiration: 'expiration',
+  daily: 'daily',
+} as const;
 
 // Configuration des notifications
 Notifications.setNotificationHandler({
@@ -34,6 +42,33 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   daysBeforeExpiration: 3,
 };
 
+/**
+ * Crée / met à jour les channels Android.
+ * Sans channelId sur le trigger, Android 8+ mute ou route vers le channel par défaut.
+ */
+export async function ensureAndroidNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL.expiration, {
+    name: "Alertes d'expiration",
+    description: 'Rappels quand un aliment arrive à expiration',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#3C6E47',
+    sound: 'default',
+    enableVibrate: true,
+    showBadge: true,
+  });
+
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL.daily, {
+    name: 'Rappels ZeroGaspy',
+    description: 'Rappel quotidien, dîner et bilan hebdo',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: 'default',
+    showBadge: true,
+  });
+}
+
 // Demander les permissions de notification
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Device.isDevice) {
@@ -54,22 +89,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     return false;
   }
 
-  // Configuration Android
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('expiration', {
-      name: 'Alertes d\'expiration',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#3C6E47',
-      sound: 'default',
-    });
-
-    await Notifications.setNotificationChannelAsync('daily', {
-      name: 'Rappel quotidien',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
-  }
+  await ensureAndroidNotificationChannels();
 
   return true;
 }
@@ -94,6 +114,9 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
     await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
     // Reprogrammer les notifications avec les nouveaux paramètres
     await scheduleExpirationNotifications();
+    if (settings.enabled) {
+      await refreshLocalSecondaryNotifications();
+    }
   } catch (error: any) {
     logger.error('Erreur lors de la sauvegarde des paramètres:', error.message);
   }
@@ -129,6 +152,8 @@ export async function scheduleExpirationNotifications(): Promise<void> {
     return;
   }
 
+  await ensureAndroidNotificationChannels();
+
   // Ne PAS cancelAll : ça effaçait dîner + weekly à chaque saveLists.
   await cancelExpirationRelatedNotifications();
 
@@ -144,7 +169,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
   // Collecter tous les aliments qui expirent bientôt
   lists.forEach((list) => {
     list.items.forEach((item) => {
-      if (item.status === 'consumed' || item.status === 'thrown') return;
+      if (!isActiveItem(item)) return;
 
       const days = getDaysUntilExpiration(item.expirationDate);
       if (days !== null && days >= 0 && days <= settings.daysBeforeExpiration) {
@@ -184,6 +209,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: 5,
+          channelId: ANDROID_CHANNEL.expiration,
         },
       });
     }
@@ -204,6 +230,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: hours,
           minute: minutes,
+          channelId: ANDROID_CHANNEL.daily,
         },
       });
     }
@@ -247,6 +274,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: triggerDate,
+        channelId: ANDROID_CHANNEL.expiration,
       },
     });
   }
@@ -264,6 +292,7 @@ export async function checkAndScheduleNotifications(): Promise<void> {
 
 // Envoyer une notification de test
 export async function sendTestNotification(): Promise<void> {
+  await ensureAndroidNotificationChannels();
   await Notifications.scheduleNotificationAsync({
     content: {
       title: '✅ Test réussi !',
@@ -273,6 +302,7 @@ export async function sendTestNotification(): Promise<void> {
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: 2,
+      channelId: ANDROID_CHANNEL.daily,
     },
   });
 }
@@ -294,7 +324,7 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
     const expiringItems: string[] = [];
     for (const list of lists) {
       for (const item of list.items) {
-        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        if (!isActiveItem(item)) continue;
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 3) {
           expiringItems.push(item.name);
@@ -335,6 +365,7 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 23 * 60 * 60,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 
@@ -360,36 +391,70 @@ export function addNotificationResponseListener(
 }
 
 const DINNER_NOTIFICATION_ID = 'dinner_reminder_daily';
+const WEEKLY_RECAP_NOTIF_ID = 'weekly_recap_sunday';
+
+/**
+ * Dîner + récap hebdo : replanifiés à chaque mutation d'inventaire.
+ * Sans ça, les guests (pas de push serveur) gardaient un contenu figé
+ * jusqu'au prochain cold start de l'app.
+ */
+export async function refreshLocalSecondaryNotifications(lang: string = 'fr'): Promise<void> {
+  try {
+    const settings = await loadNotificationSettings();
+    if (!settings.enabled) return;
+    await Promise.all([
+      scheduleDinnerReminderNotification(lang),
+      scheduleWeeklyRecapNotification(lang),
+    ]);
+  } catch (error) {
+    logger.error('refreshLocalSecondaryNotifications error:', error);
+  }
+}
 
 export async function scheduleDinnerReminderNotification(lang: string = 'fr'): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(DINNER_NOTIFICATION_ID).catch(() => {});
+    await ensureAndroidNotificationChannels();
 
     const lists = await loadLists();
     const expiring: Array<{ name: string; itemId: string; listId: string }> = [];
+    const anyItem: Array<{ name: string; itemId: string; listId: string }> = [];
 
     for (const list of lists) {
       for (const item of list.items) {
-        if (item.status === 'consumed' || item.status === 'thrown') continue;
+        if (!isActiveItem(item)) continue;
+        const entry = { name: item.name, itemId: item.id, listId: list.id };
+        anyItem.push(entry);
         const days = getDaysUntilExpiration(item.expirationDate);
         if (days !== null && days >= 0 && days <= 2) {
-          expiring.push({ name: item.name, itemId: item.id, listId: list.id });
+          expiring.push(entry);
         }
       }
     }
 
-    if (expiring.length === 0) return;
+    // Ce rappel ne partait QUE si quelque chose expirait sous 48 h. Or on
+    // remplit son frigo avec du frais : rien ne perime avant 4 ou 5 jours, donc
+    // il restait muet pendant toute la premiere semaine — exactement quand
+    // l'habitude se forme. Il part desormais des qu'il y a de quoi cuisiner, et
+    // ne mentionne l'urgence que lorsqu'elle existe reellement.
+    const source = expiring.length > 0 ? expiring : anyItem;
+    if (source.length === 0) return;
 
-    const first = expiring[0];
-    const others = expiring.length > 1 ? ` et ${expiring.length - 1} autre${expiring.length > 2 ? 's' : ''}` : '';
+    const isUrgent = expiring.length > 0;
+    const first = source[0];
+    const others = source.length > 1 ? ` et ${source.length - 1} autre${source.length > 2 ? 's' : ''}` : '';
 
     const title = lang === 'fr'
       ? '🍽️ Ce soir, mange ça !'
       : '🍽️ Tonight, use this!';
 
-    const body = lang === 'fr'
-      ? `${first.name}${others} expire${expiring.length > 1 ? 'nt' : ''} bientôt. Cuisiner ce soir ?`
-      : `${first.name}${others} expire${expiring.length > 1 ? '' : 's'} soon. Cook tonight?`;
+    const body = isUrgent
+      ? (lang === 'fr'
+        ? `${first.name}${others} expire${source.length > 1 ? 'nt' : ''} bientôt. Cuisiner ce soir ?`
+        : `${first.name}${others} expire${source.length > 1 ? '' : 's'} soon. Cook tonight?`)
+      : (lang === 'fr'
+        ? `Tu as ${first.name}${others} sous la main. On te trouve une recette ?`
+        : `You have ${first.name}${others} on hand. Want a recipe?`);
 
     await Notifications.scheduleNotificationAsync({
       identifier: DINNER_NOTIFICATION_ID,
@@ -408,6 +473,7 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
         hour: 17,
         minute: 0,
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 
@@ -416,8 +482,6 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
     logger.error('scheduleDinnerReminderNotification error:', error);
   }
 }
-
-const WEEKLY_RECAP_NOTIF_ID = 'weekly_recap_sunday';
 
 export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Promise<void> {
   try {
@@ -443,8 +507,7 @@ export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Prom
         if (!date || date < weekStart) continue;
         if (item.status === 'consumed') {
           consumedCount++;
-          const price = item.price && item.price > 0 ? item.price : 3.00;
-          savedAmount += price * (item.quantity || 1);
+          savedAmount += resolveItemLineValue(item);
         } else if (item.status === 'thrown') {
           thrownCount++;
         }
@@ -484,6 +547,7 @@ export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Prom
         weekday: 1, // 1 = dimanche
         hour: 20,
         minute: 0,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 

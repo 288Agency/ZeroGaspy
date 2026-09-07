@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface QuantityModalProps {
@@ -56,16 +57,16 @@ export default function QuantityModal({
     }
   };
 
-  const getIcon = (): keyof typeof Ionicons.glyphMap => {
+  const getIcon = (): BrandIconName => {
     switch (actionType) {
       case 'consumed':
-        return 'checkmark-circle-outline';
+        return 'checkCircle';
       case 'thrown':
-        return 'trash-outline';
+        return 'trash';
       case 'opened':
-        return 'open-outline';
+        return 'externalLink';
       default:
-        return 'help-outline';
+        return 'info';
     }
   };
 
@@ -100,6 +101,7 @@ export default function QuantityModal({
 
   const currentQty = parseInt(quantity, 10) || 0;
   const isValid = currentQty >= 1 && currentQty <= maxQuantity;
+  const actionIcon = getIcon();
 
   return (
     <AnimatedModal
@@ -113,7 +115,7 @@ export default function QuantityModal({
           <View
             style={[styles.iconCircle, { backgroundColor: `${getActionColor()}20` }]}
           >
-            <Ionicons name={getIcon()} size={32} color={getActionColor()} />
+            <BrandIcon name={actionIcon} size={32} color={getActionColor()} weight="fill" />
           </View>
           <Text style={styles.title}>
             Quelle quantité ?
@@ -126,7 +128,6 @@ export default function QuantityModal({
         {/* Quantity selector */}
         <View style={styles.selectorSection}>
           <View style={styles.selectorRow}>
-            {/* Decrement button */}
             <PressableScale
               onPress={decrementQuantity}
               disabled={currentQty <= 1}
@@ -136,14 +137,13 @@ export default function QuantityModal({
               ]}
               hapticType="light"
             >
-              <Ionicons
-                name="remove"
+              <BrandIcon
+                name="minus"
                 size={28}
                 color={currentQty <= 1 ? COLORS.neutral.grayDisabled : COLORS.primary[500]}
               />
             </PressableScale>
 
-            {/* Quantity input */}
             <View style={styles.inputContainer}>
               <TextInput
                 value={quantity}
@@ -154,7 +154,6 @@ export default function QuantityModal({
               />
             </View>
 
-            {/* Increment button */}
             <PressableScale
               onPress={incrementQuantity}
               disabled={currentQty >= maxQuantity}
@@ -164,15 +163,15 @@ export default function QuantityModal({
               ]}
               hapticType="light"
             >
-              <Ionicons
+              <BrandIcon
                 name="add"
                 size={28}
                 color={currentQty >= maxQuantity ? COLORS.neutral.grayDisabled : COLORS.primary[500]}
+                weight="bold"
               />
             </PressableScale>
           </View>
 
-          {/* "Tout" button */}
           {maxQuantity > 1 && (
             <PressableScale
               onPress={setAllQuantity}
@@ -188,7 +187,6 @@ export default function QuantityModal({
 
         {/* Actions */}
         <View style={styles.actions}>
-          {/* Bouton Valider */}
           <PressableScale
             onPress={handleConfirm}
             disabled={!isValid}
@@ -198,11 +196,7 @@ export default function QuantityModal({
             ]}
             hapticType="medium"
           >
-            <Ionicons
-              name={getIcon()}
-              size={20}
-              color={COLORS.neutral.white}
-            />
+            <BrandIcon name={actionIcon} size={20} color={COLORS.neutral.white} weight="fill" />
             <Text style={styles.confirmButtonText}>
               {currentQty === maxQuantity
                 ? `Tout marquer comme ${getActionLabel()}`
@@ -210,7 +204,6 @@ export default function QuantityModal({
             </Text>
           </PressableScale>
 
-          {/* Bouton Annuler */}
           <PressableScale
             onPress={onClose}
             style={styles.cancelButton}

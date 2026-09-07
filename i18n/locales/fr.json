@@ -364,6 +364,7 @@
     "aiGenerate": "Recette IA avec mes expirants",
     "aiGenerating": "Génération en cours...",
     "aiError": "Impossible de générer une recette IA. Réessaie plus tard.",
+    "deleteError": "Impossible de supprimer la recette. Veuillez réessayer.",
     "aiNoIngredients": "Aucun aliment expirant",
     "aiNoIngredientsHint": "Ajoute des aliments avec une date d'expiration proche pour générer une recette IA.",
     "antiWasteBadge": "Anti-gaspi",
@@ -1143,6 +1144,7 @@
   },
   "sharing": {
     "shareList": "Partager la liste",
+    "share": "Partager",
     "orShareCode": "ou partage un code",
     "createCode": "Créer un code de partage",
     "shareLink": "Partager le lien",

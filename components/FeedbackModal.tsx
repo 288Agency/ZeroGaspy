@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import { useTranslation } from 'react-i18next';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
@@ -176,7 +176,7 @@ export default function FeedbackModal({
                   style={styles.removeButton}
                   hapticType="light"
                 >
-                  <Ionicons name="close" size={12} color={COLORS.neutral.white} />
+                  <BrandIcon name="close" size={12} color={COLORS.neutral.white} weight="fill" />
                 </PressableScale>
               </View>
             ))}
@@ -187,7 +187,7 @@ export default function FeedbackModal({
                 style={styles.addImageButton}
                 hapticType="light"
               >
-                <Ionicons name="image-outline" size={20} color={COLORS.primary[500]} />
+                <BrandIcon name="image" size={20} color={COLORS.primary[500]} />
               </PressableScale>
             )}
           </View>

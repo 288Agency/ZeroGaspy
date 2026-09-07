@@ -10,7 +10,7 @@
 // Usage :
 //   const [open, setOpen] = useState(false);
 //   <BottomSheet visible={open} onClose={() => setOpen(false)} title="Ajouter">
-//     <SheetRow icon="barcode.viewfinder" label="Scanner code-barres" onPress={...} />
+//     <SheetRow icon="barcode" label="Scanner code-barres" onPress={...} />
 //     <SheetRow icon="camera" label="Photo de la date" onPress={...} />
 //   </BottomSheet>
 // ============================================================================
@@ -30,9 +30,10 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SymbolViewProps } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -174,7 +175,7 @@ export default function BottomSheet({
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface SheetRowProps {
-  icon?: SymbolViewProps['name'];
+  icon?: BrandIconName;
   label: string;
   trailing?: string;
   onPress?: () => void;
@@ -210,10 +211,10 @@ export function SheetRow({ icon, label, trailing, onPress, destructive, last }: 
             },
           ]}
         >
-          <SymbolView
+          <BrandIcon
             name={icon}
             size={18}
-            tintColor={destructive ? colors.feedback.danger.fg : colors.fg.primary}
+            color={destructive ? colors.feedback.danger.fg : colors.fg.primary}
           />
         </View>
       )}
@@ -234,7 +235,7 @@ export function SheetRow({ icon, label, trailing, onPress, destructive, last }: 
           {trailing}
         </Text>
       )}
-      <SymbolView name="chevron.right" size={14} tintColor={colors.fg.muted} />
+      <BrandIcon name="chevronRight" size={14} color={colors.fg.muted} />
     </Pressable>
   );
 }

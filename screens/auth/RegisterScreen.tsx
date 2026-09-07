@@ -12,7 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Haptics from 'expo-haptics';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTranslation } from 'react-i18next';
@@ -136,7 +136,7 @@ export default function RegisterScreen() {
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+          <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         </TouchableOpacity>
       </View>
 
@@ -155,7 +155,9 @@ export default function RegisterScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.fullName')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="user" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.namePlaceholder')}
@@ -171,7 +173,9 @@ export default function RegisterScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.email')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="envelope" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.emailPlaceholder')}
@@ -189,7 +193,9 @@ export default function RegisterScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="lock" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.minChars')}
@@ -203,8 +209,8 @@ export default function RegisterScreen() {
                 onPress={() => setShowPassword(!showPassword)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                <BrandIcon
+                  name={showPassword ? 'eyeSlash' : 'eye'}
                   size={20}
                   color={COLORS.text.muted}
                 />
@@ -238,7 +244,9 @@ export default function RegisterScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="lock" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.retypePassword')}
@@ -253,7 +261,9 @@ export default function RegisterScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.referralCodeLabel')}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="gift-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+              <View style={styles.inputIcon}>
+                <BrandIcon name="gift" size={20} color={COLORS.text.muted} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder={t('auth.referralCodePlaceholder')}
@@ -273,7 +283,7 @@ export default function RegisterScreen() {
             activeOpacity={0.7}
           >
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Ionicons name="checkmark" size={16} color={COLORS.neutral.white} />}
+              {acceptTerms && <BrandIcon name="check" size={16} color={COLORS.neutral.white} weight="bold" />}
             </View>
             <Text style={styles.checkboxText}>
               {t('auth.acceptTermsText')}{' '}

@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Configuration des clés API (stockées en tant que secrets Supabase)
 const MINDEE_API_KEY = Deno.env.get('MINDEE_API_KEY')
@@ -291,6 +292,32 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: false, error: 'Method not allowed. Use POST.' }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Authentification. Cette fonction consomme du credit Mindee / Google Vision :
+  // elle ne doit jamais etre appelable sans un utilisateur valide. La verification
+  // est faite ICI et non deleguee a la passerelle, pour rester independante de
+  // l'algorithme de signature des jetons (HS256 hier, ES256 aujourd'hui).
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Missing authorization header' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  const supabaseAnon = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  )
+
+  const { data: { user }, error: authError } = await supabaseAnon.auth.getUser()
+  if (authError || !user) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Invalid or expired token' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 

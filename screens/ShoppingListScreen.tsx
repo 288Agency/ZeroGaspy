@@ -19,13 +19,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage } from '@/tokens';
-import { Badge } from '@/components/ds';
+import { Badge, BrandIcon } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { Recipe, getAllRecipesWithUser } from '@/services/recipeService';
 import { loadLists } from '@/utils/localStorage';
@@ -158,7 +157,7 @@ export default function ShoppingListScreen() {
             { backgroundColor: colors.bg.surface, opacity: pressed ? 0.55 : 1 },
           ]}
         >
-          <SymbolView name="chevron.left" size={20} tintColor={colors.fg.primary} />
+          <BrandIcon name="chevronLeft" size={20} color={colors.fg.primary} />
         </Pressable>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={[styles.eyebrow, { color: colors.fg.secondary }]}>
@@ -182,10 +181,10 @@ export default function ShoppingListScreen() {
             },
           ]}
         >
-          <SymbolView
-            name="square.and.arrow.up"
+          <BrandIcon
+            name="share"
             size={20}
-            tintColor={items.length === 0 ? colors.fg.muted : Forest[600]}
+            color={items.length === 0 ? colors.fg.muted : Forest[600]}
           />
         </Pressable>
       </View>
@@ -193,7 +192,7 @@ export default function ShoppingListScreen() {
       {items.length === 0 ? (
         <View style={styles.empty}>
           <View style={[styles.emptyIcon, { backgroundColor: Sage[100] }]}>
-            <SymbolView name="cart" size={32} tintColor={Forest[600]} />
+            <BrandIcon name="cart" size={32} color={Forest[600]} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.fg.primary }]}>
             {t('shoppingList.emptyTitle')}
@@ -260,7 +259,7 @@ export default function ShoppingListScreen() {
                     },
                   ]}
                 >
-                  {item.checked && <SymbolView name="checkmark" size={12} tintColor="#fff" />}
+                  {item.checked && <BrandIcon name="check" size={12} color="#fff" weight="bold" />}
                 </View>
                 <Text
                   style={[

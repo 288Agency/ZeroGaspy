@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LIST_ICONS } from '../types';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS } from '../utils/designSystem';
+import { BrandIcon } from '@/components/ds';
+import { resolveBrandIcon } from '@/tokens/brandIcons';
+import { COLORS, SPACING } from '../utils/designSystem';
 
 interface IconPickerProps {
   selectedIcon: string;
@@ -63,10 +64,11 @@ export default function IconPicker({
                     elevation: isSelected ? 4 : 2,
                   }}
                 >
-                  <Ionicons
-                    name={icon.value as any}
+                  <BrandIcon
+                    name={resolveBrandIcon(icon.value, 'list')}
                     size={24}
                     color={isSelected ? COLORS.neutral.white : COLORS.neutral.grayMuted}
+                    weight={isSelected ? 'fill' : 'regular'}
                   />
                 </View>
                 <Text

@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
@@ -19,6 +21,7 @@ import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CookTonightScreen from '../screens/CookTonightScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import JoinListScreen from '../screens/JoinListScreen';
+import { TabBar } from '@/components/ds';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
 import { Forest } from '../tokens';
@@ -29,14 +32,18 @@ const Tab = createNativeBottomTabNavigator();
 const TOQUE_FILLED = require('../assets/icons/toque.png');
 const TOQUE_OUTLINE = require('../assets/icons/toque-outline.png');
 
-// Tab Navigator natif (UITabBar iOS 26 → Liquid Glass automatique).
-// 4 onglets fidèles au handoff : Accueil / Espaces / Recettes / Stats.
-// Le profil s'ouvre via l'avatar du Home (route stack `Account`), pas d'onglet.
+// iOS : tab bar native (SF Symbols + toque) → Liquid Glass / transparence.
+// Android : SF Symbols indisponibles → TabBar JS avec Phosphor (+ toque PNG).
 function MainTabs() {
   const { t } = useTranslation();
   return (
     <Tab.Navigator
       tabBarActiveTintColor={Forest[600]}
+      tabBar={
+        Platform.OS === 'android'
+          ? (props) => <TabBar {...(props as unknown as BottomTabBarProps)} />
+          : undefined
+      }
     >
       <Tab.Screen
         name="HomeTab"
@@ -59,7 +66,6 @@ function MainTabs() {
         component={RecipesScreen}
         options={{
           tabBarLabel: t('tabs.recipes'),
-          // Pas de toque dans SF Symbols → asset template maison (teinté par la tab bar).
           tabBarIcon: ({ focused }) => (focused ? TOQUE_FILLED : TOQUE_OUTLINE),
         }}
       />

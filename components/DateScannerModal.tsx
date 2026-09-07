@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Haptics from 'expo-haptics';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../config/supabase';
@@ -232,7 +232,7 @@ export default function DateScannerModal({
     if (!permission.granted) {
       return (
         <View style={styles.permissionContainer}>
-          <Ionicons name="camera-outline" size={64} color={COLORS.primary[500]} />
+          <BrandIcon name="camera" size={64} color={COLORS.primary[500]} />
           <Text style={styles.permissionTitle}>
             Accès à la caméra requis
           </Text>
@@ -286,7 +286,7 @@ export default function DateScannerModal({
               {loading ? (
                 <ActivityIndicator size="large" color={COLORS.neutral.white} />
               ) : (
-                <Ionicons name="camera" size={40} color={COLORS.neutral.white} />
+                <BrandIcon name="camera" size={40} color={COLORS.neutral.white} weight="fill" />
               )}
             </TouchableOpacity>
           </View>
@@ -297,7 +297,7 @@ export default function DateScannerModal({
           onPress={onClose}
           style={styles.closeButton}
         >
-          <Ionicons name="close" size={28} color={COLORS.neutral.white} />
+          <BrandIcon name="close" size={28} color={COLORS.neutral.white} weight="fill" />
         </TouchableOpacity>
 
         {/* Titre */}

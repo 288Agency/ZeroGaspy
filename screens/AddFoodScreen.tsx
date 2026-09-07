@@ -9,10 +9,9 @@
 //   1. TopBar       — Annuler · titre · Ajouter (disabled si name vide)
 //   2. Quick row    — Scan (barcode) · Photo · Date OCR (au lieu de Voix)
 //   3. Field        — Nom (autoFocus, input avec icône)
-//   4. Field        — Date péremption (DD/MM/YYYY)
-//   5. Row          — Quantité + Unité (chips horizontales)
-//   6. Grid         — Catégories visuelles (6 tuiles, bordure 2px accent)
-//   7. CTA          — "Ajouter à [liste]" (full-width, disabled si invalid)
+//   4. Field        — Date péremption (calendrier)
+//   5. Affiner       — qty / unité / prix / catégorie (replié par défaut)
+//   6. CTA          — "Ajouter à [liste]"
 //
 // Supporte le mode édition via route.params.editItem (prefill + appel
 // updateItem au lieu d'addItemToList).
@@ -31,7 +30,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView, SFSymbol } from 'expo-symbols';
+import { BrandIcon, type BrandIconName } from '@/components/ds';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -49,6 +48,9 @@ import type { FoodItem } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
 import { trackFoodAdded as analyticsTrackFoodAdded, trackFirstFoodAddedOnce } from '@/services/analytics';
+import { isValidPrice } from '@/utils/security';
+import { estimateUnitPrice } from '@/services/priceEstimateService';
+import { feedbackFoodAdded } from '@/services/actionFeedback';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constantes — catégories + unités (handoff vocab)
@@ -88,6 +90,17 @@ export default function AddFoodScreen() {
   const [quantity, setQuantity] = useState(String(editItem?.quantity ?? ''));
   const [unit, setUnit]         = useState(editItem?.unit ?? 'pcs');
   const [category, setCategory] = useState(editItem?.category ?? 'other');
+  const [price, setPrice] = useState(
+    editItem?.price != null && editItem.price > 0 ? String(editItem.price).replace('.', ',') : '',
+  );
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    if (!editItem) return false;
+    return (
+      (editItem.quantity != null && editItem.quantity > 1)
+      || (editItem.price != null && editItem.price > 0)
+      || (!!editItem.category && editItem.category !== 'other')
+    );
+  });
   const [imageUri, setImageUri] = useState<string | undefined>(editItem?.imageUri);
   const [listTitle, setListTitle] = useState<string>('');
 
@@ -111,6 +124,16 @@ export default function AddFoodScreen() {
   const handleSubmit = useCallback(async () => {
     if (!valid) return;
     const qtyParsed = parseInt(quantity, 10);
+    const priceRaw = price.trim().replace(',', '.');
+    let parsedPrice: number | undefined;
+    if (priceRaw.length > 0) {
+      const n = parseFloat(priceRaw);
+      if (!isValidPrice(n) || n <= 0) {
+        Alert.alert('Prix invalide', 'Indique un montant en euros (ex. 2,50) ou laisse vide.');
+        return;
+      }
+      parsedPrice = Math.round(n * 100) / 100;
+    }
     const itemBody: Partial<FoodItem> = {
       name: name.trim(),
       expirationDate: date.trim() || formatDateToDDMMYYYY(addDays(new Date(), 7)),
@@ -118,10 +141,15 @@ export default function AddFoodScreen() {
       unit: unit || undefined,
       category: category || undefined,
       imageUri: imageUri || undefined,
+      price: parsedPrice,
     };
     try {
       if (isEditing && editItem) {
-        await updateItem(listId, editItem.id, itemBody);
+        await updateItem(listId, editItem.id, {
+          ...itemBody,
+          // Effacer le prix si le champ est vidé
+          price: parsedPrice ?? null,
+        } as Partial<FoodItem>);
       } else {
         const newItem: FoodItem = {
           id: Date.now().toString(),
@@ -132,11 +160,12 @@ export default function AddFoodScreen() {
         };
         await addItemToList(listId, newItem);
         trackFoodAdded(listId);
+        feedbackFoodAdded(name.trim());
         try {
           analyticsTrackFoodAdded({
             category: itemBody.category,
             hasExpiryDate: !!date.trim(),
-            hasPrice: false,
+            hasPrice: parsedPrice != null,
             source: 'manual',
           });
           void trackFirstFoodAddedOnce();
@@ -147,7 +176,7 @@ export default function AddFoodScreen() {
       logger.error('[AddFoodV2] save failed:', err);
       Alert.alert('Erreur', "Impossible d'enregistrer l'aliment. Réessaie.");
     }
-  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, imageUri, navigation, trackFoodAdded]);
+  }, [valid, isEditing, editItem, listId, name, date, quantity, unit, category, price, imageUri, navigation, trackFoodAdded]);
 
   const handleBarcodeFound = useCallback(
     (product: { name: string; quantity?: string; category?: string; imageUrl?: string; brand?: string }) => {
@@ -235,9 +264,9 @@ export default function AddFoodScreen() {
       >
         {/* ── 1. Quick row : Scan / Photo / Date OCR ──────────────────── */}
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22 }}>
-          <QuickAction icon="barcode.viewfinder" label="Scan"  onPress={() => setBarcodeOpen(true)} />
-          <QuickAction icon="camera.fill"        label="Photo" onPress={handlePhoto} />
-          <QuickAction icon="calendar.badge.clock" label="Date" onPress={() => setDateScanOpen(true)} />
+          <QuickAction icon="barcode" label="Scan"  onPress={() => setBarcodeOpen(true)} />
+          <QuickAction icon="camera" label="Photo" onPress={handlePhoto} />
+          <QuickAction icon="clock" label="Date" onPress={() => setDateScanOpen(true)} />
         </View>
 
         {/* Image preview if set */}
@@ -258,7 +287,7 @@ export default function AddFoodScreen() {
 
         {/* ── 2. Nom ──────────────────────────────────────────────────── */}
         <FieldLabel>Nom de l'aliment</FieldLabel>
-        <FieldInputBox icon="cube.fill" accent={name.length > 0}>
+        <FieldInputBox icon="food" accent={name.length > 0}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -284,11 +313,32 @@ export default function AddFoodScreen() {
           minimumDate={new Date()}
         />
 
+        {!showAdvanced && !isEditing && (
+          <Pressable
+            onPress={() => setShowAdvanced(true)}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              marginBottom: 8,
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            <BrandIcon name="sliders" size={16} color={colors.accent.default} />
+            <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '600', color: colors.accent.default }}>
+              Affiner · quantité, catégorie, prix
+            </Text>
+          </Pressable>
+        )}
+
+        {showAdvanced && (
+          <>
         {/* ── 4. Quantité + Unité ─────────────────────────────────────── */}
         <FieldLabel>Quantité</FieldLabel>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
           <View style={{ flex: 1 }}>
-            <FieldInputBox icon="scalemass.fill">
+            <FieldInputBox icon="scales">
               <TextInput
                 value={quantity}
                 onChangeText={setQuantity}
@@ -322,6 +372,35 @@ export default function AddFoodScreen() {
             <UnitChip key={u} label={u} active={unit === u} onPress={() => setUnit(u)} />
           ))}
         </ScrollView>
+
+        {/* ── 4b. Prix (optionnel) ─────────────────────────────────────── */}
+        <FieldLabel>Prix (€) · optionnel</FieldLabel>
+        <FieldInputBox icon="euro" accent={price.length > 0}>
+          <TextInput
+            value={price}
+            onChangeText={setPrice}
+            placeholder={`≈ ${estimateUnitPrice(category).toFixed(2).replace('.', ',')} € estimés`}
+            placeholderTextColor={colors.fg.muted}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            style={{
+              flex: 1,
+              fontSize: 16,
+              color: colors.fg.primary,
+              padding: 0,
+            }}
+          />
+        </FieldInputBox>
+        <Text
+          style={{
+            fontSize: 12,
+            color: colors.fg.muted,
+            marginTop: -10,
+            marginBottom: 18,
+          }}
+        >
+          Laisse vide pour une estimation selon la catégorie.
+        </Text>
 
         {/* ── 5. Catégorie (grille visuelle) ──────────────────────────── */}
         <FieldLabel>Catégorie</FieldLabel>
@@ -360,6 +439,8 @@ export default function AddFoodScreen() {
             );
           })}
         </View>
+          </>
+        )}
 
         {/* ── 6. CTA "Ajouter à [liste]" ──────────────────────────────── */}
         <TouchableOpacity
@@ -418,7 +499,7 @@ function QuickAction({
   label,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   label: string;
   onPress: () => void;
 }) {
@@ -440,7 +521,7 @@ function QuickAction({
         ...elevation[1],
       }}
     >
-      <SymbolView name={icon} size={22} tintColor={colors.fg.primary} />
+      <BrandIcon name={icon} size={22} color={colors.fg.primary} />
       <Text
         style={{
           fontSize: 12,
@@ -483,7 +564,7 @@ function FieldInputBox({
   accent,
   children,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   accent?: boolean;
   children: React.ReactNode;
 }) {
@@ -500,10 +581,10 @@ function FieldInputBox({
         },
       ]}
     >
-      <SymbolView
+      <BrandIcon
         name={icon}
         size={18}
-        tintColor={accent ? colors.accent.default : colors.fg.tertiary}
+        color={accent ? colors.accent.default : colors.fg.tertiary}
       />
       {children}
     </View>

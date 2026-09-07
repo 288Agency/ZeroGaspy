@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { List, FoodItem } from '../types';
-import { scheduleExpirationNotifications } from '../services/notificationService';
+import { scheduleExpirationNotifications, refreshLocalSecondaryNotifications } from '../services/notificationService';
 import { sanitizeString, validateListTitle } from './security';
 import { formatDateToDDMMYYYY, parseDDMMYYYY } from './dateUtils';
 import { addToSyncQueue, syncWithCloud } from '../services/supabase/syncService';
@@ -126,8 +126,26 @@ export async function loadLists(): Promise<List[]> {
 export async function saveLists(lists: List[]): Promise<void> {
   await AsyncStorage.setItem(LISTS_KEY, JSON.stringify(lists));
   scheduleExpirationNotifications().catch((e) => logger.error('Erreur notifications:', e.message));
+  // Guests n'ont pas de push serveur : dîner + weekly doivent suivre l'inventaire
+  refreshLocalSecondaryNotifications().catch((e) =>
+    logger.error('Erreur notifs secondaires:', e.message),
+  );
   // Mettre à jour les données du widget
   updateWidgetData().catch((e) => logger.error('Erreur widget data:', e.message));
+}
+
+/**
+ * Id local d'une liste. Doit rester purement numerique : la sync distingue les
+ * ids locaux des UUID cloud par la presence d'un tiret (cf. `isUUID` dans
+ * syncService / listSharingService), donc pas de suffixe aleatoire ici.
+ * Deux listes creees dans la meme milliseconde partageaient le meme id, ce qui
+ * faisait supprimer les deux d'un coup par `deleteList`.
+ */
+function generateLocalListId(existing: List[]): string {
+  const taken = new Set(existing.map((list) => list.id));
+  let candidate = Date.now();
+  while (taken.has(String(candidate))) candidate += 1;
+  return String(candidate);
 }
 
 export async function createList(title: string, color?: string, icon?: string): Promise<List> {
@@ -138,7 +156,7 @@ export async function createList(title: string, color?: string, icon?: string): 
 
   const lists = await loadLists();
   const newList: List = {
-    id: Date.now().toString(),
+    id: generateLocalListId(lists),
     title: sanitizeString(title, 50),
     createdAt: new Date().toISOString(),
     items: [],

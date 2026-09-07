@@ -34,7 +34,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { Badge, PaywallSheet, TAB_BAR_SAFE_PADDING, BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { RECIPE_CATEGORY_ICONS } from '@/tokens/brandIcons';
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +45,6 @@ import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } fr
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Sage, Forest, Cream } from '@/tokens';
-import { Badge, PaywallSheet, TAB_BAR_SAFE_PADDING } from '@/components/ds';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -65,6 +66,7 @@ import { trackRecipeViewed as analyticsTrackRecipeViewed } from '@/services/anal
 import type { FoodItem, List } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
+import { countActiveItems } from '@/utils/foodItems';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Recipes'>;
 type Rt = RouteProp<RootStackParamList, 'Recipes'>;
@@ -78,14 +80,7 @@ const FREE_SUGGESTED_LIMIT = 2;
 // Mapping catégorie → icône SF Symbol + couleur d'accent
 // ────────────────────────────────────────────────────────────────────────────
 
-const CATEGORY_ICON: Record<Recipe['category'], SFSymbol> = {
-  'petit-déjeuner': 'sun.max.fill',
-  'plat':           'fork.knife',
-  'entrée':         'leaf.fill',
-  'dessert':        'birthday.cake.fill',
-  'snack':          'cup.and.saucer.fill',
-  'boisson':        'wineglass.fill',
-};
+const CATEGORY_ICON = RECIPE_CATEGORY_ICONS;
 
 const CATEGORY_TONE: Record<Recipe['category'], 'success' | 'warning' | 'info' | 'reward' | 'neutral'> = {
   'petit-déjeuner': 'reward',
@@ -214,7 +209,7 @@ export default function RecipesScreen() {
   const totalIngredients = useMemo(
     () =>
       lists.reduce((sum, list) => {
-        return sum + list.items.filter((it) => it.status !== 'consumed' && it.status !== 'thrown').length;
+        return sum + countActiveItems(list);
       }, 0),
     [lists],
   );
@@ -335,16 +330,16 @@ export default function RecipesScreen() {
   }, [isPremium, lists, t, user?.id, loadData, navigation]);
 
   // ── Filters config ───────────────────────────────────────────────────────
-  const filters: Array<{ key: FilterKey; label: string; icon: SFSymbol }> = useMemo(
+  const filters: Array<{ key: FilterKey; label: string; icon: BrandIconName }> = useMemo(
     () => [
-      { key: 'all', label: t('recipes.all'), icon: 'square.grid.2x2.fill' },
-      { key: 'user', label: t('recipes.myRecipes'), icon: 'person.fill' },
-      { key: 'petit-déjeuner', label: t('recipes.breakfast'), icon: 'sun.max.fill' },
-      { key: 'plat', label: t('recipes.mainDishes'), icon: 'fork.knife' },
-      { key: 'entrée', label: t('recipes.starters'), icon: 'leaf.fill' },
-      { key: 'dessert', label: t('recipes.desserts'), icon: 'birthday.cake.fill' },
-      { key: 'snack', label: t('recipes.snacks'), icon: 'cup.and.saucer.fill' },
-      { key: 'boisson', label: t('recipes.drinks'), icon: 'wineglass.fill' },
+      { key: 'all', label: t('recipes.all'), icon: 'grid' },
+      { key: 'user', label: t('recipes.myRecipes'), icon: 'user' },
+      { key: 'petit-déjeuner', label: t('recipes.breakfast'), icon: 'breakfast' },
+      { key: 'plat', label: t('recipes.mainDishes'), icon: 'cook' },
+      { key: 'entrée', label: t('recipes.starters'), icon: 'leaf' },
+      { key: 'dessert', label: t('recipes.desserts'), icon: 'cake' },
+      { key: 'snack', label: t('recipes.snacks'), icon: 'coffee' },
+      { key: 'boisson', label: t('recipes.drinks'), icon: 'drink' },
     ],
     [t],
   );
@@ -535,7 +530,7 @@ function TopBar({
         {aiLoading ? (
           <ActivityIndicator size="small" color={Forest[600]} />
         ) : (
-          <SymbolView name="sparkles" size={20} tintColor={Forest[600]} />
+          <BrandIcon name="sparkle" size={20} color={Forest[600]} />
         )}
         {!isPremium && (
           <View style={[styles.proDot, { backgroundColor: Forest[600] }]} />
@@ -551,7 +546,7 @@ function TopBar({
           { backgroundColor: Forest[600], opacity: pressed ? 0.75 : 1 },
         ]}
       >
-        <SymbolView name="plus" size={20} tintColor={Cream[50]} />
+        <BrandIcon name="add" size={20} color={Cream[50]} weight="bold" />
       </Pressable>
     </View>
   );
@@ -576,7 +571,7 @@ function StatsPill({
         },
       ]}
     >
-      <SymbolView name="leaf.fill" size={14} tintColor={Forest[600]} />
+      <BrandIcon name="leaf" size={14} color={Forest[600]} weight="fill" />
       <Text style={[styles.statsPillText, { color: colors.fg.primary }]}>
         {t('recipes.availableCount', { count: ingredients })}
       </Text>
@@ -594,7 +589,7 @@ function FilterChip({
   active,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -614,10 +609,11 @@ function FilterChip({
         },
       ]}
     >
-      <SymbolView
+      <BrandIcon
         name={icon}
         size={14}
-        tintColor={active ? Cream[50] : colors.fg.secondary}
+        color={active ? Cream[50] : colors.fg.secondary}
+        weight={active ? 'fill' : 'regular'}
       />
       <Text
         style={[
@@ -647,7 +643,7 @@ function SortSegment({
     label,
   }: {
     value: SortMode;
-    icon: SFSymbol;
+    icon: BrandIconName;
     label: string;
   }) => {
     const isActive = mode === value;
@@ -664,10 +660,11 @@ function SortSegment({
           isActive && styles.segmentItemShadow,
         ]}
       >
-        <SymbolView
+        <BrandIcon
           name={icon}
           size={13}
-          tintColor={isActive ? Forest[600] : colors.fg.secondary}
+          color={isActive ? Forest[600] : colors.fg.secondary}
+          weight={isActive ? 'fill' : 'regular'}
         />
         <Text
           style={[
@@ -688,8 +685,8 @@ function SortSegment({
         { backgroundColor: colors.bg.sunken, borderRadius: radius.lg },
       ]}
     >
-      <Segment value="antiWaste" icon="flame.fill" label={t('recipes.sortAntiWaste')} />
-      <Segment value="bestMatch" icon="checkmark.circle.fill" label={t('recipes.sortBestMatch')} />
+      <Segment value="antiWaste" icon="flame" label={t('recipes.sortAntiWaste')} />
+      <Segment value="bestMatch" icon="checkCircle" label={t('recipes.sortBestMatch')} />
     </View>
   );
 }
@@ -847,28 +844,22 @@ function MetaChip({
   label,
   tone,
 }: {
-  icon: SFSymbol;
+  icon: BrandIconName;
   label: string;
   tone: 'success' | 'warning' | 'info' | 'reward' | 'neutral';
 }) {
   return (
-    <Badge tone={tone} variant="soft" dot={false}>
-      <SymbolView
-        name={icon}
-        size={10}
-        tintColor={undefined}
-        style={{ marginRight: 4 }}
-      />
+    <Badge tone={tone} variant="soft" dot={false} icon={icon}>
       {label}
     </Badge>
   );
 }
 
-function MetaInline({ icon, label }: { icon: SFSymbol; label: string }) {
+function MetaInline({ icon, label }: { icon: BrandIconName; label: string }) {
   const { colors } = useTheme();
   return (
     <View style={styles.metaInline}>
-      <SymbolView name={icon} size={12} tintColor={colors.fg.secondary} />
+      <BrandIcon name={icon} size={12} color={colors.fg.secondary} />
       <Text style={[styles.metaInlineText, { color: colors.fg.secondary }]}>{label}</Text>
     </View>
   );
@@ -934,7 +925,7 @@ function PremiumTeaser({
         style={[StyleSheet.absoluteFill, { borderRadius: componentRadius.card }]}
       />
       <View style={styles.teaserIcon}>
-        <SymbolView name="sparkles" size={28} tintColor={Forest[600]} />
+        <BrandIcon name="sparkle" size={28} color={Forest[600]} />
       </View>
       <View style={styles.teaserBody}>
         <View style={styles.teaserBadge}>
@@ -952,7 +943,7 @@ function PremiumTeaser({
           })}
         </Text>
       </View>
-      <SymbolView name="chevron.right" size={18} tintColor={colors.fg.tertiary} />
+      <BrandIcon name="chevronRight" size={18} color={colors.fg.tertiary} />
     </Pressable>
   );
 }

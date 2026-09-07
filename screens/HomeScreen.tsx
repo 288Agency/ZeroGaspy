@@ -10,10 +10,10 @@
 //   4. À surveiller — WatchGroups dépliables (À consommer / Bientôt / Cette
 //                    semaine) avec vignettes catégorie + compteur ; corps =
 //                    ProductCard DS avec actions inline ✓/🗑
-//   5. cook-card   — nudge « Idée du soir » → CookTonight
+//   5. cook-card   — retirée (CTA hero suffit → CookTonight)
 //
-// Features hors-maquette CONSERVÉES sous la cook-card (aucune perte) :
-//   WeeklyChallengeCard · MealPlanner CTA · ReferralCard · WeeklyRecapModal.
+// Secondaire regroupé en bas (« Explorer ») : défis, meal planner.
+// Retiré du scroll principal : WeeklyChallengeCard, ReferralCard (→ Compte).
 //
 // AUCUNE logique/donnée touchée : mêmes `loadLists()` + `calculateUserStats()`
 // + `getMonthlySavings()` au focus, mêmes `markItemConsumed`/`markItemThrown`,
@@ -31,7 +31,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
+import { BrandIcon, type BrandIconName } from '@/components/ds';
 import FoodEmoji from '@/components/FoodEmoji';
 import Gaspie from '@/components/Gaspie';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,7 +42,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Forest, Sage, Cream } from '@/tokens';
 import { ProductCard } from '@/components/ds';
-import { useAuth } from '@/contexts/AuthContext';
 import { useGamification } from '@/contexts/GamificationContext';
 import {
   loadLists,
@@ -53,6 +52,7 @@ import {
 import { getDaysUntilExpiration } from '@/utils/dateUtils';
 import { calculateUserStats } from '@/services/statsService';
 import { getMonthlySavings } from '@/services/monthlySavingsService';
+import { resolveItemLineValue } from '@/services/priceEstimateService';
 import type { List, UserStats } from '@/types';
 import type { RootStackParamList } from '@/types/navigation';
 import logger from '@/utils/logger';
@@ -61,11 +61,11 @@ import {
   trackFoodThrown as analyticsTrackFoodThrown,
   trackSavingsCardViewed,
 } from '@/services/analytics';
+import { feedbackFoodConsumed, feedbackFoodThrown } from '@/services/actionFeedback';
 
 // Composants legacy conservés (hors-maquette, palette héritée)
-import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
-import ReferralCard from '@/components/ReferralCard';
 import WeeklyRecapModal from '@/components/WeeklyRecapModal';
+import { isActiveItem } from '@/utils/foodItems';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Modèle interne — flatten d'items rattachés à leur liste source
@@ -79,6 +79,9 @@ type LiveFood = {
   daysLeft: number;
   category?: string;
   imageUri?: string;
+  quantity?: number;
+  /** Total ligne (€) si saisi / ticket ; sinon estimation catégorie. */
+  price?: number;
 };
 
 type LiveSpace = {
@@ -124,7 +127,7 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
   const out: LiveFood[] = [];
   for (const list of lists) {
     for (const item of list.items) {
-      if (item.status === 'consumed' || item.status === 'thrown') continue;
+      if (!isActiveItem(item)) continue;
       const days = getDaysUntilExpiration(item.expirationDate);
       // Date manquante : visible quand même (évite les aliments "fantômes")
       const daysLeft = days == null ? 7 : days;
@@ -138,6 +141,8 @@ function flattenLiveFoods(lists: List[]): LiveFood[] {
         daysLeft,
         category: item.category,
         imageUri: item.imageUri,
+        quantity: qty,
+        price: item.price,
       });
     }
   }
@@ -182,8 +187,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoutePropT>();
-  const { user } = useAuth();
-  const { challengesState, gamificationData, trackFoodConsumed, trackFoodThrown } = useGamification();
+  const { challengesState, trackFoodConsumed, trackFoodThrown } = useGamification();
 
   const [lists, setLists] = useState<List[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -198,8 +202,6 @@ export default function HomeScreen() {
       navigation.setParams({ showWeeklyRecap: undefined } as any);
     }
   }, [route.params?.showWeeklyRecap, navigation]);
-
-  const hasBadges = (gamificationData?.badges?.length ?? 0) >= 1;
 
   const refresh = useCallback(async () => {
     try {
@@ -249,10 +251,19 @@ export default function HomeScreen() {
   const thrown = stats?.itemsThrown ?? 0;
   const hasWasteHistory = consumed + thrown > 0;
   const score = hasWasteHistory ? Math.round((consumed / (consumed + thrown)) * 100) : 0;
-  const savedEurosLabel =
-    monthlySaved > 0 && monthlySaved < 10 && !Number.isInteger(monthlySaved)
-      ? monthlySaved.toFixed(1).replace('.', ',')
-      : String(Math.round(monthlySaved));
+  const formatEuros = (value: number): string =>
+    value > 0 && value < 10 && !Number.isInteger(value)
+      ? value.toFixed(1).replace('.', ',')
+      : String(Math.round(value));
+
+  const savedEurosLabel = formatEuros(monthlySaved);
+
+  // Tant qu'on n'a rien economise, « 0 € » contredit la promesse d'onboarding
+  // (« ~50 €/mois ») au moment ou l'utilisateur est le plus sceptique. La valeur
+  // de ce qu'il y a DANS le frigo est vraie immediatement, et ce qu'on risque de
+  // perdre pese plus lourd que ce qu'on a deja gagne.
+  const fridgeValue = foods.reduce((total, f) => total + resolveItemLineValue(f), 0);
+  const showFridgeValue = monthlySaved <= 0 && fridgeValue > 0;
 
   // ── Handlers (inchangés) ───────────────────────────────────────────────────
   const handlePressItem = useCallback((itemId: string) => {
@@ -273,6 +284,24 @@ export default function HomeScreen() {
     trackSavingsCardViewed(monthlySaved);
     navigation.navigate('Stats');
   }, [navigation, monthlySaved]);
+
+  // Saisir 18 aliments a la main, c'est ce que nos utilisateurs ont fait — et
+  // c'est aussi le plafond : personne ne recommence apres les courses suivantes.
+  // Le scan de ticket remplit le frigo en une action ; il merite le CTA, pas une
+  // icone dans une barre.
+  const handleScanReceipt = useCallback(async () => {
+    try {
+      const list = lists[0] ?? (await ensureDefaultList());
+      navigation.navigate('InventoryList', {
+        listId: list.id,
+        listTitle: list.title,
+        listColor: list.color,
+        openReceiptScanner: true,
+      });
+    } catch (err) {
+      logger.error('[Home] handleScanReceipt failed:', err);
+    }
+  }, [lists, navigation]);
 
   const handleFillFridge = useCallback(async () => {
     try {
@@ -298,6 +327,7 @@ export default function HomeScreen() {
     try {
       await markItemConsumed(f.listId, itemId);
       const beforeExpiration = f.daysLeft >= 0;
+      feedbackFoodConsumed(f.name, beforeExpiration);
       trackFoodConsumed(beforeExpiration);
       analyticsTrackFoodConsumed({
         category: f.category,
@@ -315,6 +345,7 @@ export default function HomeScreen() {
     if (!f) return;
     try {
       await markItemThrown(f.listId, itemId);
+      feedbackFoodThrown(f.name);
       trackFoodThrown();
       analyticsTrackFoodThrown({
         category: f.category,
@@ -330,6 +361,12 @@ export default function HomeScreen() {
   const hasUrgent = urgents.length > 0;
   // Frigo vraiment vide (aucun aliment actif) ≠ « tout est frais ».
   const isFridgeEmpty = foods.length === 0;
+
+  // « Cuisiner ce soir » etait conditionne a l'urgence, donc muet pendant les
+  // premiers jours — on remplit son frigo avec du frais, rien ne perime avant
+  // 4 ou 5 jours, et l'app n'avait rien a dire pile quand l'habitude se forme.
+  // L'alarme de peremption fait revenir ; la suggestion du soir cree l'habitude.
+  const canCookTonight = !isFridgeEmpty;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg.canvas }]}>
@@ -354,7 +391,7 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.avatar}
           >
-            <SymbolView name="person.fill" size={17} tintColor="#fff" />
+            <BrandIcon name="user" size={17} color="#fff" weight="fill" />
           </LinearGradient>
         </Pressable>
       </View>
@@ -387,8 +424,8 @@ export default function HomeScreen() {
                   </>
                 ) : hasUrgent ? (
                   <>
-                    {urgents.length} aliment{urgents.length > 1 ? 's' : ''} à{'\n'}consommer{' '}
-                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>vite.</Text>
+                    {urgents.length} idée{urgents.length > 1 ? 's' : ''} pour{'\n'}ce{' '}
+                    <Text style={[styles.heroTitle, typography.serifItalic, { color: Cream[50] }]}>soir.</Text>
                   </>
                 ) : (
                   <>
@@ -399,17 +436,18 @@ export default function HomeScreen() {
               </Text>
 
               <Pressable
-                onPress={isFridgeEmpty ? handleFillFridge : hasUrgent ? handleCookTonight : handleSeeList}
+                onPress={canCookTonight ? handleCookTonight : handleScanReceipt}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.heroCta, { opacity: pressed ? 0.8 : 1 }]}
               >
-                <SymbolView
-                  name={isFridgeEmpty ? 'plus' : hasUrgent ? 'book.closed.fill' : 'arrow.right'}
+                <BrandIcon
+                  name={canCookTonight ? 'cook' : 'receipt'}
                   size={14}
-                  tintColor="#fff"
+                  color="#fff"
+                  weight="fill"
                 />
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
-                  {isFridgeEmpty ? 'Ajouter des aliments' : hasUrgent ? 'Cuisiner ce soir' : 'Voir la liste'}
+                  {canCookTonight ? 'Cuisiner ce soir' : 'Scanner mon ticket'}
                 </Text>
               </Pressable>
             </View>
@@ -450,8 +488,12 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.heroStats, { opacity: pressed ? 0.85 : 1 }]}
           >
             <View style={styles.fhs}>
-              <Text style={[styles.fhsNum, styles.fhsNumHero]}>{savedEurosLabel} €</Text>
-              <Text style={styles.fhsLabel}>économisés ce mois</Text>
+              <Text style={[styles.fhsNum, styles.fhsNumHero]}>
+                {showFridgeValue ? formatEuros(fridgeValue) : savedEurosLabel} €
+              </Text>
+              <Text style={styles.fhsLabel}>
+                {showFridgeValue ? 'dans ton frigo' : 'économisés ce mois'}
+              </Text>
             </View>
             <View style={[styles.fhs, styles.fhsDivider]}>
               <Text style={styles.fhsNum}>{thrown}</Text>
@@ -513,14 +555,14 @@ export default function HomeScreen() {
                     { backgroundColor: Forest[600], opacity: pressed ? 0.85 : 1 },
                   ]}
                 >
-                  <SymbolView name="plus" size={14} tintColor="#fff" />
+                  <BrandIcon name="add" size={14} color="#fff" weight="bold" />
                   <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Commencer</Text>
                 </Pressable>
               </>
             ) : (
               <>
                 <View style={[styles.emptyIcon, { backgroundColor: Sage[200] }]}>
-                  <SymbolView name="checkmark" size={26} tintColor={Forest[600]} />
+                  <BrandIcon name="check" size={26} color={Forest[600]} weight="bold" />
                 </View>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: colors.fg.primary, letterSpacing: -0.3 }}>
                   Tout est frais
@@ -535,7 +577,7 @@ export default function HomeScreen() {
           <>
             <WatchGroup
               tone="urgent"
-              title="À consommer"
+              title="À utiliser"
               subtitle="Aujourd'hui ou demain"
               items={feedUrgent}
               defaultOpen
@@ -564,63 +606,30 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* ── cook-card ───────────────────────────────────────────────── */}
-        {hasUrgent && (
-          <Pressable
-            onPress={handleCookTonight}
-            accessibilityRole="button"
-            accessibilityLabel="Idée du soir"
-            style={({ pressed }) => [
-              styles.cookCard,
-              {
-                backgroundColor: colors.accent.soft,
-                borderColor: colors.accent.border,
-                borderRadius: componentRadius.card,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <View style={[styles.cookThumb, { backgroundColor: colors.accent.default }]}>
-              <SymbolView name="book.closed.fill" size={22} tintColor="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.sectionLabel, { color: Forest[600], fontSize: 11 }]}>Idée du soir</Text>
-              <Text style={{ fontSize: 16, fontWeight: '700', letterSpacing: -0.3, marginTop: 3, color: colors.fg.primary }}>
-                Une recette pour tes urgents
-              </Text>
-              <Text style={[typography.footnote, { color: colors.fg.secondary, marginTop: 2 }]}>
-                Sauve {urgents.length} aliment{urgents.length > 1 ? 's' : ''} avant péremption
-              </Text>
-            </View>
-            <SymbolView name="chevron.right" size={18} tintColor={colors.fg.muted} />
-          </Pressable>
-        )}
-
-        {/* ── Features hors-maquette conservées ───────────────────────── */}
-        {challengesState && (
-          <View style={{ marginTop: layout.sectionGap }}>
-            <WeeklyChallengeCard challengesState={challengesState} />
-          </View>
-        )}
-
-        <Pressable
-          onPress={() => navigation.navigate('MealPlanner')}
-          accessibilityRole="button"
-          accessibilityLabel="Planifier les repas de la semaine"
-          style={({ pressed }) => [styles.plannerGhost, { opacity: pressed ? 0.55 : 1 }]}
-        >
-          <SymbolView name="calendar" size={18} tintColor={colors.fg.secondary} />
-          <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
-            Planifier les repas
+        {/* ── Explorer (secondaire, hors du chemin voir → décider → agir) ─ */}
+        <View style={[styles.moreSection, { marginTop: layout.sectionGap }]}>
+          <Text style={[typography.sectionLabel, { color: colors.fg.tertiary, marginBottom: 10 }]}>
+            Explorer
           </Text>
-          <SymbolView name="chevron.right" size={13} tintColor={colors.fg.muted} />
-        </Pressable>
-
-        {user && hasBadges && (
-          <View style={{ marginTop: 12 }}>
-            <ReferralCard userId={user.id} hasBadges={true} />
-          </View>
-        )}
+          {challengesState && (
+            <MoreLink
+              icon="trophy"
+              label="Défis de la semaine"
+              hint={`${challengesState.challenges.filter((c) => c.completed).length}/${challengesState.challenges.length}`}
+              onPress={() => navigation.navigate('Challenges')}
+            />
+          )}
+          <MoreLink
+            icon="calendar"
+            label="Planifier les repas"
+            onPress={() => navigation.navigate('MealPlanner')}
+          />
+          <MoreLink
+            icon="chart"
+            label="Mon impact"
+            onPress={handleOpenStats}
+          />
+        </View>
       </ScrollView>
 
       <WeeklyRecapModal visible={recapVisible} onClose={() => setRecapVisible(false)} />
@@ -631,6 +640,45 @@ export default function HomeScreen() {
 // ────────────────────────────────────────────────────────────────────────────
 // Atoms locaux
 // ────────────────────────────────────────────────────────────────────────────
+
+function MoreLink({
+  icon,
+  label,
+  hint,
+  onPress,
+}: {
+  icon: BrandIconName;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.moreLink,
+        {
+          borderColor: colors.border.default,
+          backgroundColor: colors.bg.surface,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <BrandIcon name={icon} size={17} color={colors.fg.secondary} />
+      <Text style={{ flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500', color: colors.fg.primary }}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.fg.tertiary, marginRight: 6 }}>
+          {hint}
+        </Text>
+      ) : null}
+      <BrandIcon name="chevronRight" size={12} color={colors.fg.muted} />
+    </Pressable>
+  );
+}
 
 function SegPill({
   label,
@@ -756,7 +804,7 @@ function WatchGroup({
           ]}
         >
           {open ? (
-            <SymbolView name="chevron.down" size={16} tintColor={colors.fg.tertiary} />
+            <BrandIcon name="chevronDown" size={16} color={colors.fg.tertiary} />
           ) : (
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{items.length}</Text>
           )}
@@ -909,16 +957,15 @@ const styles = StyleSheet.create({
   },
   wgroupBody: { paddingHorizontal: 8, paddingBottom: 8, gap: 8 },
 
-  // cook-card
-  cookCard: {
+  moreSection: { gap: 6, paddingBottom: 8 },
+  moreLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 14,
-    marginTop: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     borderWidth: 1,
   },
-  cookThumb: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 
   // empty
   empty: { borderWidth: 1, alignItems: 'center', paddingVertical: 32, paddingHorizontal: 20 },
@@ -931,13 +978,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 999,
-  },
-
-  plannerGhost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginTop: 6,
   },
 });

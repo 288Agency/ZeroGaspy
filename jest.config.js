@@ -24,6 +24,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
+    '^phosphor-react-native$': '<rootDir>/__mocks__/phosphor-react-native.js',
     '\\.(png|jpg|jpeg|gif|webp|svg|ttf|otf)$': '<rootDir>/__mocks__/fileMock.js',
   },
 };

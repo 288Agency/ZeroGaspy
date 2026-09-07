@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import PressableScale from './PressableScale';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import { COLORS, SPACING, RADIUS, hexToRgba } from '../utils/designSystem';
 
 interface UnitSelectorProps {
@@ -11,12 +12,12 @@ interface UnitSelectorProps {
   style?: any;
 }
 
-const UNITS = [
-  { value: 'g', label: 'Grammes (g)', icon: 'scale-outline' },
-  { value: 'kg', label: 'Kilos (kg)', icon: 'scale-outline' },
-  { value: 'mL', label: 'Millilitres (mL)', icon: 'water-outline' },
-  { value: 'cL', label: 'Centilitres (cL)', icon: 'water-outline' },
-  { value: 'L', label: 'Litres (L)', icon: 'water-outline' },
+const UNITS: Array<{ value: string; label: string; icon: BrandIconName }> = [
+  { value: 'g', label: 'Grammes (g)', icon: 'scales' },
+  { value: 'kg', label: 'Kilos (kg)', icon: 'scales' },
+  { value: 'mL', label: 'Millilitres (mL)', icon: 'drop' },
+  { value: 'cL', label: 'Centilitres (cL)', icon: 'drop' },
+  { value: 'L', label: 'Litres (L)', icon: 'drop' },
 ];
 
 export default function UnitSelector({
@@ -40,15 +41,15 @@ export default function UnitSelector({
         onPress={() => setShowModal(true)}
         style={styles.trigger}
       >
-        <Ionicons
-          name={(selectedUnitData?.icon as any) || 'scale-outline'}
+        <BrandIcon
+          name={selectedUnitData?.icon ?? 'scales'}
           size={20}
           color={COLORS.primary[500]}
         />
         <Text style={styles.triggerText}>
           {displayValue}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={COLORS.text.tertiary} />
+        <BrandIcon name="chevronDown" size={16} color={COLORS.text.tertiary} />
       </PressableScale>
 
       <AnimatedModal
@@ -57,7 +58,6 @@ export default function UnitSelector({
         position="center"
       >
         <View style={styles.modalContainer}>
-          {/* Header */}
           <View style={styles.modalHeader}>
             <PressableScale
               onPress={() => setShowModal(false)}
@@ -71,7 +71,6 @@ export default function UnitSelector({
             <View style={styles.headerSpacer} />
           </View>
 
-          {/* Content */}
           <View style={styles.content}>
             <View style={styles.unitsGrid}>
               {UNITS.map((unit) => (
@@ -86,8 +85,8 @@ export default function UnitSelector({
                       : styles.unitItemUnselected,
                   ]}
                 >
-                  <Ionicons
-                    name={unit.icon as any}
+                  <BrandIcon
+                    name={unit.icon}
                     size={16}
                     color={selectedUnit === unit.value ? COLORS.neutral.white : COLORS.primary[500]}
                   />

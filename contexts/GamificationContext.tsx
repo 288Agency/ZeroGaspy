@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { InteractionManager } from 'react-native';
 import {
   Badge,
@@ -131,7 +131,7 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     }
   }, [currentToast.visible, toastQueue]);
 
-  const handleResult = async (result: GamificationResult) => {
+  const handleResult = useCallback(async (result: GamificationResult) => {
     const data = await getGamificationData();
     setGamificationData(data);
 
@@ -169,9 +169,9 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
     if (newToasts.length > 0) {
       setToastQueue(prev => [...prev, ...newToasts]);
     }
-  };
+  }, []);
 
-  const handleChallengeCompletions = async (completions: ChallengeCompletionResult[]) => {
+  const handleChallengeCompletions = useCallback(async (completions: ChallengeCompletionResult[]) => {
     for (const c of completions) {
       const result = await grantChallengeXp(c.xpReward);
       const newToast: ToastState = {
@@ -200,13 +200,13 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
         setShowConfetti(true);
       }
     }
-  };
+  }, []);
 
-  const hideToast = () => {
+  const hideToast = useCallback(() => {
     setCurrentToast(prev => ({ ...prev, visible: false }));
-  };
+  }, []);
 
-  const trackFoodAdded = (listId?: string) => {
+  const trackFoodAdded = useCallback((listId?: string) => {
     InteractionManager.runAfterInteractions(async () => {
       const result = await onFoodAdded();
       handleResult(result);
@@ -220,9 +220,9 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       handleChallengeCompletions(completions);
       setChallengesState((await getOrInitChallenges()).state);
     });
-  };
+  }, [handleResult, handleChallengeCompletions]);
 
-  const trackFoodConsumed = (wasBeforeExpiration: boolean) => {
+  const trackFoodConsumed = useCallback((wasBeforeExpiration: boolean) => {
     InteractionManager.runAfterInteractions(async () => {
       const result = await onFoodConsumed(wasBeforeExpiration);
       handleResult(result);
@@ -239,9 +239,9 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       handleChallengeCompletions(completions);
       setChallengesState((await getOrInitChallenges()).state);
     });
-  };
+  }, [handleResult, handleChallengeCompletions]);
 
-  const trackFoodThrown = () => {
+  const trackFoodThrown = useCallback(() => {
     InteractionManager.runAfterInteractions(async () => {
       const result = await onFoodThrown();
       handleResult(result);
@@ -250,9 +250,9 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       handleChallengeCompletions(completions);
       setChallengesState((await getOrInitChallenges()).state);
     });
-  };
+  }, [handleResult, handleChallengeCompletions]);
 
-  const trackRecipeViewed = () => {
+  const trackRecipeViewed = useCallback(() => {
     InteractionManager.runAfterInteractions(async () => {
       const result = await onRecipeViewed();
       handleResult(result);
@@ -261,9 +261,9 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       handleChallengeCompletions(completions);
       setChallengesState((await getOrInitChallenges()).state);
     });
-  };
+  }, [handleResult, handleChallengeCompletions]);
 
-  const trackListCreated = () => {
+  const trackListCreated = useCallback(() => {
     InteractionManager.runAfterInteractions(async () => {
       const result = await onListCreated();
       handleResult(result);
@@ -272,35 +272,51 @@ export function GamificationProvider({ children }: GamificationProviderProps) {
       handleChallengeCompletions(completions);
       setChallengesState((await getOrInitChallenges()).state);
     });
-  };
+  }, [handleResult, handleChallengeCompletions]);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     const data = await getGamificationData();
     setGamificationData(data);
-  };
+  }, []);
 
-  const refreshChallenges = async () => {
+  const refreshChallenges = useCallback(async () => {
     const { state, autoCompleted } = await getOrInitChallenges();
     setChallengesState(state);
     if (autoCompleted.length > 0) {
       handleChallengeCompletions(autoCompleted);
     }
-  };
+  }, [handleChallengeCompletions]);
+
+  // Sans useMemo, `value` est un nouvel objet a chaque rendu : les 9 ecrans
+  // consommateurs re-rendent inutilement, et tout useEffect qui depend d'une
+  // fonction du contexte boucle a l'infini (cf. ChallengesScreen).
+  const value = useMemo(
+    () => ({
+      gamificationData,
+      challengesState,
+      trackFoodAdded,
+      trackFoodConsumed,
+      trackFoodThrown,
+      trackRecipeViewed,
+      trackListCreated,
+      refreshData,
+      refreshChallenges,
+    }),
+    [
+      gamificationData,
+      challengesState,
+      trackFoodAdded,
+      trackFoodConsumed,
+      trackFoodThrown,
+      trackRecipeViewed,
+      trackListCreated,
+      refreshData,
+      refreshChallenges,
+    ],
+  );
 
   return (
-    <GamificationContext.Provider
-      value={{
-        gamificationData,
-        challengesState,
-        trackFoodAdded,
-        trackFoodConsumed,
-        trackFoodThrown,
-        trackRecipeViewed,
-        trackListCreated,
-        refreshData,
-        refreshChallenges,
-      }}
-    >
+    <GamificationContext.Provider value={value}>
       {children}
       <ConfettiBurst
         visible={showConfetti}

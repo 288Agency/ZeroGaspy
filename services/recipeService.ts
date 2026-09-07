@@ -9,6 +9,7 @@ import { getDaysUntilExpiration } from '../utils/dateUtils';
 import logger from '../utils/logger';
 import { supabase, CloudRecipe, CloudUserRecipe, dbCategoryToApp, appCategoryToDb } from '../config/supabase';
 import { trackRecipeVariantAssigned } from './analytics';
+import { getActiveItems } from '../utils/foodItems';
 
 const USER_RECIPES_KEY = 'user_recipes';
 const CLOUD_RECIPES_CACHE_KEY = 'cloud_recipes_cache';
@@ -2061,7 +2062,7 @@ function containsAsWholeWord(text: string, word: string): boolean {
 /**
  * Vérifie si un aliment correspond à un ingrédient de recette
  */
-function ingredientMatches(foodName: string, recipeIngredient: string): boolean {
+export function ingredientMatches(foodName: string, recipeIngredient: string): boolean {
   const normalizedFood = normalizeIngredient(foodName);
   const normalizedIngredient = normalizeIngredient(recipeIngredient);
 
@@ -2111,9 +2112,18 @@ function ingredientMatches(foodName: string, recipeIngredient: string): boolean 
 /**
  * Trouve les recettes possibles avec les aliments disponibles
  */
-export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
+/**
+ * @param minMatchPercentage seuil de correspondance. Par defaut 50 % : c'est le
+ * bon niveau pour « voila ce que tu peux cuisiner ». L'abaisser sert aux ecrans
+ * qui doivent proposer QUELQUE CHOSE plutot que rien — a condition d'afficher
+ * honnetement les ingredients manquants.
+ */
+export function findMatchingRecipes(
+  foodItems: FoodItem[],
+  minMatchPercentage: number = MIN_MATCH_THRESHOLD,
+): RecipeMatch[] {
   // Filtrer les aliments actifs uniquement
-  const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
+  const activeItems = getActiveItems(foodItems);
 
   const matches: RecipeMatch[] = [];
 
@@ -2142,8 +2152,8 @@ export function findMatchingRecipes(foodItems: FoodItem[]): RecipeMatch[] {
     // Calculer le pourcentage de correspondance
     const matchPercentage = Math.round((matchingIngredients.length / recipe.ingredients.length) * 100);
 
-    // Ne garder que les recettes avec au moins MIN_MATCH_THRESHOLD de correspondance
-    if (matchPercentage >= MIN_MATCH_THRESHOLD) {
+    // Ne garder que les recettes au-dessus du seuil demande
+    if (matchPercentage >= minMatchPercentage && matchingIngredients.length > 0) {
       matches.push({
         recipe,
         matchingIngredients,
@@ -2570,7 +2580,7 @@ export async function getAllRecipesWithUser(userId?: string): Promise<Recipe[]> 
  * Finds matching recipes including user recipes, using cloud catalog.
  */
 export async function findMatchingRecipesWithUser(foodItems: FoodItem[], userId?: string): Promise<RecipeMatch[]> {
-  const activeItems = foodItems.filter(item => item.status !== 'consumed' && item.status !== 'thrown');
+  const activeItems = getActiveItems(foodItems);
   const allRecipes = await getAllRecipesWithUser(userId);
   const matches: RecipeMatch[] = [];
 

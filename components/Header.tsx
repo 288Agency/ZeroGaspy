@@ -2,7 +2,9 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { resolveBrandIcon } from '@/tokens/brandIcons';
 import PressableScale from './PressableScale';
 import { COLORS, SHADOWS, TYPOGRAPHY } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -11,7 +13,7 @@ interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
   showIcon?: boolean;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: BrandIconName;
   onRightPress?: () => void;
   transparent?: boolean;
   subtitle?: string;
@@ -21,7 +23,7 @@ export default function Header({
   title,
   showBackButton = true,
   showIcon = false,
-  rightIcon = 'ellipsis-vertical',
+  rightIcon = 'menu',
   onRightPress,
   transparent = false,
   subtitle,
@@ -60,7 +62,7 @@ export default function Header({
           accessibilityRole="button"
         >
           <View style={styles.backButtonInner}>
-            <Ionicons name="chevron-back" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
+            <BrandIcon name="chevronLeft" size={scaleSize(isSmallScreen ? 18 : 22)} color={COLORS.primary[500]} />
           </View>
         </PressableScale>
       ) : (
@@ -97,7 +99,7 @@ export default function Header({
           accessibilityRole="button"
         >
           <View style={styles.rightButtonInner}>
-            <Ionicons name={rightIcon} size={scaleSize(isSmallScreen ? 16 : 20)} color={COLORS.primary[500]} />
+            <BrandIcon name={resolveBrandIcon(rightIcon, 'menu')} size={scaleSize(isSmallScreen ? 16 : 20)} color={COLORS.primary[500]} />
           </View>
         </PressableScale>
       ) : (

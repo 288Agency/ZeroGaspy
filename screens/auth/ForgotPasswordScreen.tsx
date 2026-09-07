@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -52,7 +52,7 @@ export default function ForgotPasswordScreen() {
       <View style={styles.container}>
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
-            <Ionicons name="mail-outline" size={56} color={COLORS.primary[500]} />
+            <BrandIcon name="envelope" size={56} color={COLORS.primary[500]} />
           </View>
           <Text style={styles.successTitle}>{t('auth.emailSent')}</Text>
           <Text style={styles.successText}>
@@ -79,7 +79,7 @@ export default function ForgotPasswordScreen() {
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+          <BrandIcon name="chevronLeft" size={24} color={COLORS.primary[500]} />
         </TouchableOpacity>
       </View>
 
@@ -92,7 +92,9 @@ export default function ForgotPasswordScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t('auth.email')}</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.text.muted} style={styles.inputIcon} />
+            <View style={styles.inputIcon}>
+              <BrandIcon name="envelope" size={20} color={COLORS.text.muted} />
+            </View>
             <TextInput
               style={styles.input}
               placeholder={t('auth.emailPlaceholder')}

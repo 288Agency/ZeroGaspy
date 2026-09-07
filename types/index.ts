@@ -11,7 +11,7 @@ export interface FoodItem {
   isOpened?: boolean;
   openedDate?: string;
   daysAfterOpening?: number;
-  price?: number; // Prix estimé en euros (pour calcul économies)
+  price?: number; // Total ligne en € (saisie / ticket). Si absent → estimation catégorie.
   consumedAt?: string; // Date de consommation/jet (ISO)
 }
 
@@ -21,7 +21,7 @@ export interface List {
   createdAt: string;
   items: FoodItem[];
   color?: string; // Couleur de la liste (hex)
-  icon?: string; // Icône de la liste (nom Ionicons)
+  icon?: string; // Clé BrandIcon (legacy Ionicons résolu via resolveBrandIcon)
 }
 
 // Couleurs disponibles pour les listes
@@ -38,20 +38,20 @@ export const LIST_COLORS = [
   { name: 'Gris', value: '#6B7280' },
 ] as const;
 
-// Icônes disponibles pour les listes
+// Icônes disponibles pour les listes (clés Phosphor — Brand Bible §06)
 export const LIST_ICONS = [
-  { name: 'Frigo', value: 'snow-outline' },
-  { name: 'Épicerie', value: 'basket-outline' },
-  { name: 'Congélateur', value: 'cube-outline' },
-  { name: 'Fruits', value: 'nutrition-outline' },
-  { name: 'Légumes', value: 'leaf-outline' },
-  { name: 'Viande', value: 'restaurant-outline' },
-  { name: 'Boissons', value: 'wine-outline' },
-  { name: 'Cave', value: 'beer-outline' },
-  { name: 'Placard', value: 'file-tray-stacked-outline' },
-  { name: 'Bureau', value: 'briefcase-outline' },
-  { name: 'Maison', value: 'home-outline' },
-  { name: 'Courses', value: 'cart-outline' },
+  { name: 'Frigo', value: 'fridge' },
+  { name: 'Épicerie', value: 'cart' },
+  { name: 'Congélateur', value: 'cube' },
+  { name: 'Fruits', value: 'food' },
+  { name: 'Légumes', value: 'leaf' },
+  { name: 'Viande', value: 'cook' },
+  { name: 'Boissons', value: 'drink' },
+  { name: 'Cave', value: 'drink' },
+  { name: 'Placard', value: 'folder' },
+  { name: 'Bureau', value: 'folder' },
+  { name: 'Maison', value: 'home' },
+  { name: 'Courses', value: 'cart' },
 ] as const;
 
 export type Inventory = FoodItem[];

@@ -1,42 +1,46 @@
 import React from 'react';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { ExpiringFoodsWidget } from './ExpiringFoodsWidget';
-import { getWidgetData, getExpiringFoods } from './widgetDataService';
+import {
+  getWidgetData,
+  getExpiringFoods,
+  WIDGET_HORIZON_DAYS,
+  type ExpiringFood,
+} from './widgetDataService';
+import logger from '../utils/logger';
 
 const nameToWidget = {
   ExpiringFoods: ExpiringFoodsWidget,
 };
 
+/**
+ * Le cache n'est écrit que par saveLists(). S'en servir en premier fige le
+ * widget sur l'état du dernier enregistrement — un frigo rempli après coup
+ * restait affiché comme vide indéfiniment. On recalcule donc à chaque réveil,
+ * et le cache ne sert plus que de filet quand la lecture échoue.
+ */
+async function fetchExpiringFoods(): Promise<ExpiringFood[]> {
+  try {
+    return await getExpiringFoods(WIDGET_HORIZON_DAYS);
+  } catch (error) {
+    logger.error('Widget: lecture directe impossible, repli sur le cache', error);
+    const cached = await getWidgetData();
+    return cached?.expiringFoods ?? [];
+  }
+}
+
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
   const widgetInfo = props.widgetInfo;
   const widgetName = widgetInfo.widgetName as keyof typeof nameToWidget;
-
-  // Récupérer les données des aliments qui expirent
-  const fetchData = async () => {
-    try {
-      // Essayer d'abord le cache, sinon récupérer directement
-      const cachedData = await getWidgetData();
-      if (cachedData) {
-        return cachedData.expiringFoods;
-      }
-      return await getExpiringFoods(7);
-    } catch (error) {
-      console.error('Widget: erreur récupération données', error);
-      return [];
-    }
-  };
 
   switch (props.widgetAction) {
     case 'WIDGET_ADDED':
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED': {
-      const expiringFoods = await fetchData();
+      if (widgetName !== 'ExpiringFoods') break;
 
-      if (widgetName === 'ExpiringFoods') {
-        props.renderWidget(
-          <ExpiringFoodsWidget expiringFoods={expiringFoods} />
-        );
-      }
+      const expiringFoods = await fetchExpiringFoods();
+      props.renderWidget(<ExpiringFoodsWidget expiringFoods={expiringFoods} />);
       break;
     }
 

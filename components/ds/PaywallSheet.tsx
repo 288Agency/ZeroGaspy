@@ -25,9 +25,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import type { BrandIconName } from '@/tokens/brandIcons';
+import { BrandIcon } from './BrandIcon';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 import {
@@ -65,11 +66,13 @@ export interface PaywallSheetProps {
   /** Reçoit le plan choisi ; tu branches sur RevenueCat / Apple */
   onSubscribe: (plan: Plan) => void | Promise<void>;
   onRestore?: () => void;
-  /** Override des prix (par défaut : place-holders à brancher sur RC) */
+  /** Prix formatés par le store (RevenueCat `product.priceString`). */
   annualPriceLabel?: string;
   monthlyPriceLabel?: string;
-  /** "/mois équivalent" si annuel */
+  /** "/mois équivalent" si annuel — dérivé du prix réel du store. */
   annualMonthlyLabel?: string;
+  /** Remise annuel vs mensuel, en % entiers. Badge masqué si absent. */
+  annualSavingsPercent?: number;
 }
 
 export default function PaywallSheet({
@@ -79,9 +82,10 @@ export default function PaywallSheet({
   savedThisMonthEUR,
   onSubscribe,
   onRestore,
-  annualPriceLabel = '39,99 €/an',
-  monthlyPriceLabel = '4,99 €/mois',
-  annualMonthlyLabel = '3,33 €/mois',
+  annualPriceLabel,
+  monthlyPriceLabel,
+  annualMonthlyLabel,
+  annualSavingsPercent,
 }: PaywallSheetProps) {
   const { colors, typography, space, radius, componentRadius } = useTheme();
   const [plan, setPlan] = useState<Plan>('annual');
@@ -106,10 +110,10 @@ export default function PaywallSheet({
     onClose();
   };
 
-  const benefits: Array<{ icon: any; label: string }> = [
-    { icon: 'barcode.viewfinder', label: 'Scans illimités · code-barres et dates' },
-    { icon: 'person.2.fill',      label: 'Partage avec toute la famille' },
-    { icon: 'wand.and.stars',     label: 'Recettes IA depuis ton frigo' },
+  const benefits: Array<{ icon: BrandIconName; label: string }> = [
+    { icon: 'barcode', label: 'Scans illimités · code-barres et dates' },
+    { icon: 'users',   label: 'Partage avec toute la famille' },
+    { icon: 'sparkle', label: 'Recettes IA depuis ton frigo' },
   ];
 
   const handleSubscribe = async () => {
@@ -138,7 +142,7 @@ export default function PaywallSheet({
             },
           ]}
         >
-          <SymbolView name="leaf.fill" size={16} tintColor={colors.accent.softFg} />
+          <BrandIcon name="leaf" size={16} color={colors.accent.softFg} weight="fill" />
           <Text
             style={[
               typography.footnote,
@@ -168,7 +172,7 @@ export default function PaywallSheet({
                 { backgroundColor: colors.accent.soft, borderRadius: radius.sm },
               ]}
             >
-              <SymbolView name={b.icon} size={16} tintColor={colors.accent.softFg} />
+              <BrandIcon name={b.icon} size={16} color={colors.accent.softFg} weight="fill" />
             </View>
             <Text style={[typography.body, { color: colors.fg.primary, flex: 1 }]}>
               {b.label}
@@ -185,7 +189,7 @@ export default function PaywallSheet({
           title="Annuel"
           price={annualPriceLabel}
           sub={annualMonthlyLabel}
-          recommended
+          savePercent={annualSavingsPercent}
         />
         <PlanRow
           selected={plan === 'monthly'}
@@ -222,14 +226,14 @@ function PlanRow({
   title,
   price,
   sub,
-  recommended,
+  savePercent,
 }: {
   selected: boolean;
   onPress: () => void;
   title: string;
-  price: string;
+  price?: string;
   sub?: string;
-  recommended?: boolean;
+  savePercent?: number;
 }) {
   const { colors, typography, space, radius, componentRadius } = useTheme();
 
@@ -271,7 +275,7 @@ function PlanRow({
       <View style={{ flex: 1, marginLeft: space[3] }}>
         <View style={styles.titleRow}>
           <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{title}</Text>
-          {recommended && (
+          {savePercent != null && savePercent > 0 && (
             <View
               style={[
                 styles.savePill,
@@ -281,7 +285,9 @@ function PlanRow({
                 },
               ]}
             >
-              <Text style={[typography.caption, { color: colors.accent.softFg }]}>Économise 33%</Text>
+              <Text style={[typography.caption, { color: colors.accent.softFg }]}>
+                {`Économise ${savePercent}%`}
+              </Text>
             </View>
           )}
         </View>
@@ -293,7 +299,7 @@ function PlanRow({
       </View>
 
       {/* Price */}
-      <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{price}</Text>
+      <Text style={[typography.bodyEmphasis, { color: colors.fg.primary }]}>{price ?? '—'}</Text>
     </Pressable>
   );
 }

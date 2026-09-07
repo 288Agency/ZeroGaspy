@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FoodItem, List } from '../types';
 import { getDaysUntilExpiration } from '../utils/dateUtils';
+import { getActiveItems } from '../utils/foodItems';
 
 export type ExpirationFilter = 'expired' | 'today' | 'soon' | 'week' | 'fresh';
 
@@ -30,9 +31,7 @@ export function useInventoryFilters(list: List | null) {
 
   const activeItems = useMemo(() => {
     if (!list) return [];
-    return list.items.filter(
-      (item) => item.status !== 'consumed' && item.status !== 'thrown'
-    );
+    return getActiveItems(list.items);
   }, [list]);
 
   const availableCategories = useMemo(() => {

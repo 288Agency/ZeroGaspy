@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
+import type { BrandIconName } from '@/tokens/brandIcons';
 import ViewShot from 'react-native-view-shot';
 import { COLORS, RADIUS, SHADOWS, hexToRgba } from '../utils/designSystem';
 import { scaleSize, scaleSpacing, scaleFontSize, isSmallScreen } from '../utils/responsive';
@@ -19,6 +20,7 @@ import { getGamificationData } from '../services/gamificationService';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import ShareRecapCard from './ShareRecapCard';
 import { shareRecapImage } from '../services/shareRecapService';
+import { resolveItemLineValue } from '../services/priceEstimateService';
 
 interface WeeklyRecapModalProps {
   visible: boolean;
@@ -33,8 +35,6 @@ interface WeekStats {
   xpGained: number;
   co2AvoidedKg: number;
 }
-
-const DEFAULT_ITEM_PRICE = 3;
 
 export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalProps) {
   const { t } = useTranslation();
@@ -79,8 +79,7 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
 
         if (item.status === 'consumed') {
           itemsSaved++;
-          const price = item.price && item.price > 0 ? item.price : DEFAULT_ITEM_PRICE;
-          eurosSaved += price * (item.quantity || 1);
+          eurosSaved += resolveItemLineValue(item);
         } else if (item.status === 'thrown') {
           itemsThrown++;
         }
@@ -136,7 +135,7 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
                 style={styles.closeButton}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="close" size={scaleSize(22)} color={COLORS.text.tertiary} />
+                <BrandIcon name="close" size={scaleSize(22)} color={COLORS.text.tertiary} weight="fill" />
               </TouchableOpacity>
             </View>
 
@@ -180,7 +179,7 @@ export default function WeeklyRecapModal({ visible, onClose }: WeeklyRecapModalP
               {sharing ? (
                 <ActivityIndicator size="small" color={COLORS.neutral.white} />
               ) : (
-                <Ionicons name="share-outline" size={scaleSize(18)} color={COLORS.neutral.white} />
+                <BrandIcon name="share" size={scaleSize(18)} color={COLORS.neutral.white} />
               )}
               <Text style={styles.shareText}>
                 {sharing ? t('common.loading') : t('weeklyRecap.share')}
@@ -211,7 +210,7 @@ function StatCard({
   label,
   bgColor,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: BrandIconName;
   iconColor: string;
   value: string;
   label: string;
@@ -220,7 +219,7 @@ function StatCard({
   return (
     <View style={[styles.statCard, { backgroundColor: bgColor }]}>
       <View style={[styles.statIconContainer, { backgroundColor: hexToRgba(iconColor, 0.15) }]}>
-        <Ionicons name={icon} size={scaleSize(20)} color={iconColor} />
+        <BrandIcon name={icon} size={scaleSize(20)} color={iconColor} weight="fill" />
       </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel} numberOfLines={2}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Dimensions, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { BrandIcon } from '@/components/ds';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const STAR_COUNT = 8;
@@ -235,7 +235,7 @@ export default function SavedFoodPulse({ visible, onDone }: SavedFoodPulseProps)
           { opacity: checkOpacity, transform: [{ scale: checkScale }] },
         ]}
       >
-        <Ionicons name="checkmark" size={38} color="#fff" />
+        <BrandIcon name="check" size={38} color="#fff" weight="bold" />
       </Animated.View>
     </View>
   );
