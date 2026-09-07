@@ -11,20 +11,42 @@ export const REVENUECAT_API_KEY_ANDROID: string = 'goog_bRwtRNSivrZVCUDRYJGLheqj
 // ID de l'entitlement RevenueCat (Solo + Famille partagent le même entitlement)
 export const ENTITLEMENT_ID = 'Zerogaspy Pro';
 
-// IDs des produits
+// IDs des produits, par store.
+// Les catalogues divergent : l'App Store utilise le prefixe com.288agency, le
+// Play Store non, et Google suffixe l'ID du base plan (`:monthly` / `:yearly`).
+// Ne jamais s'en servir pour choisir une offre — passer par les packages
+// RevenueCat ($rc_monthly / $rc_annual / $rc_custom_family_*), qui sont les
+// memes des deux cotes. Ces constantes ne sont la que pour la tracabilite.
 export const PRODUCT_IDS = {
-  MONTHLY: 'com.288agency.zerogaspy.premium.monthly',
-  YEARLY: 'com.288agency.zerogaspy.premium.years',
-  FAMILY_MONTHLY: 'com.288agency.zerogaspy.premium.family.monthly',
-  FAMILY_YEARLY: 'com.288agency.zerogaspy.premium.family.yearly',
+  ios: {
+    MONTHLY: 'com.288agency.zerogaspy.premium.monthly',
+    YEARLY: 'com.288agency.zerogaspy.premium.years',
+    FAMILY_MONTHLY: 'com.288agency.zerogaspy.premium.family.monthly',
+    FAMILY_YEARLY: 'com.288agency.zerogaspy.premium.family.yearly',
+  },
+  android: {
+    MONTHLY: 'zerogaspy.premium.monthly:monthly',
+    YEARLY: 'zerogaspy.premium.yearly:yearly',
+    FAMILY_MONTHLY: 'zerogaspy.premium.family.monthly:monthly',
+    FAMILY_YEARLY: 'zerogaspy.premium.family.yearly:yearly',
+  },
 } as const;
 
-// Prix affichés (fallback si RevenueCat ne retourne pas les prix)
+// Prix affiches en dernier recours, si RevenueCat ne retourne pas les prix.
+// Le Famille est volontairement moins cher sur Play que sur l'App Store.
 export const FALLBACK_PRICES = {
-  MONTHLY: '3,49 €',
-  YEARLY: '29,99 €',
-  FAMILY_MONTHLY: '6,49 €',
-  FAMILY_YEARLY: '49,99 €',
+  ios: {
+    MONTHLY: '3,49 €',
+    YEARLY: '29,99 €',
+    FAMILY_MONTHLY: '6,49 €',
+    FAMILY_YEARLY: '49,99 €',
+  },
+  android: {
+    MONTHLY: '3,49 €',
+    YEARLY: '29,99 €',
+    FAMILY_MONTHLY: '3,99 €',
+    FAMILY_YEARLY: '39,99 €',
+  },
 } as const;
 
 // Fonctionnalités Premium Solo
