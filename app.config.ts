@@ -42,8 +42,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     backgroundColor: '#F7F5E6',
   },
   notification: {
-    icon: './assets/logo.png',
-    color: '#3C6E47',
+    // Android affiche la petite icone en silhouette monochrome : il faut un
+    // asset blanc sur transparent, sinon le logo couleur devient un carre blanc.
+    icon: './assets/notification-icon.png',
+    color: '#2F6B3F',
     androidMode: 'default',
     androidCollapsedTitle: 'ZeroGaspy',
   },
@@ -75,13 +77,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     softwareKeyboardLayoutMode: 'resize',
+    // SCHEDULE_EXACT_ALARM retiree : permission restreinte par Google Play
+    // (reservee reveils/agendas) et inutile ici, les rappels passent par des
+    // triggers DAILY / WEEKLY / TIME_INTERVAL.
     permissions: [
       'CAMERA',
-      'READ_EXTERNAL_STORAGE',
-      'WRITE_EXTERNAL_STORAGE',
       'RECEIVE_BOOT_COMPLETED',
       'VIBRATE',
-      'SCHEDULE_EXACT_ALARM',
+    ],
+    // Injectees par les plugins expo-file-system / expo-image-picker mais
+    // jamais necessaires : on n'ecrit que dans le stockage prive de l'app.
+    // READ_EXTERNAL_STORAGE est conservee : requestMediaLibraryPermissionsAsync()
+    // retombe dessus sur Android <= 12 (import photo feedback + ticket de caisse).
+    // SYSTEM_ALERT_WINDOW vient du template Expo (withAndroidBaseMods), pas de
+    // nous : sans elle en moins la fiche Play affiche « Affichage par-dessus
+    // d'autres applis », alors que l'app ne dessine aucune overlay.
+    blockedPermissions: [
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.SYSTEM_ALERT_WINDOW',
     ],
   },
   web: {
@@ -101,13 +114,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     [
       'expo-notifications',
       {
-        icon: './assets/logo.png',
-        color: '#3C6E47',
+        icon: './assets/notification-icon.png',
+        color: '#2F6B3F',
         sounds: [],
       },
     ],
     '@react-native-community/datetimepicker',
-    'expo-av',
+    // Lecture video uniquement (logo de boot) : pas de RECORD_AUDIO dans le manifeste.
+    ['expo-av', { microphonePermission: false }],
+    // Scan code-barres / date / ticket : photo uniquement, jamais de video sonore.
+    // Sans ca expo-camera injecte RECORD_AUDIO -> « Microphone » dans la fiche Play.
+    ['expo-camera', { recordAudioAndroid: false, microphonePermission: false }],
+    // Idem : expo-image-picker ajoute RECORD_AUDIO par defaut (capture video).
+    ['expo-image-picker', { microphonePermission: false }],
     'expo-web-browser',
     'expo-secure-store',
     'expo-font',

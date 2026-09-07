@@ -322,6 +322,7 @@ describe('NotificationService - Programmation des notifications', () => {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: 2,
+          channelId: 'daily',
         },
       });
     });
@@ -444,7 +445,11 @@ describe('scheduleDinnerReminderNotification', () => {
         content: expect.objectContaining({
           title: expect.stringContaining(''),
         }),
-        trigger: expect.objectContaining({ hour: 17, minute: 0 }),
+        trigger: expect.objectContaining({
+          hour: 17,
+          minute: 0,
+          channelId: 'daily',
+        }),
       })
     );
   });

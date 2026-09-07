@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/HomeScreen';
 import ListsScreen from '../screens/ListsScreen';
@@ -19,6 +21,7 @@ import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CookTonightScreen from '../screens/CookTonightScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import JoinListScreen from '../screens/JoinListScreen';
+import { TabBar } from '@/components/ds';
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../utils/designSystem';
 import { Forest } from '../tokens';
@@ -29,13 +32,19 @@ const Tab = createNativeBottomTabNavigator();
 const TOQUE_FILLED = require('../assets/icons/toque.png');
 const TOQUE_OUTLINE = require('../assets/icons/toque-outline.png');
 
-// Tab Navigator natif (UITabBar iOS → Liquid Glass / transparence automatique).
-// Les icônes Phosphor restent sur les écrans ; la tab bar utilise SF Symbols + toque
-// car le renderer natif ne supporte que sfSymbol / image template.
+// iOS : tab bar native (SF Symbols + toque) → Liquid Glass / transparence.
+// Android : SF Symbols indisponibles → TabBar JS avec Phosphor (+ toque PNG).
 function MainTabs() {
   const { t } = useTranslation();
   return (
-    <Tab.Navigator tabBarActiveTintColor={Forest[600]}>
+    <Tab.Navigator
+      tabBarActiveTintColor={Forest[600]}
+      tabBar={
+        Platform.OS === 'android'
+          ? (props) => <TabBar {...(props as unknown as BottomTabBarProps)} />
+          : undefined
+      }
+    >
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}

@@ -11,6 +11,12 @@ import { resolveItemLineValue } from './priceEstimateService';
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 const LAST_NOTIFICATION_CHECK_KEY = 'last_notification_check';
 
+/** Channels Android — doivent être créés ET passés dans chaque trigger. */
+export const ANDROID_CHANNEL = {
+  expiration: 'expiration',
+  daily: 'daily',
+} as const;
+
 // Configuration des notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -36,6 +42,33 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   daysBeforeExpiration: 3,
 };
 
+/**
+ * Crée / met à jour les channels Android.
+ * Sans channelId sur le trigger, Android 8+ mute ou route vers le channel par défaut.
+ */
+export async function ensureAndroidNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL.expiration, {
+    name: "Alertes d'expiration",
+    description: 'Rappels quand un aliment arrive à expiration',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#3C6E47',
+    sound: 'default',
+    enableVibrate: true,
+    showBadge: true,
+  });
+
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL.daily, {
+    name: 'Rappels ZeroGaspy',
+    description: 'Rappel quotidien, dîner et bilan hebdo',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: 'default',
+    showBadge: true,
+  });
+}
+
 // Demander les permissions de notification
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Device.isDevice) {
@@ -56,22 +89,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     return false;
   }
 
-  // Configuration Android
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('expiration', {
-      name: 'Alertes d\'expiration',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#3C6E47',
-      sound: 'default',
-    });
-
-    await Notifications.setNotificationChannelAsync('daily', {
-      name: 'Rappel quotidien',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
-  }
+  await ensureAndroidNotificationChannels();
 
   return true;
 }
@@ -134,6 +152,8 @@ export async function scheduleExpirationNotifications(): Promise<void> {
     return;
   }
 
+  await ensureAndroidNotificationChannels();
+
   // Ne PAS cancelAll : ça effaçait dîner + weekly à chaque saveLists.
   await cancelExpirationRelatedNotifications();
 
@@ -189,6 +209,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: 5,
+          channelId: ANDROID_CHANNEL.expiration,
         },
       });
     }
@@ -209,6 +230,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: hours,
           minute: minutes,
+          channelId: ANDROID_CHANNEL.daily,
         },
       });
     }
@@ -252,6 +274,7 @@ export async function scheduleExpirationNotifications(): Promise<void> {
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: triggerDate,
+        channelId: ANDROID_CHANNEL.expiration,
       },
     });
   }
@@ -269,6 +292,7 @@ export async function checkAndScheduleNotifications(): Promise<void> {
 
 // Envoyer une notification de test
 export async function sendTestNotification(): Promise<void> {
+  await ensureAndroidNotificationChannels();
   await Notifications.scheduleNotificationAsync({
     content: {
       title: '✅ Test réussi !',
@@ -278,6 +302,7 @@ export async function sendTestNotification(): Promise<void> {
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: 2,
+      channelId: ANDROID_CHANNEL.daily,
     },
   });
 }
@@ -340,6 +365,7 @@ export async function scheduleWelcomeBackNotification(locale: string = 'fr'): Pr
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 23 * 60 * 60,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 
@@ -388,6 +414,7 @@ export async function refreshLocalSecondaryNotifications(lang: string = 'fr'): P
 export async function scheduleDinnerReminderNotification(lang: string = 'fr'): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(DINNER_NOTIFICATION_ID).catch(() => {});
+    await ensureAndroidNotificationChannels();
 
     const lists = await loadLists();
     const expiring: Array<{ name: string; itemId: string; listId: string }> = [];
@@ -446,6 +473,7 @@ export async function scheduleDinnerReminderNotification(lang: string = 'fr'): P
         hour: 17,
         minute: 0,
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 
@@ -519,6 +547,7 @@ export async function scheduleWeeklyRecapNotification(lang: string = 'fr'): Prom
         weekday: 1, // 1 = dimanche
         hour: 20,
         minute: 0,
+        channelId: ANDROID_CHANNEL.daily,
       },
     });
 
