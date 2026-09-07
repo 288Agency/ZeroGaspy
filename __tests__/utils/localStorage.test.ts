@@ -14,6 +14,7 @@ jest.unmock('../../utils/localStorage');
 jest.mock('react-native', () => ({ Platform: { OS: 'ios', select: (o: any) => o.ios } }));
 jest.mock('../../services/notificationService', () => ({
   scheduleExpirationNotifications: jest.fn(() => Promise.resolve()),
+  refreshLocalSecondaryNotifications: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../services/supabase/syncService', () => ({
   addToSyncQueue: jest.fn(() => Promise.resolve()),
