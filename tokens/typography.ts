@@ -1,17 +1,24 @@
 // ============================================================================
 // ZeroGaspy Design System · Typography
 // ============================================================================
-// Brand Bible — 3 familles (assets/fonts, variables TTF) :
-//   · Clash Grotesk Variable → display, hero, grands titres
-//   · Switzer Variable       → corps, UI, titres secondaires
-//   · Switzer Variable Italic → accents éditoriaux (« vide. », « soir. »)
-//   · Menlo (système)        → labels section / eyebrow uppercase
+// Brand Bible — 3 familles (assets/fonts, une TTF statique par graisse) :
+//   · Clash Grotesk  → display, hero, grands titres        (400/500/600/700)
+//   · Switzer        → corps, UI, titres secondaires       (400/500/600/700)
+//   · Switzer Italic → accents éditoriaux (« vide. », « soir. »)
+//   · Menlo (système) → labels section / eyebrow uppercase
+//
+// Pas de fichier variable : Android n'en instancie pas les axes, tous les
+// poids y rendraient en Regular. La graisse est donc dans le nom de famille.
 //
 // Fallback système tant que HandoffFontsProvider n'a pas fini le chargement.
 // ============================================================================
 
 import { Platform, TextStyle } from 'react-native';
-import { HANDOFF_FONT_FAMILY } from './handoffFonts';
+import {
+  HANDOFF_FONT_FAMILY,
+  handoffDisplayFamily,
+  handoffSansFamily,
+} from './handoffFonts';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Font families
@@ -29,12 +36,6 @@ const SF_MONO = Platform.select({
   default: 'monospace',
 });
 
-export const FONT_HANDOFF = {
-  sans:  'Switzer',
-  display: 'Clash Grotesk',
-  sansItalic: 'Switzer',
-} as const;
-
 const SERIF_ITALIC_FALLBACK = Platform.select({
   ios:     'Georgia',
   android: 'serif',
@@ -47,103 +48,103 @@ const SERIF_ITALIC_FALLBACK = Platform.select({
 
 type SansWeight = '400' | '500' | '600' | '700';
 
-function sansFamily(handoff: boolean): string | undefined {
-  return handoff ? HANDOFF_FONT_FAMILY.sans : SF_TEXT;
+// En mode handoff la graisse est portee par le nom de famille (une police
+// statique par graisse, cf. tokens/handoffFonts) : on n'emet donc PAS de
+// `fontWeight` en plus, sinon iOS synthetise un faux-gras par-dessus une
+// police deja grasse. En fallback systeme, `fontWeight` reste la seule facon
+// de choisir la graisse.
+
+function sansStyle(handoff: boolean, weight: SansWeight): TextStyle {
+  return handoff
+    ? { fontFamily: handoffSansFamily(weight) }
+    : { fontFamily: SF_TEXT, fontWeight: weight };
 }
 
-function displayFamily(handoff: boolean): string | undefined {
-  return handoff ? HANDOFF_FONT_FAMILY.display : SF_TEXT;
+function displayStyle(handoff: boolean, weight: SansWeight): TextStyle {
+  return handoff
+    ? { fontFamily: handoffDisplayFamily(weight) }
+    : { fontFamily: SF_TEXT, fontWeight: weight };
 }
 
 function buildTypography(handoff: boolean) {
   return {
   /** Hero count — chiffre géant today-hero */
   hero: {
-    fontFamily: displayFamily(handoff),
+    ...displayStyle(handoff, '700'),
     fontSize: 64,
     lineHeight: 60,
-    fontWeight: '700',
     letterSpacing: -3,
   } as TextStyle,
 
   /** Display — onboarding hero, paywall */
   display: {
-    fontFamily: displayFamily(handoff),
+    ...displayStyle(handoff, '700'),
     fontSize: 40,
     lineHeight: 44,
-    fontWeight: '700',
     letterSpacing: -1.5,
   } as TextStyle,
 
   /** Large title — greeting "Bonjour Sarah." */
   title1: {
-    fontFamily: displayFamily(handoff),
+    ...displayStyle(handoff, '700'),
     fontSize: 34,
     lineHeight: 36,
-    fontWeight: '700',
     letterSpacing: -1.2,
   } as TextStyle,
 
   /** Title 2 — section, modal title */
   title2: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '600'),
     fontSize: 22,
     lineHeight: 26,
-    fontWeight: '600',
     letterSpacing: -0.4,
   } as TextStyle,
 
   /** Title 3 — sub-section, screen title */
   title3: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '600'),
     fontSize: 17,
     lineHeight: 22,
-    fontWeight: '600',
     letterSpacing: -0.3,
   } as TextStyle,
 
   /** Card title — ProductCard name */
   cardTitle: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '600'),
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '600',
     letterSpacing: -0.2,
   } as TextStyle,
 
   /** Body — texte courant */
   body: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '400'),
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '400',
     letterSpacing: 0,
   } as TextStyle,
 
   /** Body emphasis */
   bodyEmphasis: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '500'),
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '500',
     letterSpacing: -0.1,
   } as TextStyle,
 
   /** Footnote — meta, helper text */
   footnote: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '400'),
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '400',
     letterSpacing: 0,
   } as TextStyle,
 
   /** Caption — badge */
   caption: {
-    fontFamily: sansFamily(handoff),
+    ...sansStyle(handoff, '600'),
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '600',
     letterSpacing: 0.2,
   } as TextStyle,
 
@@ -180,7 +181,7 @@ function buildTypography(handoff: boolean) {
   serifItalic: {
     fontFamily: handoff ? HANDOFF_FONT_FAMILY.sansItalic : SERIF_ITALIC_FALLBACK,
     fontStyle: handoff ? undefined : 'italic',
-    fontWeight: '400',
+    ...(handoff ? null : { fontWeight: '400' as const }),
   } as TextStyle,
 } as const;
 }

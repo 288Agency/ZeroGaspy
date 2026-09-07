@@ -25,7 +25,6 @@ export {
 export {
   typography,
   getHandoffTypography,
-  FONT_HANDOFF,
   type TypographyToken,
 } from './typography';
 
