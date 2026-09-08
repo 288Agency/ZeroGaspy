@@ -37,11 +37,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   userInterfaceStyle: 'light',
   newArchEnabled: true,
   splash: {
-    image: './assets/logo.png',
+    // Variante du logo sur le sauge de la video de lancement, pas le logo sur
+    // vert foret : le splash natif s'affiche juste avant que la video prenne
+    // le relais, et deux verts differents feraient une rupture visible.
+    image: './assets/splash.png',
     resizeMode: 'contain',
-    // Fond du logo lui-meme (#1D5B3A) : le carre se fond dans l'ecran au lieu
-    // de flotter comme une vignette sur le creme.
-    backgroundColor: '#1D5B3A',
+    backgroundColor: '#A6C58A',
   },
   notification: {
     // Android affiche la petite icone en silhouette monochrome : il faut un

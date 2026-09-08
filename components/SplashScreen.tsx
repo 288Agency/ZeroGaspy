@@ -1,7 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
-import { COLORS } from '../utils/designSystem';
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,7 +35,10 @@ export default function SplashScreen({ onAnimationComplete }: SplashScreenProps)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.secondary.cream,
+    // Fond de la video de lancement : evite un flash creme avant sa premiere
+    // image. La video est en COVER, donc cette couleur ne se voit qu'a ce
+    // moment-la.
+    backgroundColor: '#A6C58A',
     alignItems: 'center',
     justifyContent: 'center',
   },
