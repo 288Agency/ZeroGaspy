@@ -39,7 +39,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   splash: {
     image: './assets/logo.png',
     resizeMode: 'contain',
-    backgroundColor: '#F7F5E6',
+    // Fond du logo lui-meme (#1D5B3A) : le carre se fond dans l'ecran au lieu
+    // de flotter comme une vignette sur le creme.
+    backgroundColor: '#1D5B3A',
   },
   notification: {
     // Android affiche la petite icone en silhouette monochrome : il faut un
@@ -52,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.zerogaspy.app',
-    buildNumber: '60',
+    buildNumber: '61',
     appleTeamId: 'CU86TBMX5S',
     infoPlist: {
       NSCameraUsageDescription:
@@ -72,7 +74,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     versionCode: 60,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#F7F5E6',
+      // Le motif occupe 25-75% du canevas, donc dans la zone sure (17-83%) :
+      // le masque circulaire ne rogne que du fond, invisible si la couleur suit.
+      backgroundColor: '#1D5B3A',
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
